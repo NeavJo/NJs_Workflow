@@ -8,8 +8,6 @@
  * 本文件只做"装配"，不写任何业务代码。
  */
 
-import '../css/index.css'
-
 import { showToast } from './ui.js'
 import { DBG, registerDebugHook } from './core/debug.js'
 import { hasGistCredentials, getGistSettings } from './core/settings-store.js'
