@@ -1,0 +1,62 @@
+/* =====================================================================
+ * button.css — 通用按钮：Filled / Tonal / Text / Mini / Icon
+ * ===================================================================== */
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 18px;
+  border: 0; border-radius: 999px;
+  font-size: 13px; font-weight: 700; line-height: 1;
+  cursor: pointer;
+  transition: transform var(--md-motion-standard), background var(--md-motion-standard), box-shadow var(--md-motion-standard), filter var(--md-motion-standard), opacity var(--md-motion-standard);
+  user-select: none;
+  white-space: nowrap;
+}
+.btn .material-symbols { font-size: 20px; }
+.btn:hover { transform: translateY(-1px); filter: brightness(1.04); }
+.btn:active { transform: translateY(0) scale(0.98); filter: brightness(0.94); transition-duration: 80ms; }
+.btn:disabled { opacity: 0.65; cursor: not-allowed; }
+
+.btn--filled {
+  background: var(--md-primary); color: var(--md-on-primary);
+  box-shadow: var(--md-elevation-1);
+}
+.btn--filled:hover { box-shadow: var(--md-elevation-2); }
+
+.btn--filled.is-danger,
+.btn--danger {
+  background: var(--md-error); color: var(--md-on-error);
+}
+.btn--filled.is-danger:hover,
+.btn--danger:hover {
+  box-shadow: var(--md-elevation-2);
+}
+
+.btn--tonal {
+  background: var(--md-secondary-container); color: var(--md-on-secondary-container);
+}
+
+.btn--text {
+  background: transparent; color: var(--md-primary);
+  padding: 9px 14px;
+}
+.btn--text:hover { background: color-mix(in srgb, var(--md-primary) 10%, transparent); transform: none; filter: none; }
+
+/* 尺寸变体：小号（用于标签管理列表行内 / 表单编辑器） */
+.btn--sm {
+  padding: 9px 16px;
+  font-size: 12px;
+}
+.btn--sm .material-symbols { font-size: 18px; }
+
+.btn--mini {
+  padding: 7px 12px;
+  font-size: 12px;
+  border-radius: calc(var(--md-radius-small) - 2px);
+  gap: 6px;
+}
+.btn--mini .material-symbols { font-size: 17px; }
+
+/* 图标按钮（圆形 48x48；用于 hero 区域 gear / refresh / 编辑器关闭） */
+.icon-button { display: grid; width: 48px; height: 48px; place-items: center; border: 0; border-radius: 50%; background: var(--md-surface-container); color: var(--md-on-surface-variant); cursor: pointer; transition: background var(--md-motion-standard), transform var(--md-motion-standard); }
+.icon-button:hover { background: var(--md-secondary-container); transform: rotate(12deg); }

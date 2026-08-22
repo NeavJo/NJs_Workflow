@@ -1,0 +1,63 @@
+/* =====================================================================
+ * base.css — Design tokens 补充、全局 reset、排版基线
+ *   包含 :root 补充变量（material.css 已声明主色板）、box-sizing、
+ *   touch 行为、body、字体、降级动画。所有模块均依赖本文件。
+ * ===================================================================== */
+
+:root {
+  --md-radius-extra-large: 28px;
+  --md-motion-emphasized: 400ms cubic-bezier(0.2, 0, 0, 1);
+  --md-elevation-4:
+    0 4px 6px 2px rgba(0,0,0,.08),
+    0 8px 16px -4px rgba(0,0,0,.14),
+    0 12px 28px -8px rgba(0,0,0,.18);
+  --view-transition-speed-scale: 2.04;
+}
+
+/* --- Global reset --- */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* 禁用移动端点击高亮遮罩 */
+  -webkit-touch-callout: none;             /* 禁用长按弹出菜单（input/textarea 例外） */
+}
+
+/* 输入框与可编辑区域恢复默认长按行为，确保可正常选中文本 */
+input, textarea {
+  -webkit-touch-callout: default;
+}
+body { margin: 0; background: var(--md-surface); color: var(--md-on-surface); }
+body.modal-open {
+  position: fixed;
+  top: calc(-1 * var(--modal-scroll-y, 0px));
+  right: 0;
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+button, a { font: inherit; }
+.app-shell { min-height: 100vh; }
+.material-symbols { font-family: 'Material Symbols Rounded', sans-serif; font-size: 22px; }
+
+*[hidden] { display: none !important; }
+
+/* --- 排版:eyebrow / h1 / h2 / hero-copy --- */
+h1, h2 { margin: 0; letter-spacing: -.04em; }
+h1 { max-width: 700px; font-size: clamp(42px, 8vw, 78px); line-height: 1.05; }
+h1 span { color: var(--md-primary); }
+h2 { font-size: clamp(25px, 4vw, 34px); }
+.eyebrow { margin: 0 0 12px; color: var(--md-primary); font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+.hero-copy { margin: 24px 0 0; color: var(--md-on-surface-variant); font-size: 16px; }
+
+/* --- View 切换：用于 SPA 内视图淡入淡出 --- */
+.view { display: block; opacity: 1; transform: translate3d(0, 0, 0); }
+.view[hidden] { display: none; }
+.main-content.is-view-transitioning { display: grid; align-items: start; }
+.main-content.is-view-transitioning > .view { grid-area: 1 / 1; min-width: 0; }
+.view.is-view-entering,
+.view.is-view-leaving { pointer-events: none; will-change: opacity, transform; transition: opacity calc(320ms * var(--view-transition-speed-scale, 1)) cubic-bezier(.2, .75, .25, 1), transform calc(360ms * var(--view-transition-speed-scale, 1)) cubic-bezier(.2, .75, .25, 1); }
+.view.is-view-entering-forward { opacity: 0; transform: translate3d(24px, 0, 0); }
+.view.is-view-entering-back { opacity: 0; transform: translate3d(-24px, 0, 0); }
+.view.is-view-leaving-forward { opacity: 0; transform: translate3d(-18px, 0, 0); }
+.view.is-view-leaving-back { opacity: 0; transform: translate3d(18px, 0, 0); }

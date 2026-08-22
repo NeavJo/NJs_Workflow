@@ -1,0 +1,114 @@
+/* =====================================================================
+ * workflow.css — 每日工作流卡片、序号徽章、复选框、动态 Tag、外链/检查按钮
+ *   .workflow-list / .workflow-card / .order-badge /
+ *   .checkbox-wrapper / .dynamic-tag / .workflow-card__action /
+ *   .workflow-card__check-btn / .coming-soon-chip / .rest-chip
+ * ===================================================================== */
+
+.workflow-section { margin-top: 90px; }
+.section-heading { align-items: center; margin-bottom: 24px; }
+.workflow-list { display: grid; gap: 14px; }
+@media (min-width: 681px) {
+  .workflow-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.workflow-card { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 14px 18px; padding: 20px; border-radius: var(--md-radius-medium); background: var(--md-surface-container); box-shadow: var(--md-elevation-1); transition: transform var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard), opacity var(--md-motion-standard); }
+/* 当存在【外链/检查】按钮时，自动增加一列供其放置 */
+.workflow-card:has(.workflow-card__action),
+.workflow-card:has(.workflow-card__check-btn) { grid-template-columns: 40px 1fr auto auto; }
+.workflow-card:hover { transform: translateY(-2px); box-shadow: var(--md-elevation-2); }
+.workflow-card.is-complete { background: color-mix(in srgb, var(--md-success-container) 32%, var(--md-surface-container)); }
+
+/* 顺序序号徽章 */
+.order-badge {
+  display: grid; place-items: center;
+  width: 34px; height: 34px;
+  border-radius: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px; font-weight: 800; letter-spacing: -0.02em;
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  user-select: none;
+}
+.workflow-card.is-complete .order-badge {
+  background: var(--md-success-container);
+  color: var(--md-success);
+}
+.workflow-card.is-placeholder .order-badge,
+.workflow-card.is-disabled .order-badge {
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+}
+
+/* 占位 / 禁用态 */
+.workflow-card.is-placeholder,
+.workflow-card.is-disabled { opacity: 0.55; background: var(--md-surface-container-high); box-shadow: none; }
+.workflow-card.is-placeholder:hover,
+.workflow-card.is-disabled:hover { transform: none; box-shadow: none; }
+.workflow-card.is-disabled .checkbox-wrapper { cursor: not-allowed; }
+
+/* 复选框 */
+.checkbox-wrapper { display: inline-flex; align-items: center; cursor: pointer; }
+.checkbox-wrapper input { position: absolute; opacity: 0; width: 0; height: 0; }
+.checkbox-mark { display: grid; width: 40px; height: 40px; place-items: center; border: 2px solid var(--md-outline); border-radius: 13px; background: transparent; color: transparent; transition: background var(--md-motion-standard), border-color var(--md-motion-standard), color var(--md-motion-standard), opacity var(--md-motion-standard); }
+.checkbox-mark .material-symbols { font-size: 22px; }
+.checkbox-wrapper input:checked + .checkbox-mark { background: var(--md-primary); border-color: var(--md-primary); color: var(--md-on-primary); }
+.checkbox-wrapper input:focus-visible + .checkbox-mark { outline: 3px solid var(--md-primary); outline-offset: 2px; }
+.checkbox-wrapper input:disabled + .checkbox-mark { background: var(--md-surface-container-high); border-color: var(--md-outline); color: var(--md-on-surface-variant); cursor: not-allowed; opacity: 0.5; }
+
+/* 开启「生词本联动检查」的任务：打勾框禁止手动交互 + 清晰浅灰提示 */
+.workflow-card.has-check-lock .checkbox-wrapper { pointer-events: none; cursor: not-allowed; }
+.workflow-card.has-check-lock .checkbox-wrapper .checkbox-mark { opacity: 0.5; }
+/* 已完成后保持正确的勾选颜色，但仍然降低不透明度提示为「自动校验型任务」 */
+.workflow-card.has-check-lock .checkbox-wrapper input:checked + .checkbox-mark { opacity: 0.65; }
+
+/* 卡片内容 */
+.workflow-card__content { min-width: 0; }
+.workflow-card__title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.workflow-card__title { margin: 0; font-size: 16px; }
+.workflow-card__description { margin: 5px 0 0; color: var(--md-on-surface-variant); font-size: 13px; }
+
+/* Coming Soon 芯片 */
+.coming-soon-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 99px; background: var(--md-secondary-container); color: var(--md-on-surface-variant); font-size: 11px; font-weight: 600; letter-spacing: .03em; white-space: nowrap; }
+
+/* 休息日/芯片 */
+.rest-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 99px; background: color-mix(in srgb, var(--md-secondary-container) 60%, transparent); color: var(--md-on-surface-variant); font-size: 11px; font-weight: 600; letter-spacing: .03em; white-space: nowrap; }
+
+/* Dynamic Tag / Chip — 描述区下方的每日专项专属区块 */
+.dynamic-tag { display: inline-flex; align-items: center; max-width: 100%; box-sizing: border-box; gap: 8px; margin-top: 10px; padding: 7px 14px; border-radius: 99px; font-size: 12px; font-weight: 600; letter-spacing: .01em; line-height: 1.35; border: 1px solid transparent; }
+.dynamic-tag__icon { flex: 0 0 auto; font-size: 18px; }
+.dynamic-tag__label { min-width: 0; overflow-wrap: anywhere; }
+.dynamic-tag--accent {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  border-color: color-mix(in srgb, var(--md-primary) 18%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-primary) 10%, transparent) inset;
+}
+.dynamic-tag--muted {
+  background: color-mix(in srgb, var(--md-surface-container-high) 70%, transparent);
+  color: var(--md-on-surface-variant);
+  border-color: color-mix(in srgb, var(--md-outline) 36%, transparent);
+}
+
+/* 外链跳转按钮 */
+.workflow-card__action { display: grid; width: 44px; height: 44px; place-items: center; border: 0; border-radius: 50%; background: var(--md-primary-container); color: var(--md-on-primary-container); text-decoration: none; transition: background var(--md-motion-standard), transform var(--md-motion-standard); }
+.workflow-card__action:hover { background: var(--md-primary); color: var(--md-on-primary); transform: scale(1.08); }
+
+/* 「检查并打卡」按钮（checkConfig.enabled 任务右侧） */
+.workflow-card__check-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 44px; padding: 0 16px;
+  border: 0; border-radius: 999px;
+  background: var(--md-tertiary-container);
+  color: var(--md-on-tertiary-container);
+  font-size: 13px; font-weight: 700; line-height: 1; letter-spacing: .01em;
+  cursor: pointer;
+  box-shadow: var(--md-elevation-1);
+  transition: background var(--md-motion-standard), transform var(--md-motion-standard), box-shadow var(--md-motion-standard), filter var(--md-motion-standard);
+}
+.workflow-card__check-btn:hover { background: var(--md-tertiary); color: var(--md-on-tertiary); transform: translateY(-1px); box-shadow: var(--md-elevation-2); filter: brightness(1.05); }
+.workflow-card__check-btn:active { transform: translateY(0); }
+.workflow-card__check-btn .material-symbols { font-size: 20px; }
+.workflow-card__check-btn__label { white-space: nowrap; }
+/* 已完成态：按钮弱化提示 */
+.workflow-card.is-complete .workflow-card__check-btn { opacity: 0.7; }

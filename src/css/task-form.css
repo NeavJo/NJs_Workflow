@@ -1,0 +1,476 @@
+/* =====================================================================
+ * task-form.css — 任务新增/编辑表单
+ *   .form-grid / .form-field / .form-field--span-2 /
+ *   .form-field__helper / .form-field--inline /
+ *   .check-config-fields / .form-switch / .form-switch__meta /
+ *   .taskform-actions / .section-heading--compact
+ * ===================================================================== */
+
+.form-grid {
+  display: grid; gap: 18px;
+  grid-template-columns: 1fr 1fr;
+}
+.form-field { margin-bottom: 18px; }
+.form-field { margin: 0; } /* scoped：taskform 内统一无外边距 */
+.form-field--span-2 { grid-column: 1 / -1; }
+
+/* 通用输入字段（含 label / helper / 输入框） */
+.form-field > label {
+  display: block; margin-bottom: 7px;
+  font-size: 12px; font-weight: 700; letter-spacing: .01em;
+  color: var(--md-on-surface);
+}
+.form-field > input[type="text"],
+.form-field > input[type="url"],
+.form-field > textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--md-radius-medium);
+  border: 1.5px solid color-mix(in srgb, var(--md-outline) 36%, transparent);
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  font: inherit; font-size: 14px; line-height: 1.45;
+  transition: border-color var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard);
+  resize: vertical;
+}
+.form-field > input[type="text"]::placeholder,
+.form-field > input[type="url"]::placeholder,
+.form-field > textarea::placeholder { color: var(--md-on-surface-variant); opacity: 0.65; }
+.form-field > input[type="text"]:focus,
+.form-field > input[type="url"]:focus,
+.form-field > textarea:focus {
+  outline: 0; border-color: var(--md-primary);
+  background: var(--md-surface-container-high);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
+}
+.form-field > input[type="text"].is-invalid,
+.form-field > input[type="url"].is-invalid,
+.form-field > textarea.is-invalid {
+  border-color: #c21f26;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #c21f26 14%, transparent);
+}
+.form-field > .form-field__helper {
+  display: block; margin: 7px 2px 0;
+  color: var(--md-on-surface-variant);
+  font-size: 11px; line-height: 1.5;
+}
+.form-field > .form-field__helper.is-error { color: #c21f26; font-weight: 700; }
+
+/* 通用 .form-field__input 旧结构兼容 */
+.form-field__input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--md-radius-medium);
+  border: 1.5px solid color-mix(in srgb, var(--md-outline) 36%, transparent);
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: border-color var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard);
+}
+.form-field__input::placeholder { color: var(--md-on-surface-variant); opacity: 0.65; }
+.form-field__input:focus {
+  outline: 0;
+  border-color: var(--md-primary);
+  background: var(--md-surface-container-high);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
+}
+.form-field__input.is-invalid {
+  border-color: #c21f26;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #c21f26 14%, transparent);
+}
+.form-field__helper {
+  margin: 7px 2px 0;
+  color: var(--md-on-surface-variant);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.form-field__helper.is-error {
+  color: #c21f26;
+  font-weight: 600;
+}
+.form-field__helper code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--md-surface-container-high);
+  font-size: 10.5px;
+}
+
+/* ===== Switch 行：左侧描述 + 右侧 Material Switch ===== */
+.form-switch-row { margin-bottom: 12px; }
+.form-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: var(--md-radius-medium);
+  background: var(--md-surface);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
+}
+.form-switch__label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--md-on-surface);
+}
+.form-switch__desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--md-on-surface-variant);
+  line-height: 1.5;
+}
+.form-switch__meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.form-switch__meta strong { font-size: 13px; font-weight: 700; color: var(--md-on-surface); }
+.form-switch__meta small { font-size: 11px; color: var(--md-on-surface-variant); line-height: 1.5; }
+
+/* Material You Switch */
+.switch { position: relative; display: inline-block; cursor: pointer; flex-shrink: 0; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch__track {
+  position: relative;
+  display: block;
+  width: 52px; height: 32px;
+  border-radius: 999px;
+  background: var(--md-surface-container-highest);
+  border: 2px solid var(--md-outline);
+  transition: background var(--md-motion-standard), border-color var(--md-motion-standard);
+}
+.switch__thumb {
+  position: absolute;
+  top: 4px; left: 4px;
+  display: grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--md-outline);
+  transition: transform var(--md-motion-standard), background var(--md-motion-standard);
+}
+.switch__icon {
+  font-size: 14px;
+  color: var(--md-surface);
+  opacity: 0;
+  transition: opacity var(--md-motion-standard);
+}
+.switch input:checked + .switch__track {
+  background: var(--md-primary);
+  border-color: var(--md-primary);
+}
+.switch input:checked + .switch__track .switch__thumb {
+  transform: translateX(20px);
+  background: var(--md-on-primary);
+}
+.switch input:checked + .switch__track .switch__thumb .switch__icon {
+  opacity: 1;
+  color: var(--md-primary);
+  font-variation-settings: "FILL" 1;
+}
+.switch input:focus-visible + .switch__track {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 22%, transparent);
+}
+
+/* ===== 生词本联动检查：分类 / 数量并排输入区 ===== */
+.check-config-fields {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  margin-top: 12px; padding: 14px 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--md-secondary-container) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 12%, transparent);
+}
+.check-config-fields[hidden] { display: none; }
+.form-field--inline {
+  display: flex; align-items: center; gap: 10px; margin: 0; flex: 1 1 140px;
+}
+.form-field--inline > span {
+  font-size: 12px; font-weight: 700; color: var(--md-on-surface-variant);
+  white-space: nowrap;
+}
+.form-field--inline > input[type="text"],
+.form-field--inline > input[type="number"] {
+  flex: 1; min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 22%, transparent);
+  border-radius: 12px;
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  font-size: 14px;
+}
+.form-field--inline > input:focus {
+  outline: none;
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
+}
+.form-field--inline > input[type="number"] { max-width: 110px; }
+.form-field + .form-switch-row { margin-top: 8px; }
+
+/* ===== 表单底部操作区 ===== */
+.taskform-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--md-outline) 16%, transparent);
+}
+.taskform-actions .btn { min-width: 112px; }
+
+/* ===== 紧凑 section-heading（Modal 内） ===== */
+.section-heading--compact {
+  padding: 0; margin: 0 0 8px;
+  border: 0;
+}
+.section-heading--compact h3 { font-size: 16px; margin: 0; letter-spacing: -0.005em; }
+.section-heading--compact .btn { font-size: 12px; padding: 9px 14px; }
+
+/* ===== 表单分组（移动端友好） ===== */
+.taskform-section {
+  display: grid;
+  gap: 8px;
+}
+.taskform-section + .taskform-section {
+  margin-top: 8px;
+}
+.taskform-section__title {
+  margin: 0;
+  padding: 0 4px;
+  color: var(--md-on-surface-variant);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.taskform-section__card {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--md-radius-medium);
+  background: var(--md-surface);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
+}
+.taskform-section .taskform-section__card .form-field { margin: 0; }
+
+/* 摘要入口行（如轮换规则入口） */
+.taskform-link-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 14px;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
+  background: var(--md-surface);
+  border-radius: var(--md-radius-medium);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--md-on-surface);
+  transition: background var(--md-motion-standard), border-color var(--md-motion-standard);
+}
+.taskform-link-row:hover,
+.taskform-link-row:focus-visible {
+  background: color-mix(in srgb, var(--md-primary) 4%, var(--md-surface));
+  border-color: color-mix(in srgb, var(--md-primary) 36%, transparent);
+}
+.taskform-link-row[disabled],
+.taskform-link-row.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: color-mix(in srgb, var(--md-on-surface) 4%, var(--md-surface));
+  border-color: color-mix(in srgb, var(--md-outline) 12%, transparent);
+  pointer-events: none;
+}
+.taskform-link-row[disabled]:hover,
+.taskform-link-row.is-disabled:hover {
+  background: color-mix(in srgb, var(--md-on-surface) 4%, var(--md-surface));
+  border-color: color-mix(in srgb, var(--md-outline) 12%, transparent);
+}
+.taskform-link-row__icon {
+  display: grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: var(--md-primary-container);
+  color: var(--md-primary);
+}
+.taskform-link-row__icon .material-symbols { font-size: 22px; }
+.taskform-link-row__body {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 0;
+}
+.taskform-link-row__body strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--md-on-surface);
+}
+.taskform-link-row__body small {
+  font-size: 12px;
+  color: var(--md-on-surface-variant);
+  line-height: 1.5;
+}
+.taskform-link-row__chevron {
+  font-size: 22px;
+  color: var(--md-on-surface-variant);
+  justify-self: end;
+}
+
+/* 模式切换 chips（按规则 / 单日编辑） */
+.chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 36%, transparent);
+  background: var(--md-surface);
+  color: var(--md-on-surface-variant);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--md-motion-fast), color var(--md-motion-fast), border-color var(--md-motion-fast);
+}
+.chip-toggle.is-active {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  border-color: transparent;
+}
+.chip-toggle:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+}
+
+.rotation-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* 预设列表 —— radio 风格的轮换规则选择卡片 */
+.rotation-preset-list {
+  display: grid;
+  gap: 8px;
+}
+.rotation-preset-list:empty { display: none; }
+.rotation-preset-empty {
+  padding: 18px 16px;
+  border-radius: var(--md-radius-medium);
+  border: 1px dashed color-mix(in srgb, var(--md-outline) 36%, transparent);
+  background: color-mix(in srgb, var(--md-surface-variant) 30%, transparent);
+  color: var(--md-on-surface-variant);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
+.rotation-preset-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 24%, transparent);
+  background: var(--md-surface);
+  border-radius: var(--md-radius-medium);
+  font: inherit;
+  text-align: left;
+  color: var(--md-on-surface);
+  cursor: pointer;
+  transition: background var(--md-motion-fast), border-color var(--md-motion-fast), box-shadow var(--md-motion-fast);
+}
+.rotation-preset-row:hover,
+.rotation-preset-row:focus-visible {
+  background: color-mix(in srgb, var(--md-primary) 5%, var(--md-surface));
+  border-color: color-mix(in srgb, var(--md-primary) 36%, transparent);
+  outline: 0;
+}
+.rotation-preset-row.is-selected {
+  background: color-mix(in srgb, var(--md-primary-container) 70%, var(--md-surface));
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-primary) 36%, transparent);
+}
+.rotation-preset-row__radio {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--md-outline) 60%, transparent);
+  background: var(--md-surface);
+  flex-shrink: 0;
+  transition: border-color var(--md-motion-fast), background-color var(--md-motion-fast);
+}
+.rotation-preset-row.is-selected .rotation-preset-row__radio {
+  border-color: var(--md-primary);
+  background: var(--md-primary);
+}
+.rotation-preset-row__radio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background-color var(--md-motion-fast), transform var(--md-motion-fast);
+  transform: scale(0.6);
+}
+.rotation-preset-row.is-selected .rotation-preset-row__radio-dot {
+  background: var(--md-on-primary);
+  transform: scale(1);
+}
+.rotation-preset-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.rotation-preset-row__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--md-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rotation-preset-row__hint {
+  font-size: 11px;
+  color: var(--md-on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.rotation-summary-list {
+  display: grid;
+  gap: 8px;
+}
+.rot-summary {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
+  background: var(--md-surface);
+  border-radius: var(--md-radius-medium);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--md-on-surface);
+  transition: background var(--md-motion-fast), border-color var(--md-motion-fast);
+}
+.rot-summary:hover,
+.rot-summary:focus-visible {
+  background: color-mix(in srgb, var(--md-primary) 4%, var(--md-surface));
+  border-color: color-mix(in srgb, var(--md-primary) 36%, transparent);
+}
+.rot-summary__day { font-weight: 700; font-size: 13px; color: var(--md-on-surface-variant); }
+.rot-summary__title { font-size: 13px; line-height: 1.45; }
+.rot-summary__hint { font-size: 11px; color: var(--md-on-surface-variant); margin-top: 2px; }
+.rot-summary__chevron { font-size: 22px; color: var(--md-on-surface-variant); }
+
+/* 通用 .taskform-section 内层字段自适应 */
+@media (max-width: 680px) {
+  .taskform-section__card { padding: 14px; gap: 14px; }
+}

@@ -1,0 +1,415 @@
+/* ============================================================
+ * Responsive Overrides —— 集中维护所有断点
+ *  - 1024px  : 平板
+ *  - 680px   : 手机
+ *  - 480px   : 小屏手机
+ *  - prefers-reduced-motion : 无障碍
+ * ============================================================ */
+
+/* 平板：导航栏变窄 */
+@media (max-width: 1024px) {
+  .nav-rail { width: 72px; }
+  .nav-item { width: 60px; }
+  .nav-indicator { width: 48px; }
+}
+
+/* 桌面端隐藏移动端轮播专属 UI：状态指示 + 分页点 */
+@media (min-width: 681px) {
+  .workflow-carousel-status,
+  .workflow-carousel-pagination { display: none; }
+}
+
+/* 手机：整体布局改竖排 */
+@media (max-width: 680px) {
+  body { overflow-x: hidden; }
+  /* 移动端通知从顶部向下滑入（桌面端保持底部） */
+  .toast { top: calc(12px + env(safe-area-inset-top)); bottom: auto; transform: translateX(-50%) translateY(-16px); }
+  .toast.is-visible { transform: translateX(-50%) translateY(0); }
+  .top-bar { position: relative; padding: 14px 16px 10px; }
+  .top-bar__row { gap: 10px; }
+  .brand { gap: 10px; }
+  .brand-mark { width: 36px; height: 36px; border-radius: 12px; font-size: 17px; box-shadow: 0 5px 14px color-mix(in srgb, var(--md-primary) 18%, transparent), 0 0 0 3px color-mix(in srgb, var(--md-primary) 7%, transparent); }
+  .brand-mark::before { inset: 4px; border-radius: 8px; }
+  .brand strong { max-width: min(52vw, 220px); }
+  .brand strong { font-size: 14px; }
+  .brand small { overflow: hidden; font-size: 9px; letter-spacing: .06em; text-overflow: ellipsis; white-space: nowrap; }
+  .top-bar__date { font-size: 12px; }
+  .section-heading--inline-progress { gap: 12px; }
+  .section-heading--inline-progress .global-progress { flex-basis: 100%; max-width: none; }
+  .app-body { grid-template-columns: 1fr; gap: 0; padding: 0 12px; }
+  .nav-rail {
+    position: sticky; top: 8px; z-index: 3;
+    flex-direction: row; justify-content: stretch;
+    gap: 4px; width: 100%; padding: 6px;
+    border-radius: 18px; margin-top: 10px;
+  }
+  .nav-item { grid-template-rows: 24px auto; width: auto; min-height: 58px; flex: 1; padding: 8px 4px; border-radius: 13px; isolation: isolate; overflow: hidden; transition: background var(--md-motion-standard), color var(--md-motion-standard), transform var(--md-motion-standard); }
+  .nav-item .material-symbols { font-size: 21px; }
+  .nav-item__label { font-size: 10px; }
+  .nav-indicator { inset: 0; width: auto; height: auto; border-radius: inherit; transform: scale(.92); }
+  .nav-item.is-active { transform: translateY(-1px); }
+  .nav-item.is-active .nav-indicator { transform: scale(1); }
+  .main-content { width: 100%; padding: 34px 0 56px; }
+  .hero-section { min-height: 0; align-items: flex-start; gap: 12px; }
+  .eyebrow { margin-bottom: 9px; font-size: 10px; }
+  h1 { max-width: none; font-size: clamp(34px, 11vw, 50px); line-height: 1.08; }
+  .hero-copy { margin-top: 14px; font-size: 14px; line-height: 1.6; }
+  .icon-button { width: 42px; height: 42px; flex: 0 0 auto; }
+  .workflow-section { margin-top: 42px; }
+  h2 { font-size: 25px; }
+  .status-pill { padding: 7px 10px; font-size: 11px; }
+  .workflow-section__trailing { display: flex; align-items: center; gap: 10px; flex: 1 1 100%; }
+  .workflow-section__trailing .global-progress { flex: 1 1 auto; min-width: 0; }
+
+  /* ===== 移动端：任务卡轮播 ===== */
+  .workflow-list--carousel {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(84%, 84%);
+    grid-template-columns: none;
+    gap: 12px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 12px;
+    scrollbar-width: none;
+    padding: 4px 12px 12px;
+    margin-inline: -12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .workflow-list--carousel::-webkit-scrollbar { display: none; }
+  .workflow-list--carousel > .workflow-card {
+    min-width: 0;
+    scroll-snap-align: center;
+    scroll-snap-stop: normal;
+  }
+  .workflow-list--carousel:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 4px;
+    border-radius: 14px;
+  }
+  .workflow-list--carousel .workflow-card.is-carousel-active {
+    box-shadow: var(--md-elevation-2);
+  }
+  .workflow-carousel-status {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .02em;
+    color: var(--md-on-surface-variant);
+    background: color-mix(in srgb, var(--md-primary-container) 80%, transparent);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .workflow-carousel-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 7px;
+    min-height: 28px;
+    margin-top: 10px;
+  }
+  .workflow-carousel-pagination__dot {
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--md-on-surface-variant) 35%, transparent);
+    cursor: pointer;
+    transition: width var(--md-motion-standard), background var(--md-motion-standard);
+  }
+  .workflow-carousel-pagination__dot.is-active {
+    width: 22px;
+    background: var(--md-primary);
+  }
+  .workflow-carousel-pagination__dot:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 3px;
+  }
+  .workflow-card { grid-template-columns: 30px minmax(0, 1fr) 40px; gap: 10px 10px; padding: 14px; align-items: start; }
+  .workflow-card { grid-template-areas: "badge content check" "badge meta meta"; }
+  .workflow-card .order-badge { grid-area: badge; }
+  .workflow-card .workflow-card__content { grid-area: content; }
+  .workflow-card .checkbox-wrapper { grid-area: check; }
+  .workflow-card .workflow-card__action,
+  .workflow-card .workflow-card__check-btn { grid-area: meta; justify-self: end; align-self: center; }
+  .workflow-card__action { justify-self: end; }
+  .workflow-card__check-btn { width: auto; max-width: 100%; }
+  .workflow-card__action, .workflow-card__check-btn { height: 40px; padding: 0 13px; font-size: 12px; }
+  .workflow-card__action { width: 40px; padding: 0; }
+  .workflow-card__title-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .order-badge { width: 28px; height: 28px; border-radius: 9px; font-size: 11px; }
+  .checkbox-mark { width: 34px; height: 34px; border-radius: 10px; }
+  .workflow-card__title { font-size: 15px; line-height: 1.35; }
+  .workflow-card__description { font-size: 12px; line-height: 1.5; }
+  .dynamic-tag { max-width: 100%; padding: 7px 11px; }
+  .memo-input-card {
+    position: static;
+    margin-top: 42px;
+    box-shadow: var(--md-elevation-1);
+  }
+  .memo-stream-section { margin-top: 44px; padding-bottom: env(safe-area-inset-bottom); }
+  .memo-input-card__header { align-items: flex-start; margin-bottom: 14px; }
+  .memo-input-card__footer { flex-direction: column-reverse; align-items: stretch; gap: 10px; }
+  .memo-save-btn { justify-content: center; width: 100%; }
+
+  /* ===== 移动端：标签由横向 tab 列表折叠成单点触发器 + 弹窗 ===== */
+  .tag-selector--desktop { display: none; }
+  .tag-picker-trigger {
+    display: flex; align-items: center; gap: 8px;
+    height: 44px; padding: 0 14px;
+    border-radius: var(--md-radius-medium);
+    border: 1px solid color-mix(in srgb, var(--md-outline) 24%, transparent);
+    background: color-mix(in srgb, var(--md-primary-container) 70%, var(--md-surface));
+    color: var(--md-on-primary-container);
+    font: inherit; font-size: 13px; font-weight: 700;
+    cursor: pointer;
+    transition: background var(--md-motion-standard), border-color var(--md-motion-standard), transform var(--md-motion-standard), box-shadow var(--md-motion-standard);
+  }
+  .tag-picker-trigger:hover {
+    background: color-mix(in srgb, var(--md-primary-container) 90%, var(--md-surface));
+    border-color: var(--md-primary);
+  }
+  .tag-picker-trigger:active { transform: scale(.985); }
+  .tag-picker-trigger > #memo-tag-picker-trigger-icon {
+    display: grid; place-items: center;
+    width: 22px; height: 22px;
+    background: var(--md-primary); color: var(--md-on-primary);
+    border-radius: 7px;
+    font-size: 14px;
+    flex: 0 0 auto;
+  }
+  .tag-picker-trigger__label {
+    flex: 1 1 auto; min-width: 0;
+    text-align: left;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tag-picker-trigger__chevron {
+    font-size: 18px; flex: 0 0 auto;
+    color: var(--md-on-surface-variant);
+  }
+
+  /* ===== 输入行：两行 grid ===== */
+  .memo-input-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 9px;
+    grid-template-areas:
+      "trigger category _"
+      "word    word    append";
+  }
+  #memo-tag-picker-trigger {
+    grid-area: trigger;
+    min-width: 0;
+  }
+  .memo-category-input {
+    grid-area: category;
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    font-size: 13px;
+    padding: 0 12px;
+  }
+  .memo-input-single { grid-area: word; height: 48px; }
+  #memo-btn-append {
+    grid-area: append;
+    width: auto; min-width: 52px;
+    padding: 0 14px; height: 48px;
+    font-size: 12px;
+  }
+  #memo-btn-append .material-symbols { font-size: 22px; }
+  .memo-card.is-editing .memo-card__header { flex-wrap: wrap; }
+  .memo-card.is-editing .memo-card__meta { flex: 1 1 100%; }
+  .memo-card.is-editing .memo-card__actions { flex: 1 0 auto; justify-content: flex-end; }
+}
+
+/* 手机：Dialog / 编辑器 */
+@media (max-width: 680px) {
+  /* === 页面式 Modal：全屏子页面 === */
+  .modal--mobile-page {
+    padding: 0;
+    align-items: stretch;
+  }
+  .modal--mobile-page .modal__dialog {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 0;
+    border-radius: 0;
+  }
+  .modal--mobile-page .modal__header {
+    padding: 4px 8px 4px 4px;
+    border-bottom: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
+  }
+  .modal--mobile-page .modal__title-icon { display: none; }
+  .modal--mobile-page .modal__title-wrap { min-width: 0; }
+  .modal--mobile-page .modal__body {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding: 20px 16px 32px;
+    gap: 20px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal--mobile-page .modal__footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 72px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
+    background: var(--md-surface);
+    flex-wrap: nowrap;
+  }
+  .modal--mobile-page .modal__meta { display: none; }
+
+  /* 桌面居中 Dialog：在窄屏保持 Alert 样式（窄屏不再全屏） */
+  .modal:not(.modal--mobile-page):not(.modal--sheet):not(.modal--confirm) .modal__dialog {
+    max-height: calc(100dvh - 32px);
+  }
+
+  /* === 编辑器任务行：紧凑、信息分层 === */
+  .editor-task-list { display: grid; gap: 10px; }
+  .editor-task-row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) 48px;
+    align-items: start;
+    gap: 12px;
+    padding: 14px 12px;
+    border-radius: var(--md-radius-medium);
+  }
+  .editor-task-row__order {
+    width: 28px; height: 28px;
+    border-radius: 9px;
+    font-size: 11px;
+  }
+  .editor-task-row__title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    white-space: normal;
+    word-break: break-word;
+  }
+  .editor-task-row__desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    white-space: normal;
+    color: var(--md-on-surface-variant);
+    margin-top: 4px;
+  }
+  .editor-task-row__menu {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+  }
+  .editor-task-row__actions { display: none; }
+  .editor-task-row__type { display: none; }
+  .editor-task-row__meta { display: none; }
+
+  .editor-empty { padding: 32px 16px; text-align: center; gap: 12px; }
+  .editor-empty__icon { font-size: 36px; }
+
+  /* 表单单列 */
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .form-field,
+  .form-field--span-2 { grid-column: auto; min-width: 0; }
+  .form-field input,
+  .form-field textarea,
+  .form-field select { min-width: 0; width: 100%; }
+
+  .taskform-actions { flex-direction: row; }
+  .form-switch { padding: 12px; align-items: center; }
+  .form-switch__meta { min-width: 0; }
+  .form-switch__meta strong { font-size: 14px; }
+  .form-switch__meta small { font-size: 12px; }
+}
+
+/* 小屏手机：Gist 按钮单列 */
+@media (max-width: 480px) {
+  .gist-actions__btn { flex: 1 1 100%; }
+}
+
+/* 手机：Rotation 编辑面板紧凑 */
+@media (max-width: 680px) {
+  .rotation-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .rotation-toolbar__actions { display: flex; gap: 8px; }
+  .rotation-summary-list { display: grid; gap: 10px; }
+  .rot-summary {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: var(--md-radius-medium);
+  }
+  .rot-summary__day { font-size: 14px; font-weight: 700; }
+  .rot-summary__title { font-size: 13px; line-height: 1.4; }
+  .rot-summary__hint { font-size: 12px; color: var(--md-on-surface-variant); }
+  .rot-summary__chevron { font-size: 22px; color: var(--md-on-surface-variant); }
+
+  .check-config-fields { grid-template-columns: 1fr; }
+  .form-field--inline { flex-direction: column; align-items: stretch; }
+  .form-field--inline > span { font-size: 12px; }
+}
+
+/* 手机：轮换单日编辑紧凑（仅旧版 .rot-day-row；新版 --edit 在 rotation.css 自带响应式） */
+@media (max-width: 680px) {
+  .rot-day-row:not(.rot-day-row--edit) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas:
+      "day"
+      "disabled"
+      "icon"
+      "label";
+    padding: 14px;
+    gap: 10px;
+  }
+  .rot-day-row:not(.rot-day-row--edit) .rot-day-row__day { font-size: 14px; font-weight: 700; }
+  .rot-day-row:not(.rot-day-row--edit) .rot-day-row__label { font-size: 13px; }
+}
+
+/* 手机：Gist / Backup */
+@media (max-width: 680px) {
+  .backup-card--gist { padding: 16px; gap: 14px; }
+  .gist-form { gap: 14px; }
+  .gist-field__label { font-size: 13px; }
+  .gist-field__control > input { padding: 11px 14px; font-size: 14px; }
+  .gist-actions__btn.btn--filled { flex: 1 1 100%; }
+  .reset-info__row { grid-template-columns: 84px 1fr; gap: 10px; padding: 10px 12px; }
+  .backup-card__actions .btn--tonal { width: 100%; justify-content: center; }
+}
+
+/* 手机：TaskForm 单列 —— 已在 .modal--mobile-page 块中处理 */
+
+/* ============================================================
+ * 无障碍：减少动效
+ * ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  .modal__dialog, .modal__scrim, .view, .settings-view,
+  .toast, .workflow-card, .memo-card, .backup-card {
+    transform: none !important;
+  }
+  /* Toast 居中依赖 translateX(-50%)，还原它以避免禁用/降低动画时右偏 */
+  .toast {
+    transform: translateX(-50%) !important;
+  }
+  .workflow-list--carousel { scroll-snap-type: x proximity; }
+  .workflow-carousel-pagination__dot { transition: none !important; }
+  .main-content.is-view-transitioning > .view { transition-duration: 220ms; }
+}

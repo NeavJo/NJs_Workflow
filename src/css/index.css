@@ -1,0 +1,45 @@
+/* ============================================================
+ * NJsWorkflow — Style entry
+ * 聚合所有 CSS 模块，按依赖顺序载入：
+ *   tokens → reset/base → layout → button → modal →
+ *   workflow → memo → rotation → settings → backup →
+ *   editor → task-form → toast → responsive
+ * ============================================================ */
+
+/* 设计令牌 + 浅/深色主题（必须最先） */
+@import "./material.css";
+
+/* 全局基础、reset、视图切换 */
+@import "./base.css";
+
+/* 应用骨架、导航、节标题 */
+@import "./layout.css";
+
+/* 通用按钮 + 图标按钮 */
+@import "./button.css";
+
+/* 模态层（settings / backup / editor / taskform 都依赖） */
+@import "./modal.css";
+
+/* 业务视图 */
+@import "./workflow.css";
+@import "./memo.css";
+@import "./rotation.css";
+
+/* 设置子模块 */
+@import "./settings.css";
+
+/* 备份子模块 */
+@import "./backup.css";
+
+/* 编辑器（任务编排） */
+@import "./editor.css";
+
+/* 表单（任务/轮换编辑） */
+@import "./task-form.css";
+
+/* 浮层提示（覆盖在所有视图之上） */
+@import "./toast.css";
+
+/* 响应式与无障碍断点（最后，覆盖权重最高） */
+@import "./responsive.css";

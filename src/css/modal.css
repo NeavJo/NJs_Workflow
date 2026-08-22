@@ -1,0 +1,265 @@
+/* =====================================================================
+ * modal.css — 模态对话框外壳与全局滚动条样式
+ *   .modal / .modal__scrim / .modal__dialog / .modal__header /
+ *   .modal__body / .modal__footer / .modal__meta / .modal__close
+ *
+ * 内容专属样式（设置页 / 编辑器 / 任务表单）分别在 settings / editor /
+ * task-form 中。
+ * ===================================================================== */
+
+.modal { position: fixed; inset: 0; z-index: 99; display: grid; place-items: center; padding: 24px; }
+.modal[hidden] { display: none; }
+.modal__scrim { position: absolute; inset: 0; background: color-mix(in srgb, #000 52%, transparent); backdrop-filter: blur(4px); opacity: 0; transition: opacity var(--md-motion-standard); }
+.modal.is-open .modal__scrim { opacity: 1; }
+.modal__dialog {
+  position: relative;
+  width: min(100%, 720px); max-height: min(90vh, 820px);
+  display: flex; flex-direction: column;
+  min-height: 0;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  border-radius: var(--md-radius-extra-large);
+  box-shadow: var(--md-elevation-4);
+  overflow: hidden;
+  opacity: 0; transform: translateY(10px) scale(.98);
+  transition: opacity var(--md-motion-emphasized), transform var(--md-motion-emphasized);
+  will-change: transform, opacity;
+}
+.modal.is-open .modal__dialog { opacity: 1; transform: translateY(0) scale(1); }
+
+.modal__header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid color-mix(in srgb, var(--md-outline) 14%, transparent);
+}
+.modal__title-wrap { display: flex; gap: 14px; align-items: flex-start; min-width: 0; }
+.modal__title-icon {
+  display: grid; place-items: center;
+  width: 44px; height: 44px; border-radius: 14px;
+  background: var(--md-primary-container); color: var(--md-primary);
+  font-size: 26px;
+  flex: 0 0 auto;
+}
+.modal__header h2 { margin: 0 0 4px; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.modal__subtitle { margin: 0; color: var(--md-on-surface-variant); font-size: 13px; line-height: 1.5; }
+.modal__close { flex: 0 0 auto; }
+
+.modal__body {
+  padding: 24px 28px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid; gap: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--md-on-surface-variant) 40%, transparent) transparent;
+}
+
+/* 让表单直接填满 dialog */
+.modal__dialog > form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.modal__body::-webkit-scrollbar { width: 8px; }
+.modal__body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--md-on-surface-variant) 40%, transparent); border-radius: 4px; }
+
+.modal__footer {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 14px 28px 20px;
+  border-top: 1px solid color-mix(in srgb, var(--md-outline) 14%, transparent);
+  flex-wrap: wrap;
+}
+.modal__meta { color: var(--md-on-surface-variant); font-size: 11px; letter-spacing: .03em; }
+
+/* Modal 图标 / 宽版变体 */
+.modal-dialog__icon--accent {
+  background: var(--md-tertiary-container);
+  color: var(--md-on-tertiary-container);
+}
+.modal-dialog__icon--success {
+  background: var(--md-success-container);
+  color: var(--md-success);
+}
+.modal-dialog--wide {
+  width: min(760px, calc(100% - 40px));
+}
+
+/* =====================================================================
+ * 页面式 Modal（手机端）：全屏子页面，三段固定结构
+ *   .modal--mobile-page
+ *   .modal__header--mobile / .modal__footer--mobile / .modal__title-wrap--centered
+ * ===================================================================== */
+
+.modal--mobile-page { padding: 0; }
+.modal--mobile-page .modal__scrim { background: color-mix(in srgb, #000 56%, transparent); }
+
+.modal__header--mobile {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 4px;
+  min-height: 56px;
+  padding: 4px 8px 4px 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
+}
+
+.modal__header--mobile .modal__title-wrap { min-width: 0; }
+
+.modal__title-wrap--centered { justify-content: center; }
+
+.modal__header--mobile .modal__title-wrap--centered { text-align: center; }
+.modal__header--mobile .modal__title-wrap--centered > div { min-width: 0; }
+.modal__header--mobile h2 {
+  margin: 0 0 2px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.modal__header--mobile .modal__subtitle {
+  margin: 0;
+  color: var(--md-on-surface-variant);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.modal__back,
+.modal__close {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: transparent;
+  border: 0;
+  color: var(--md-on-surface);
+  cursor: pointer;
+  transition: background-color var(--md-motion-fast);
+}
+.modal__back:hover,
+.modal__close:hover {
+  background: color-mix(in srgb, var(--md-on-surface) 6%, transparent);
+}
+.modal__back .material-symbols,
+.modal__close .material-symbols {
+  font-size: 24px;
+}
+
+.modal__footer--mobile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
+  background: var(--md-surface);
+}
+.modal__footer--mobile .modal__footer-primary { flex: 1 1 auto; }
+.modal__footer--mobile .modal__footer-secondary { flex: 0 0 auto; }
+
+/* 编辑器/轮换等只有一个按钮的 footer：按钮自适应宽度，靠右 */
+.modal__footer--mobile .modal__footer-done {
+  flex: 0 0 auto;
+  min-width: 120px;
+  margin-left: auto;
+}
+
+/* Alert Dialog (删除等危险操作) */
+.modal--confirm { padding: 16px; }
+.modal__dialog--alert {
+  width: min(420px, calc(100% - 32px));
+  border-radius: var(--md-radius-large);
+}
+.modal__header--alert {
+  padding: 20px 24px 4px;
+  border-bottom: 0;
+  justify-content: center;
+}
+.modal__header--alert h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+.modal__body--alert {
+  padding: 8px 24px 8px;
+  text-align: center;
+  color: var(--md-on-surface-variant);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.modal__footer--alert {
+  justify-content: flex-end;
+  border-top: 0;
+  padding: 8px 16px 16px;
+  background: transparent;
+}
+
+/* Bottom Sheet (任务操作菜单) */
+.modal--sheet { padding: 0; align-items: end; }
+.modal__dialog--sheet {
+  width: 100%;
+  max-width: none;
+  max-height: min(80dvh, 600px);
+  border-radius: 24px 24px 0 0;
+  display: flex;
+  flex-direction: column;
+}
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--md-on-surface-variant) 28%, transparent);
+  margin: 8px auto 0;
+}
+.modal__header--sheet {
+  padding: 12px 16px 4px;
+  border-bottom: 0;
+  justify-content: center;
+}
+.modal__header--sheet .modal__title-wrap--centered { text-align: center; }
+.modal__header--sheet h2 { margin: 0 0 2px; font-size: 16px; font-weight: 700; }
+.modal__body--sheet {
+  padding: 8px 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sheet-action-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sheet-action-list li { margin: 0; }
+.sheet-action-list button {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  text-align: left;
+  font: inherit;
+  color: var(--md-on-surface);
+  cursor: pointer;
+  transition: background-color var(--md-motion-fast);
+}
+.sheet-action-list button:hover,
+.sheet-action-list button:focus-visible {
+  background: color-mix(in srgb, var(--md-on-surface) 6%, transparent);
+}
+.sheet-action-list .material-symbols { font-size: 22px; color: var(--md-on-surface-variant); }
+.sheet-action-list button.is-danger { color: var(--md-error); }
+.sheet-action-list button.is-danger .material-symbols { color: var(--md-error); }
+.sheet-action-list button[disabled] {
+  color: color-mix(in srgb, var(--md-on-surface) 32%, transparent);
+  cursor: not-allowed;
+}
