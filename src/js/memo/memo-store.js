@@ -1,5 +1,6 @@
 import { DBG } from '../core/debug.js'
 import { MEMO_STORAGE_KEY } from '../core/storage.js'
+import { I18N } from '../locales.js'
 import { safeStorageGet, safeStorageSet } from '../core/storage.js'
 import { MEMO_TAGS_STORAGE_KEY, DEFAULT_MEMO_TAGS, normalizeMemoTagList } from '../config/memo-tags.js'
 import { getTodayDateString, getFullTimestamp } from '../core/date.js'
@@ -132,11 +133,11 @@ export function renameMemoTag(id, newName) {
  * 快速追加：若当日同 Tag 的卡片存在则追加到指定分类块；否则新建并置顶。
  * @returns {{ mode: 'append'|'create', memo: object, word: string, category: string } | null}
  */
-export function appendOrDailyMemo(inputWord, currentTag, category = '常规') {
+export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.defaultCategory) {
   const word = (inputWord || '').trim()
   if (!word) return null
   const tag = currentTag || selectedMemoTag
-  const cat = (category || '').trim() || '常规'
+  const cat = (category || '').trim() || I18N.memo.defaultCategory
 
   const todayStr = getTodayDateString()
   const targetMemo = memos.find(
@@ -169,11 +170,11 @@ export function appendOrDailyMemo(inputWord, currentTag, category = '常规') {
   return { mode, memo: targetMemo || memos[0], word, category: cat }
 }
 
-export function addMemo(content, tag, category = '常规') {
+export function addMemo(content, tag, category = I18N.memo.defaultCategory) {
   const cleaned = (content || '').trim()
   if (!cleaned) return null
   const useTag = tag || selectedMemoTag
-  const cat = (category || '').trim() || '常规'
+  const cat = (category || '').trim() || I18N.memo.defaultCategory
   const now = new Date()
   const memo = {
     id: now.getTime(),

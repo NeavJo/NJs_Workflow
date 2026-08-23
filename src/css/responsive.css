@@ -33,7 +33,6 @@
   .brand strong { max-width: min(52vw, 220px); }
   .brand strong { font-size: 14px; }
   .brand small { overflow: hidden; font-size: 9px; letter-spacing: .06em; text-overflow: ellipsis; white-space: nowrap; }
-  .top-bar__date { font-size: 12px; }
   .section-heading--inline-progress { gap: 12px; }
   .section-heading--inline-progress .global-progress { flex-basis: 100%; max-width: none; }
   .app-body { grid-template-columns: 1fr; gap: 0; padding: 0 12px; }
@@ -49,6 +48,18 @@
   .nav-indicator { inset: 0; width: auto; height: auto; border-radius: inherit; transform: scale(.92); }
   .nav-item.is-active { transform: translateY(-1px); }
   .nav-item.is-active .nav-indicator { transform: scale(1); }
+  /* 移动端：Gist 指示器固定悬浮在视口右上角 */
+  .gist-indicator {
+    position: fixed;
+    top: calc(12px + env(safe-area-inset-top));
+    right: calc(12px + env(safe-area-inset-right));
+    left: auto;
+    z-index: 60;
+    width: 32px;
+    height: 32px;
+    margin-top: 0;
+  }
+  .gist-indicator__svg { width: 20px; height: 20px; }
   .main-content { width: 100%; padding: 34px 0 56px; }
   .hero-section { min-height: 0; align-items: flex-start; gap: 12px; }
   .eyebrow { margin-bottom: 9px; font-size: 10px; }
@@ -60,6 +71,11 @@
   .status-pill { padding: 7px 10px; font-size: 11px; }
   .workflow-section__trailing { display: flex; align-items: center; gap: 10px; flex: 1 1 100%; }
   .workflow-section__trailing .global-progress { flex: 1 1 auto; min-width: 0; }
+
+  /* 移动端：任务卡水印缩小 */
+  .workflow-card__bg-icon {
+    font-size: 72px;
+  }
 
   /* ===== 移动端：任务卡轮播 ===== */
   .workflow-list--carousel {

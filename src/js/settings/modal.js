@@ -1,4 +1,5 @@
 import { DBG } from '../core/debug.js'
+import { I18N } from '../locales.js'
 
 /**
  * 通用 Modal 控制器：openModal/closeModal/closeModalAsync/replaceModal/openConfirmDialog
@@ -220,10 +221,10 @@ function ensureConfirmDialog() {
 }
 
 export function openConfirmDialog({
-  title = '确认操作',
-  message = '是否继续？',
-  confirmText = '确认',
-  cancelText = '取消',
+  title = I18N.common.confirmTitle,
+  message = I18N.common.confirmMessage,
+  confirmText = I18N.common.confirm,
+  cancelText = I18N.common.cancel,
   danger = false
 } = {}) {
   return new Promise((resolve) => {

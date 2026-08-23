@@ -19,8 +19,6 @@
 .brand:focus-visible { outline: 3px solid color-mix(in srgb, var(--md-primary) 58%, transparent); outline-offset: 5px; border-radius: 18px; }
 .brand-mark { transition: transform var(--md-motion-standard), box-shadow var(--md-motion-standard); }
 
-.top-bar__date { color: var(--md-on-surface-variant); font-size: 13px; font-weight: 600; letter-spacing: .02em; white-space: nowrap; }
-
 /* 全局进度：顶栏内联的整日完成度条 */
 .global-progress { display: flex; align-items: center; gap: 12px; flex: 1 1 320px; max-width: 560px; }
 .global-progress__label { white-space: nowrap; }

@@ -1,3 +1,7 @@
+import { I18N } from '../locales.js'
+
+const DEFAULT_CAT = () => I18N.memo.defaultCategory
+
 /**
  * 笔记内容解析：将生词本卡片内容解析为 { 分类名: [生词...] }。
  * 同时提供 appendToCategory 用于追加生词到指定分类块。
@@ -24,7 +28,7 @@ export function parseMemoContentToMap(content) {
 
   if (!hasBlockHeader) {
     const words = trimmed.split('\n').map((l) => l.trim()).filter(Boolean)
-    if (words.length) map['常规'] = words
+    if (words.length) map[DEFAULT_CAT()] = words
     return map
   }
 
@@ -41,8 +45,8 @@ export function parseMemoContentToMap(content) {
     } else {
       const words = lines.map((l) => l.trim()).filter(Boolean)
       if (words.length) {
-        if (!map['常规']) map['常规'] = []
-        map['常规'].push(...words)
+        if (!map[DEFAULT_CAT()]) map[DEFAULT_CAT()] = []
+        map[DEFAULT_CAT()].push(...words)
       }
     }
   }

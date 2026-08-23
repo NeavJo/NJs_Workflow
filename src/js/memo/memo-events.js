@@ -1,8 +1,11 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
+import { I18N, t } from '../locales.js'
 import { getSelectedMemoTag, setSelectedMemoTag, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos } from './memo-store.js'
 import { renderMemos, renderMemoTagPickerList, renderMemoTagPickerTrigger, renderTagSelector } from './memo-renderer.js'
 import { openModal, closeModal, isModalOpen } from '../settings/modal.js'
+import { switchView } from '../settings/navigation.js'
+import { bindBatch, bindOnce } from '../utils/event-manager.js'
 
 /**
  * 笔记事件层：表单提交、刷新、标签选择、卡片按钮（编辑/保存/取消/删除/复制）。
@@ -59,6 +62,8 @@ function handleCardAction(card, action) {
     if (deleteMemo(id)) showToast('笔记已删除。')
   } else if (action === 'copy') {
     copyMemoContent(card)
+  } else if (action === 'anki') {
+    processInAnki(card)
   }
 }
 
@@ -136,11 +141,29 @@ async function copyMemoContent(card) {
       document.execCommand('copy')
       document.body.removeChild(ta)
     }
-    showToast('已复制笔记内容。')
+    showToast(I18N.toast.memo.copied)
   } catch (e) {
     DBG('memo:copy:error', String(e))
-    showToast('复制失败，请手动选中内容后复制。')
+    showToast(I18N.toast.memo.copyFailed)
   }
+}
+
+async function processInAnki(card) {
+  const editor = card.querySelector('.memo-card__editor')
+  const contentEl = card.querySelector('.memo-card__content')
+  const isEditing = editor && !editor.hidden
+  const text = isEditing ? editor.value : (contentEl ? contentEl.textContent : '')
+  
+  const inputEl = document.getElementById('anki-input')
+  if (!inputEl) {
+    showToast('未找到Anki处理机输入框')
+    return
+  }
+  
+  inputEl.value = text
+  showToast('已复制到Anki处理机')
+  
+  switchView('anki')
 }
 
 export function bindMemoEvents() {
@@ -154,67 +177,86 @@ export function bindMemoEvents() {
   const submitAppend = () => {
     const word = (wordInput?.value || '').trim()
     if (!word) {
-      showToast('先在输入框里写下一个单词吧～')
+      showToast(I18N.toast.memo.inputEmpty)
       focusMemoInput()
       return
     }
-    const category = (categoryInput?.value || '').trim() || '常规'
+    const category = (categoryInput?.value || '').trim() || I18N.memo.defaultCategory
     const r = appendOrDailyMemo(word, getSelectedMemoTag(), category)
     if (r) {
+      const tagName = getSelectedMemoTag()
       showToast(
         r.mode === 'append'
-          ? `已追加到今日 ${getSelectedMemoTag()} · ${r.category}。`
-          : `已新建今日 ${getSelectedMemoTag()} · ${r.category} 卡片。`
+          ? t(I18N.toast.memo.appendedTo, { tag: tagName, category: r.category })
+          : t(I18N.toast.memo.createdToday, { tag: tagName, category: r.category })
       )
       wordInput.value = ''
     }
     focusMemoInput()
   }
 
-  if (appendBtn) appendBtn.addEventListener('click', submitAppend)
-
-  if (wordInput) {
-    wordInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        submitAppend()
+  // 批量绑定表单相关事件
+  const formEvents = [
+    {
+      element: appendBtn,
+      event: 'click',
+      handler: submitAppend
+    },
+    {
+      element: wordInput,
+      event: 'keydown',
+      handler: (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          submitAppend()
+        }
       }
-    })
-  }
-
-  if (categoryInput) {
-    categoryInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        focusMemoInput()
+    },
+    {
+      element: categoryInput,
+      event: 'keydown',
+      handler: (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          focusMemoInput()
+        }
       }
-    })
-  }
-
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', () => {
-      loadMemos()
-      renderMemos()
-      showToast('已重载笔记列表。')
-    })
-  }
-
-  if (tagSelector) {
-    tagSelector.addEventListener('click', (event) => {
-      const btn = event.target.closest('[data-action="select-tag"]')
-      if (!btn) return
-      const id = btn.dataset.value
-      if (setSelectedMemoTag(id)) {
-        renderTagSelector()
-        focusMemoInput()
+    },
+    {
+      element: refreshBtn,
+      event: 'click',
+      handler: () => {
+        loadMemos()
+        renderMemos()
+        showToast(I18N.toast.memo.reloaded)
       }
-    })
-  }
+    },
+    {
+      element: tagSelector,
+      event: 'click',
+      handler: (event) => {
+        const btn = event.target.closest('[data-action="select-tag"]')
+        if (!btn) return
+        const id = btn.dataset.value
+        if (setSelectedMemoTag(id)) {
+          renderTagSelector()
+          focusMemoInput()
+        }
+      }
+    }
+  ]
+
+  // 绑定表单事件
+  formEvents.forEach(({ element, event, handler }) => {
+    if (element) {
+      bindBatch(element, [{ event, handler }])
+    }
+  })
 
   /* 移动端：标签触发器 -> 底部弹窗选择 */
   const tagPickerTrigger = document.getElementById('memo-tag-picker-trigger')
   if (tagPickerTrigger) {
-    tagPickerTrigger.addEventListener('click', () => {
+    bindOnce(tagPickerTrigger, 'click', () => {
       if (isModalOpen('memo-tag-picker')) return
       openMemoTagPicker()
     })
@@ -222,7 +264,7 @@ export function bindMemoEvents() {
 
   const tagPickerList = document.getElementById('memo-tag-picker-list')
   if (tagPickerList) {
-    tagPickerList.addEventListener('click', (event) => {
+    bindOnce(tagPickerList, 'click', (event) => {
       const btn = event.target.closest('[data-action="select-memo-tag-from-sheet"]')
       if (!btn) return
       const id = btn.dataset.value
@@ -238,35 +280,64 @@ export function bindMemoEvents() {
   /* 弹窗外的关闭按钮（防御：若 sheet 内 click 被消费，回退到通用 data-close-modal） */
   const tagPickerModal = document.getElementById('memo-tag-picker-modal')
   if (tagPickerModal) {
-    tagPickerModal.addEventListener('click', (event) => {
+    bindOnce(tagPickerModal, 'click', (event) => {
       if (event.target.closest('[data-close-modal="memo-tag-picker"]')) {
         setTagPickerExpanded(false)
       }
     })
   }
 
+  // 批量绑定流区域事件
   if (stream) {
-    stream.addEventListener('click', (event) => {
-      const btn = event.target.closest('button[data-memo-action]')
-      if (!btn) return
-      const card = btn.closest('.memo-card')
-      if (!card) return
-      handleCardAction(card, btn.dataset.memoAction)
-    })
+    const streamEvents = [
+      {
+        event: 'click',
+        handler: (event) => {
+          const btn = event.target.closest('button[data-memo-action]')
+          if (!btn) return
+          const card = btn.closest('.memo-card')
+          if (!card) return
+          handleCardAction(card, btn.dataset.memoAction)
+        }
+      },
+      {
+        event: 'keydown',
+        handler: (event) => {
+          const editor = event.target.closest('.memo-card__editor')
+          if (!editor) return
+          const card = editor.closest('.memo-card')
+          if (!card) return
+          const modifier = event.metaKey || event.ctrlKey
+          if (modifier && event.key === 'Enter') {
+            event.preventDefault()
+            handleCardAction(card, 'save')
+          } else if (event.key === 'Escape') {
+            event.preventDefault()
+            exitEditMode(card)
+          }
+        }
+      }
+    ]
 
-    stream.addEventListener('keydown', (event) => {
-      const editor = event.target.closest('.memo-card__editor')
-      if (!editor) return
-      const card = editor.closest('.memo-card')
-      if (!card) return
-      const modifier = event.metaKey || event.ctrlKey
-      if (modifier && event.key === 'Enter') {
-        event.preventDefault()
-        handleCardAction(card, 'save')
-      } else if (event.key === 'Escape') {
-        event.preventDefault()
-        exitEditMode(card)
+    bindBatch(stream, streamEvents)
+  }
+
+  // 返回清理函数，用于组件销毁时清理事件
+  return () => {
+    // 清理所有绑定的事件
+    formEvents.forEach(({ element }) => {
+      if (element) {
+        // 清理事件监听器
+        element.replaceWith(element.cloneNode(true))
       }
     })
+    
+    if (stream) {
+      stream.replaceWith(stream.cloneNode(true))
+    }
+    
+    if (tagSelector) {
+      tagSelector.replaceWith(tagSelector.cloneNode(true))
+    }
   }
 }

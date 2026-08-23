@@ -1,4 +1,5 @@
 import { showToast } from '../ui.js'
+import { I18N, t } from '../locales.js'
 import { getMemoTags, addMemoTag as addMemoTagStore, deleteMemoTag as deleteMemoTagStore, renameMemoTag, persistMemoTags } from '../memo/memo-store.js'
 import { renderTagSelector, renderMemos } from '../memo/memo-renderer.js'
 
@@ -25,13 +26,13 @@ export function renderSettingsTagList() {
       const actions = document.createElement('div')
       actions.className = 'settings-tag-row__actions'
       if (tag.isLocked) {
-        actions.innerHTML = `<span class="settings-tag-row__lock"><span class="material-symbols" aria-hidden="true">lock</span>系统默认</span>`
+        actions.innerHTML = `<span class="settings-tag-row__lock"><span class="material-symbols" aria-hidden="true">lock</span>${I18N.common.systemDefault}</span>`
       } else {
         const editBtn = document.createElement('button')
         editBtn.type = 'button'
         editBtn.className = 'icon-btn-mini'
-        editBtn.title = '重命名'
-        editBtn.setAttribute('aria-label', `重命名 ${tag.name}`)
+        editBtn.title = I18N.settings.renameAria
+        editBtn.setAttribute('aria-label', t(I18N.settings.renameTagAria, { name: tag.name }))
         editBtn.innerHTML = `<span class="material-symbols" aria-hidden="true">edit</span>`
         editBtn.dataset.action = 'rename-memo-tag'
         editBtn.dataset.id = tag.id
@@ -39,8 +40,8 @@ export function renderSettingsTagList() {
         const delBtn = document.createElement('button')
         delBtn.type = 'button'
         delBtn.className = 'icon-btn-mini icon-btn-mini--danger'
-        delBtn.title = '删除'
-        delBtn.setAttribute('aria-label', `删除 ${tag.name}`)
+        delBtn.title = I18N.settings.deleteAria
+        delBtn.setAttribute('aria-label', t(I18N.settings.deleteTagAria, { name: tag.name }))
         delBtn.innerHTML = `<span class="material-symbols" aria-hidden="true">delete</span>`
         delBtn.dataset.action = 'delete-memo-tag'
         delBtn.dataset.id = tag.id
@@ -59,12 +60,12 @@ export function addMemoTagFromInput() {
   if (!input) return
   const name = input.value.trim()
   if (!name) {
-    showToast('标签名称不能为空。')
+    showToast(I18N.toast.memo.tagNameEmpty)
     return
   }
   const id = `#${name}`
   if (getMemoTags().find((t) => t.id === id)) {
-    showToast('该标签已存在，请勿重复添加。')
+    showToast(I18N.toast.memo.tagExists)
     return
   }
   addMemoTagStore({ id, name, icon: 'label', isLocked: false })
@@ -73,7 +74,7 @@ export function addMemoTagFromInput() {
   renderTagSelector()
   input.value = ''
   input.focus()
-  showToast(`已添加标签「${name}」。`)
+  showToast(t(I18N.toast.memo.tagAdded, { name }))
 }
 
 export function startEditMemoTag(id) {
@@ -99,7 +100,7 @@ export function startEditMemoTag(id) {
       renameMemoTag(id, newName)
       renderTagSelector()
       renderMemos()
-      showToast(`标签已重命名为「${newName}」。`)
+      showToast(t(I18N.toast.memo.tagRenamed, { name: newName }))
     }
     renderSettingsTagList()
   }
@@ -116,10 +117,10 @@ export function deleteMemoTagFromSettings(id) {
   const memoTags = getMemoTags()
   const tag = memoTags.find((t) => t.id === id)
   if (!tag || tag.isLocked) return
-  if (!window.confirm(`确认删除标签「${tag.name}」？已有笔记不受影响，但标签栏将不再显示该分类。`)) return
+  if (!window.confirm(t(I18N.toast.memo.deleteTagConfirm, { name: tag.name }))) return
   deleteMemoTagStore(id)
   renderSettingsTagList()
   renderTagSelector()
   renderMemos()
-  showToast(`已删除标签「${tag.name}」。`)
+  showToast(t(I18N.toast.memo.tagDeleted, { name: tag.name }))
 }

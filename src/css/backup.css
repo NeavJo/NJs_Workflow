@@ -30,6 +30,9 @@
 .backup-icon--reset { background: color-mix(in srgb, #e8a317 18%, transparent); color: #8a6300; }
 .backup-icon--workflow { background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); }
 .backup-icon--tag { background: color-mix(in srgb, #e8a317 18%, transparent); color: #8a6300; }
+.backup-icon--anki { background: color-mix(in srgb, #4285f4 18%, transparent); color: #1b62c9; }
+.backup-icon--prompt { background: color-mix(in srgb, #9c27b0 16%, transparent); color: #7b1fa2; }
+.backup-icon--passphrase { background: color-mix(in srgb, #14a37f 16%, transparent); color: #0c7b60; }
 
 .backup-card__footer { display: grid; gap: 12px; }
 .scope-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
@@ -130,6 +133,82 @@ button.chip:active, .chip[role="button"]:active { transform: scale(0.96); filter
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
 }
 .gist-field__control > input::placeholder { color: var(--md-on-surface-variant); opacity: 0.6; }
+.gist-field__control > input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* select 控件：与 input 保持一致外观（Anki API 类型选择器复用 .gist-field） */
+.gist-field__control > select {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 38px 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 28%, transparent);
+  border-radius: var(--md-radius-medium);
+  background-color: var(--md-surface);
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2349454f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 14px;
+  transition: border-color var(--md-motion-standard), box-shadow var(--md-motion-standard), background-color var(--md-motion-standard);
+}
+.gist-field__control > select:focus {
+  outline: none;
+  border-color: var(--md-primary);
+  background-color: var(--md-surface-container-high);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
+}
+
+/* textarea 控件：提示词编辑复用 .gist-field 外观 */
+.gist-field__control > textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 220px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 28%, transparent);
+  border-radius: var(--md-radius-medium);
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.65;
+  font-family: 'Inter', 'Noto Sans SC', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.005em;
+  resize: vertical;
+  transition: border-color var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard);
+}
+.gist-field__control > textarea:focus {
+  outline: none;
+  border-color: var(--md-primary);
+  background: var(--md-surface-container-high);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
+}
+.gist-field__control > textarea::placeholder { color: var(--md-on-surface-variant); opacity: 0.6; }
+.gist-field__control > textarea:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.gist-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--md-on-surface-variant);
+  user-select: none;
+}
+.gist-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--md-primary);
+  cursor: pointer;
+}
 
 .gist-status-line {
   display: flex;
@@ -143,6 +222,7 @@ button.chip:active, .chip[role="button"]:active { transform: scale(0.96); filter
   line-height: 1.4;
   flex-wrap: wrap;
 }
+.gist-status-line[hidden] { display: none; }
 .gist-status__dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -191,6 +271,14 @@ button.chip:active, .chip[role="button"]:active { transform: scale(0.96); filter
   background: var(--md-primary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 22%, transparent);
   animation: gist-dot-pulse 1.2s ease-in-out infinite;
+}
+.gist-status__text.is-warning {
+  color: var(--md-on-surface);
+  font-weight: 600;
+}
+.gist-status-line:has(.gist-status__text.is-warning) .gist-status__dot {
+  background: #e8a33d;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #e8a33d 22%, transparent);
 }
 
 @keyframes gist-dot-pulse {

@@ -1,4 +1,6 @@
 import { DBG } from '../core/debug.js'
+import { I18N, t } from '../locales.js'
+import { throttle, rafThrottle } from '../utils/throttle.js'
 
 /**
  * 移动端工作流卡轮播控制模块。
@@ -133,7 +135,7 @@ function renderCarouselPagination() {
     dot.className = 'workflow-carousel-pagination__dot'
     dot.dataset.itemId = card.dataset.itemId || ''
     const title = card.querySelector('.workflow-card__title')?.textContent?.trim() || dot.dataset.itemId
-    dot.setAttribute('aria-label', `跳转到：${title}`)
+    dot.setAttribute('aria-label', t(I18N.workflow.jumpAria, { title }))
     dot.setAttribute('role', 'tab')
     dot.setAttribute('aria-selected', 'false')
     dot.addEventListener('click', () => {
@@ -185,17 +187,13 @@ function restoreCarouselPosition() {
 }
 
 let scrollRaf = 0
-function handleCarouselScroll() {
+const handleCarouselScroll = rafThrottle(() => {
   if (!isMobileCarouselMode()) return
-  if (scrollRaf) return
-  scrollRaf = requestAnimationFrame(() => {
-    scrollRaf = 0
-    const list = getList()
-    const cards = getCards()
-    const best = findMostVisibleCard(cards, list)
-    if (best) setActiveCard(best, { scroll: false })
-  })
-}
+  const list = getList()
+  const cards = getCards()
+  const best = findMostVisibleCard(cards, list)
+  if (best) setActiveCard(best, { scroll: false })
+})
 
 /**
  * 移动端把鼠标滚轮（竖向 deltaY + 触控板横向 deltaX）映射到 #workflow-list 的
@@ -208,7 +206,7 @@ function handleCarouselScroll() {
  */
 let wheelTarget = null
 
-function handleCarouselWheel(event) {
+const handleCarouselWheel = throttle((event) => {
   const list = event.currentTarget || getList()
   if (!list) return
   if (list.scrollWidth <= list.clientWidth + 1) return
@@ -234,7 +232,7 @@ function handleCarouselWheel(event) {
   event.preventDefault()
   wheelTarget = Math.max(0, Math.min(maxScroll, currentTarget + scrollAmount))
   list.scrollTo({ left: wheelTarget, behavior: 'smooth' })
-}
+}, 16) // 60fps 节流
 
 function handleCarouselKeydown(event) {
   if (!isMobileCarouselMode()) return
@@ -277,19 +275,50 @@ function handleMqChange() {
 }
 
 function bindCarouselEvents() {
-  if (listenersBound) return
+  if (listenersBound) return null
   const list = getList()
-  if (!list) return
+  if (!list) return null
+
+  // 收集各监听器的解绑动作，最终合成单个清理函数返回
+  const cleanup = []
+  
+  // scroll 事件
+  cleanup.push(() => list.removeEventListener('scroll', handleCarouselScroll))
   list.addEventListener('scroll', handleCarouselScroll, { passive: true })
+  
+  // keydown 事件
+  cleanup.push(() => list.removeEventListener('keydown', handleCarouselKeydown))
   list.addEventListener('keydown', handleCarouselKeydown)
+  
+  // wheel 事件
+  cleanup.push(() => list.removeEventListener('wheel', handleCarouselWheel))
   list.addEventListener('wheel', handleCarouselWheel, { passive: false })
+  
+  // media query 事件
   if (mobileMq && typeof mobileMq.addEventListener === 'function') {
+    cleanup.push(() => mobileMq.removeEventListener('change', handleMqChange))
     mobileMq.addEventListener('change', handleMqChange)
   } else if (mobileMq && typeof mobileMq.addListener === 'function') {
+    cleanup.push(() => mobileMq.removeListener(handleMqChange))
     mobileMq.addListener(handleMqChange)
   }
+  
+  // 保存清理函数
   listenersBound = true
+  return () => {
+    for (const off of cleanup) {
+      try {
+        off()
+      } catch (e) {
+        DBG('carousel:cleanup:error', String(e))
+      }
+    }
+    listenersBound = false
+  }
 }
+
+// 全局清理函数
+let globalCleanup = null
 
 /**
  * renderWorkflow() 在替换卡片列表后调用：
@@ -300,7 +329,15 @@ export function refreshWorkflowCarousel() {
   const list = getList()
   if (!list) return
 
-  bindCarouselEvents()
+  // 先清理旧的事件监听器
+  if (typeof globalCleanup === 'function') {
+    globalCleanup()
+    globalCleanup = null
+  }
+
+  // 绑定新的事件监听器（已绑定时返回 null，不覆盖现有清理函数）
+  const cleanup = bindCarouselEvents()
+  if (typeof cleanup === 'function') globalCleanup = cleanup
 
   if (!isMobileCarouselMode()) {
     activeItemId = null
@@ -314,4 +351,15 @@ export function refreshWorkflowCarousel() {
   list.classList.add('workflow-list--carousel')
   renderCarouselPagination()
   restoreCarouselPosition()
+}
+
+/**
+ * 清理轮播组件的所有事件监听器
+ */
+export function cleanupCarouselEvents() {
+  if (typeof globalCleanup === 'function') {
+    globalCleanup()
+    globalCleanup = null
+  }
+  listenersBound = false
 }

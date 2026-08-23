@@ -8,11 +8,12 @@
  * 因此子视图查询范围由原来的 #settings-modal 改为新的设置根节点。
  */
 
-export const TOP_LEVEL_VIEWS = ['flow', 'memo', 'settings']
-export const SETTINGS_VIEWS = ['main', 'backup', 'workflow', 'tags']
+export const TOP_LEVEL_VIEWS = ['flow', 'memo', 'anki', 'settings']
+export const SETTINGS_VIEWS = ['main', 'backup', 'anki-api', 'workflow', 'tags']
 
 let currentView = 'flow'
 let currentSettingsView = 'main'
+let settingsTransitionId = 0
 const viewHooks = new Map()
 let viewTransitionId = 0
 
@@ -69,9 +70,6 @@ export function switchView(target) {
     null
   const finishTransition = () => {
     if (transitionId !== viewTransitionId) return
-    targetView.hidden = false
-    targetView.classList.remove('is-view-entering', 'is-view-entering-forward', 'is-view-entering-back')
-    targetView.classList.add('is-view-active')
     document.querySelectorAll('.view').forEach((view) => {
       if (view === targetView) return
       view.hidden = true
@@ -92,13 +90,23 @@ export function switchView(target) {
   previousTarget?.classList.add('is-view-leaving', `is-view-leaving-${direction}`)
   targetView.classList.add('is-view-entering', `is-view-entering-${direction}`)
   mainContent?.classList.add('is-view-transitioning')
-  requestAnimationFrame(() => {
+  const startTargetEnter = () => {
     if (transitionId !== viewTransitionId) return
-    targetView.classList.remove('is-view-entering', 'is-view-entering-forward', 'is-view-entering-back')
-    targetView.classList.add('is-view-active')
-    if (previousTarget) previousTarget.classList.add('is-view-leaving')
-  })
-  window.setTimeout(finishTransition, getViewTransitionDuration(360))
+    targetView.offsetWidth
+    requestAnimationFrame(() => {
+      if (transitionId !== viewTransitionId) return
+      targetView.classList.remove('is-view-entering', 'is-view-entering-forward', 'is-view-entering-back')
+      targetView.classList.add('is-view-active')
+    })
+  }
+  if (previousTarget) {
+    window.setTimeout(() => {
+      finishTransition()
+      startTargetEnter()
+    }, getViewTransitionDuration(360))
+  } else {
+    startTargetEnter()
+  }
 
   const hook = viewHooks.get(target)
   if (hook) {
@@ -130,6 +138,7 @@ export function switchSettingsView(target, { skipIntro = false } = {}) {
   const goingBack    = current && current.dataset.settingsView !== 'main' && target === 'main'
 
   if (skipIntro) {
+    settingsTransitionId += 1
     targetView.hidden = false
     targetView.classList.remove(
       'is-entering-forward', 'is-entering-back',
@@ -148,33 +157,37 @@ export function switchSettingsView(target, { skipIntro = false } = {}) {
     return true
   }
 
+  const transitionId = ++settingsTransitionId
+
   targetView.hidden = false
   targetView.classList.remove(
     'is-active', 'is-leaving', 'is-leaving-forward', 'is-leaving-back',
     'is-entering-forward', 'is-entering-back'
   )
-  targetView.classList.add(goingBack ? 'is-entering-back' : 'is-entering-forward')
 
   if (current) {
     current.classList.remove('is-active', 'is-entering-forward', 'is-entering-back')
     current.classList.add(goingForward ? 'is-leaving-back' : 'is-leaving-forward')
-    const onEnd = (e) => {
-      if (e.propertyName !== 'transform' && e.propertyName !== 'opacity') return
-      current.hidden = true
-      current.classList.remove('is-leaving-forward', 'is-leaving-back')
-      current.removeEventListener('transitionend', onEnd)
-    }
-    current.addEventListener('transitionend', onEnd)
-    setTimeout(() => {
-      current.hidden = true
-      current.classList.remove('is-leaving-forward', 'is-leaving-back')
-    }, 320)
-  }
 
-  requestAnimationFrame(() => {
-    targetView.classList.remove('is-entering-forward', 'is-entering-back')
-    targetView.classList.add('is-active')
-  })
+    const finalize = () => {
+      if (transitionId !== settingsTransitionId) return
+      current.hidden = true
+      current.classList.remove('is-leaving-forward', 'is-leaving-back')
+
+      targetView.classList.add(goingBack ? 'is-entering-back' : 'is-entering-forward')
+      requestAnimationFrame(() => {
+        targetView.classList.remove('is-entering-forward', 'is-entering-back')
+        targetView.classList.add('is-active')
+      })
+    }
+    window.setTimeout(finalize, getViewTransitionDuration(280))
+  } else {
+    targetView.classList.add(goingBack ? 'is-entering-back' : 'is-entering-forward')
+    requestAnimationFrame(() => {
+      targetView.classList.remove('is-entering-forward', 'is-entering-back')
+      targetView.classList.add('is-active')
+    })
+  }
 
   currentSettingsView = target
   return true

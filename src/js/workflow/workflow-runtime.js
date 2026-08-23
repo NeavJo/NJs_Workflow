@@ -70,7 +70,8 @@ export function runMemoCountCheck(taskId) {
   }
 
   const cfg = task.checkConfig
-  const targetCategory = (cfg.category || '常规').trim().toLowerCase()
+  const defaultCategory = I18N.workflow.defaultCategory
+  const targetCategory = (cfg.category || defaultCategory).trim().toLowerCase()
   const targetCount = cfg.targetCount || 7
 
   const todayStr = getTodayDateString()
@@ -87,7 +88,7 @@ export function runMemoCountCheck(taskId) {
     })
   })
 
-  const displayCategory = cfg.category || '常规'
+  const displayCategory = cfg.category || I18N.workflow.defaultCategory
   DBG('check:memo-count', { taskId, targetCategory, targetCount, todayMemos: todayMemos.length, wordCount })
 
   if (wordCount >= targetCount) {

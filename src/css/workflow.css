@@ -12,7 +12,7 @@
   .workflow-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-.workflow-card { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 14px 18px; padding: 20px; border-radius: var(--md-radius-medium); background: var(--md-surface-container); box-shadow: var(--md-elevation-1); transition: transform var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard), opacity var(--md-motion-standard); }
+.workflow-card { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 14px 18px; padding: 20px; border-radius: var(--md-radius-medium); background: var(--md-surface-container); box-shadow: var(--md-elevation-1); transition: transform var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard), opacity var(--md-motion-standard); position: relative; overflow: hidden; }
 /* 当存在【外链/检查】按钮时，自动增加一列供其放置 */
 .workflow-card:has(.workflow-card__action),
 .workflow-card:has(.workflow-card__check-btn) { grid-template-columns: 40px 1fr auto auto; }
@@ -112,3 +112,57 @@
 .workflow-card__check-btn__label { white-space: nowrap; }
 /* 已完成态：按钮弱化提示 */
 .workflow-card.is-complete .workflow-card__check-btn { opacity: 0.7; }
+
+/* 背景大图标水印 */
+.workflow-card__bg-icon {
+  position: absolute;
+  right: var(--bg-icon-right-offset, -15px);
+  bottom: var(--bg-icon-bottom-offset, -10px);
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  font-size: var(--bg-icon-base-size, 96px);
+  line-height: 1;
+  transform: rotate(-45deg);
+  color: var(--md-primary);
+  opacity: var(--bg-icon-opacity, 0.07);
+}
+
+/* 所有内容与交互层确保在水印之上 */
+.order-badge,
+.workflow-card__content,
+.checkbox-wrapper,
+.workflow-card__action,
+.workflow-card__check-btn {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== 背景水印可调变量 ===== */
+:root {
+  /* 位置控制：水印距离卡片右/下边缘的偏移量（px） */
+  --bg-icon-right-offset: 80px;
+  --bg-icon-bottom-offset: -30px;
+  /* 大小控制：水印基础字号（px） */
+  --bg-icon-base-size: 164px;
+  /* 透明度控制：水印可见度（0~1，建议 0.05~0.15） */
+  --bg-icon-opacity: 0.24;
+  /* 移动端水印变量 */
+  --bg-icon-right-offset-mobile: 50px;
+  --bg-icon-bottom-offset-mobile: -15px;
+  --bg-icon-base-size-mobile: 144px;
+}
+/* 深色模式单独微调透明度 */
+@media (prefers-color-scheme: dark) {
+  .workflow-card__bg-icon {
+    opacity: calc(var(--bg-icon-opacity) * 1.43); /* 0.07 * 1.43 ≈ 0.10 */
+  }
+}
+/* 移动端样式 */
+@media (max-width: 680px) {
+  .workflow-card__bg-icon {
+    right: var(--bg-icon-right-offset-mobile) !important;
+    bottom: var(--bg-icon-bottom-offset-mobile) !important;
+    font-size: var(--bg-icon-base-size-mobile) !important;
+  }
+}

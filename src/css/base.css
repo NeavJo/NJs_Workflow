@@ -11,7 +11,7 @@
     0 4px 6px 2px rgba(0,0,0,.08),
     0 8px 16px -4px rgba(0,0,0,.14),
     0 12px 28px -8px rgba(0,0,0,.18);
-  --view-transition-speed-scale: 2.04;
+  --view-transition-speed-scale: 0.44;
 }
 
 /* --- Global reset --- */
@@ -61,3 +61,4 @@ h2 { font-size: clamp(25px, 4vw, 34px); }
 .view.is-view-entering-back { opacity: 0; transform: translate3d(-24px, 0, 0); }
 .view.is-view-leaving-forward { opacity: 0; transform: translate3d(-18px, 0, 0); }
 .view.is-view-leaving-back { opacity: 0; transform: translate3d(18px, 0, 0); }
+.view.is-view-active { will-change: opacity, transform; transition: opacity calc(320ms * var(--view-transition-speed-scale, 1)) cubic-bezier(.2, .75, .25, 1), transform calc(360ms * var(--view-transition-speed-scale, 1)) cubic-bezier(.2, .75, .25, 1); }

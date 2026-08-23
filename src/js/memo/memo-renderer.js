@@ -1,4 +1,5 @@
 import { DBG } from '../core/debug.js'
+import { I18N, t as translate } from '../locales.js'
 import { getMemos, getMemoTags, getSelectedMemoTag, onMemosChange, onMemoTagsChange } from './memo-store.js'
 
 /**
@@ -29,20 +30,20 @@ function createMemoCard(memo) {
       <div class="memo-card__meta">
         <time class="memo-card__time" datetime=""></time>
         <span class="memo-tag-chip memo-tag-chip--display"></span>
-        <span class="chip chip--outline" style="margin-left:4px;">${lineCount} 词</span>
-        <select class="memo-tag-select" hidden aria-label="选择标签">${tagOptions}</select>
+        <span class="chip chip--outline" style="margin-left:4px;">${translate(I18N.memo.wordCount, { count: lineCount })}</span>
+        <select class="memo-tag-select" hidden aria-label="${I18N.memo.selectTagAria}">${tagOptions}</select>
       </div>
       <div class="memo-card__actions">
-        <button class="memo-card__edit" type="button" data-memo-action="edit" aria-label="编辑笔记">
+        <button class="memo-card__edit" type="button" data-memo-action="edit" aria-label="${I18N.memo.editAria}">
           <span class="material-symbols" aria-hidden="true">edit</span>
         </button>
-        <button class="memo-card__save" type="button" data-memo-action="save" aria-label="保存修改" hidden>
+        <button class="memo-card__save" type="button" data-memo-action="save" aria-label="${I18N.memo.saveAria}" hidden>
           <span class="material-symbols" aria-hidden="true">check</span>
         </button>
-        <button class="memo-card__cancel" type="button" data-memo-action="cancel" aria-label="取消编辑" hidden>
+        <button class="memo-card__cancel" type="button" data-memo-action="cancel" aria-label="${I18N.memo.cancelAria}" hidden>
           <span class="material-symbols" aria-hidden="true">close</span>
         </button>
-        <button class="memo-card__delete" type="button" data-memo-action="delete" aria-label="删除笔记">
+        <button class="memo-card__delete" type="button" data-memo-action="delete" aria-label="${I18N.memo.deleteAria}">
           <span class="material-symbols" aria-hidden="true">delete</span>
         </button>
       </div>
@@ -50,9 +51,13 @@ function createMemoCard(memo) {
     <div class="memo-card__body">
       <pre class="memo-card__content"></pre>
       <textarea class="memo-card__editor" rows="5" hidden></textarea>
-      <button class="memo-card__copy" type="button" data-memo-action="copy" aria-label="复制笔记内容">
+      <button class="memo-card__copy" type="button" data-memo-action="copy" aria-label="${I18N.memo.copyAria}">
         <span class="material-symbols" aria-hidden="true">content_copy</span>
-        <span class="memo-card__copy__label">复制</span>
+        <span class="memo-card__copy__label">${I18N.memo.copyBtn}</span>
+      </button>
+      <button class="memo-card__anki" type="button" data-memo-action="anki" aria-label="复制到Anki处理机">
+        <span class="material-symbols" aria-hidden="true">psychology</span>
+        <span class="memo-card__anki__label">${I18N.anki.processInAnki}</span>
       </button>
     </div>`
 
@@ -84,7 +89,7 @@ export function renderMemos() {
 export function updateMemoCounters() {
   const total = getMemos().length
   const counter = document.querySelector('#memo-counter')
-  if (counter) counter.textContent = `${total} 条记录`
+  if (counter) counter.textContent = translate(I18N.memo.recordsCount, { count: total })
 }
 
 export function renderTagSelector() {

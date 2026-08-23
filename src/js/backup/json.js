@@ -1,14 +1,20 @@
 import { DBG } from '../core/debug.js'
+import { I18N, t } from '../locales.js'
 import {
   COMPLETION_HISTORY_STORAGE_KEY,
   LAST_RESET_DATE_STORAGE_KEY,
   USER_SETTINGS_STORAGE_KEY,
   WORKFLOWS_STORAGE_KEY,
+  ANKI_SETTINGS_STORAGE_KEY,
+  DEFAULT_ANKI_SETTINGS,
   normalizeCompletionHistory,
-  normalizeUserSettings
+  normalizeUserSettings,
+  normalizeAnkiSettings
 } from '../config/storage-config.js'
 import { ROTATION_RULES_STORAGE_KEY } from '../config/rotation-rules.js'
 import { MEMO_STORAGE_KEY } from '../core/storage.js'
+import { MEMO_TAGS_STORAGE_KEY } from '../config/memo-tags.js'
+
 import {
   DEFAULT_WORKFLOWS,
   normalizeTask
@@ -18,7 +24,7 @@ import {
   normalizeRotationRuleList
 } from '../config/rotation-rules.js'
 import { formatTimestamp } from '../core/date.js'
-import { safeStorageRemove, safeStorageSet } from '../core/storage.js'
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '../core/storage.js'
 
 /**
  * 备份文件校验 + 反向归一化 + 原子写入本地存储。
@@ -34,7 +40,9 @@ const STORAGE_KEYS_FOR_IMPORT = {
   memos: MEMO_STORAGE_KEY,
   completionHistory: COMPLETION_HISTORY_STORAGE_KEY,
   lastResetDate: LAST_RESET_DATE_STORAGE_KEY,
-  userSettings: USER_SETTINGS_STORAGE_KEY
+  userSettings: USER_SETTINGS_STORAGE_KEY,
+  ankiSettings: ANKI_SETTINGS_STORAGE_KEY,
+  memoTags: MEMO_TAGS_STORAGE_KEY
 }
 
 /**
@@ -44,9 +52,9 @@ const STORAGE_KEYS_FOR_IMPORT = {
 export function validateBackupPayload(raw) {
   if (!raw || typeof raw !== 'object') return '备份文件结构为空或格式不合法。'
   const ver = typeof raw.version === 'string' ? raw.version : ''
-  const supported = ver.startsWith('1.0') || ver.startsWith('1.1') || ver.startsWith('1.2')
+  const supported = ver.startsWith('1.0') || ver.startsWith('1.1') || ver.startsWith('1.2') || ver.startsWith('1.3')
   if (!supported) {
-    return `不兼容的备份版本：${ver || '未知'}，需要 1.0 / 1.1 / 1.2 系列。`
+    return `不兼容的备份版本：${ver || '未知'}，需要 1.0 / 1.1 / 1.2 / 1.3 系列。`
   }
   if (!raw.data || typeof raw.data !== 'object') return '备份文件缺少 data 字段。'
   if (!Array.isArray(raw.data.workflows)) return 'data.workflows 应为任务数组。'
@@ -59,6 +67,11 @@ export function validateBackupPayload(raw) {
       (typeof raw.data.userSettings !== 'object' || Array.isArray(raw.data.userSettings) || raw.data.userSettings === null)) {
     return 'data.userSettings 应为对象。'
   }
+  if (raw.data.ankiSettings !== undefined &&
+      (typeof raw.data.ankiSettings !== 'object' || Array.isArray(raw.data.ankiSettings) || raw.data.ankiSettings === null)) {
+    return 'data.ankiSettings 应为对象。'
+  }
+
   return null
 }
 
@@ -109,15 +122,26 @@ export function normalizeBackupPayload(payload, { fallbackLastReset = '' } = {})
   const importedLastReset = (typeof payload.data.lastResetDate === 'string' &&
     /^\d{4}-\d{2}-\d{2}$/.test(payload.data.lastResetDate)) ? payload.data.lastResetDate : fallbackLastReset
   const importedUserSettings = normalizeUserSettings(payload.data.userSettings || {})
+  // ankiSettings 在 1.3 起加入；旧版备份缺失时保留当前本地配置，避免覆盖用户已配置的 API Key。
+  const importedAnkiSettings = payload.data.ankiSettings !== undefined
+    ? normalizeAnkiSettings(payload.data.ankiSettings)
+    : normalizeAnkiSettings(safeStorageGet(ANKI_SETTINGS_STORAGE_KEY, DEFAULT_ANKI_SETTINGS))
+  
+  // memoTags 处理：如果备份中有数据则使用，否则保留当前本地数据
+  const importedMemoTags = Array.isArray(payload.data.memoTags) ? payload.data.memoTags : []
+
+
 
   return {
-    workflows: importedWorkflows,
-    rotationRules: importedRotationRuleList,
-    memos: importedMemos,
-    completionHistory: importedHistory,
-    lastResetDate: importedLastReset,
-    userSettings: importedUserSettings
-  }
+      workflows: importedWorkflows,
+      rotationRules: importedRotationRuleList,
+      memos: importedMemos,
+      completionHistory: importedHistory,
+      lastResetDate: importedLastReset,
+      userSettings: importedUserSettings,
+      ankiSettings: importedAnkiSettings,
+      memoTags: importedMemoTags
+    }
 }
 
 /**
@@ -148,7 +172,10 @@ export function persistBackupToStorage(payload, { fallbackLastReset = '' } = {})
       ['memos', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.memos, normalized.memos)],
       ['completionHistory', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.completionHistory, normalized.completionHistory)],
       ['lastResetDate', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.lastResetDate, normalized.lastResetDate)],
-      ['userSettings', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.userSettings, normalized.userSettings)]
+      ['userSettings', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.userSettings, normalized.userSettings)],
+      ['ankiSettings', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.ankiSettings, normalized.ankiSettings)],
+      ['memoTags', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.memoTags, normalized.memoTags)],
+
     ]
 
     for (const [name, fn] of writes) {
@@ -171,7 +198,8 @@ export function persistBackupToStorage(payload, { fallbackLastReset = '' } = {})
       rotationRulesLength: normalized.rotationRules.length,
       memosLength: normalized.memos.length,
       historyDays: Object.keys(normalized.completionHistory).length,
-      importedLastResetDate: normalized.lastResetDate
+      importedLastResetDate: normalized.lastResetDate,
+      hasAnkiKey: Boolean(normalized.ankiSettings && normalized.ankiSettings.apiKey)
     })
     return normalized
   } catch (err) {

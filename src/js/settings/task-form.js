@@ -1,5 +1,6 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
+import { I18N } from '../locales.js'
 import { createTask, normalizeCheckConfig } from '../config/workflow-config.js'
 import {
   getRotationRules,
@@ -17,6 +18,7 @@ import {
   closeModal,
   replaceModal
 } from './modal.js'
+import { $ } from '../utils/dom-utils.js'
 import { bindRotationModalEvents, openRotationModal } from './rotation-editor.js'
 
 /**
@@ -40,10 +42,6 @@ import { bindRotationModalEvents, openRotationModal } from './rotation-editor.js
 let currentMode = 'add'
 let currentEditingId = null
 
-function $(id) {
-  return document.getElementById(id)
-}
-
 function setFieldError(fieldId, message) {
   const input = $(fieldId)
   if (!input) return
@@ -65,7 +63,7 @@ function clearTaskFormErrors() {
   setFieldError('taskform-url', '')
   const titleHelper = $('taskform-title-helper')
   if (titleHelper) {
-    titleHelper.textContent = '必填，最多 64 字。'
+    titleHelper.textContent = I18N.workflow.titleHelper
     titleHelper.classList.remove('is-error')
   }
 }
@@ -117,27 +115,24 @@ export function renderRotationSummary(rotationRuleId) {
   const enabled = enabledInput ? Boolean(enabledInput.checked) : true
 
   if (!enabled) {
-    titleEl.textContent = '未启用轮换'
-    descEl.textContent = '开启上方开关后，从预设中选择一项。'
+    titleEl.textContent = I18N.workflow.rotationNotEnabled
+    descEl.textContent = I18N.workflow.rotationNotEnabledDesc
     return
   }
   if (!rotationRuleId) {
-    titleEl.textContent = '未选择预设'
-    descEl.textContent = '点按下方按钮，从预设中选择一项。'
+    titleEl.textContent = I18N.workflow.rotationNoPreset
+    descEl.textContent = I18N.workflow.rotationNoPresetDesc
     return
   }
   const rule = findRotationRule(rotationRuleId)
   if (!rule) {
-    titleEl.textContent = '所选预设已被删除'
-    descEl.textContent = '点按下方按钮，重新选择。'
+    titleEl.textContent = I18N.workflow.rotationPresetDeleted
+    descEl.textContent = I18N.workflow.rotationPresetDeletedDesc
     return
   }
-  titleEl.textContent = rule.name || '未命名轮换规则'
-  const today = WEEKDAY_LABELS_FULL[new Date().getDay()]
-  descEl.textContent = `共 7 天配置 · 点按可编辑标题、图标与休息日。`
+  titleEl.textContent = rule.name || I18N.workflow.rotationUntitled
+  descEl.textContent = I18N.workflow.rotationSummary
 }
-
-const WEEKDAY_LABELS_FULL = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 /* ============================================================
  * 自动检查区：渐进披露开关 + 内嵌配置项
@@ -196,11 +191,11 @@ export function openTaskForm(mode = 'add', taskId = null) {
   if (mode === 'edit' && taskId) {
     const task = getWorkflows().find((t) => t.id === taskId)
     if (!task) {
-      showToast('找不到该任务，可能已被删除。')
+      showToast(I18N.toast.workflow.taskNotFound)
       return
     }
-    if (titleEl) titleEl.textContent = '编辑任务'
-    if (subtitleEl) subtitleEl.textContent = '修改当前任务的字段与属性，点击保存即可生效。'
+    if (titleEl) titleEl.textContent = I18N.workflow.taskFormEditTitle
+    if (subtitleEl) subtitleEl.textContent = I18N.workflow.taskFormEditSubtitle
 
     fTitle.value = task.title || ''
     fDesc.value = task.desc || ''
@@ -214,8 +209,8 @@ export function openTaskForm(mode = 'add', taskId = null) {
     fCheckCategory.value = cfg?.category || ''
     fCheckCount.value = cfg?.targetCount || 7
   } else {
-    if (titleEl) titleEl.textContent = '添加新任务'
-    if (subtitleEl) subtitleEl.textContent = '填写下方字段以创建一条新的工作流卡片。'
+    if (titleEl) titleEl.textContent = I18N.workflow.taskFormAddTitle
+    if (subtitleEl) subtitleEl.textContent = I18N.workflow.taskFormAddSubtitle
 
     fTitle.value = ''
     fDesc.value = ''
@@ -270,7 +265,7 @@ export function handleTaskFormSubmit(event) {
   const isPlaceholder = Boolean(fPlaceholder?.checked)
 
   if (!title) {
-    setFieldError('taskform-title-input', '任务名称不能为空。')
+    setFieldError('taskform-title-input', I18N.workflow.titleRequired)
     setTimeout(() => fTitle.focus(), 80)
     return
   }
@@ -280,7 +275,7 @@ export function handleTaskFormSubmit(event) {
       // eslint-disable-next-line no-new
       new URL(url)
     } catch (_) {
-      setFieldError('taskform-url', 'URL 格式不合法，请检查开头是否为 http:// 或 https://。')
+      setFieldError('taskform-url', I18N.workflow.urlInvalid)
       setTimeout(() => fUrl.focus(), 80)
       return
     }
@@ -304,7 +299,7 @@ export function handleTaskFormSubmit(event) {
     const workflows = getWorkflows()
     const idx = workflows.findIndex((t) => t.id === currentEditingId)
     if (idx === -1) {
-      showToast('编辑失败：任务已不存在。')
+      showToast(I18N.toast.workflow.editFailed)
       closeTaskForm()
       return
     }
@@ -320,7 +315,7 @@ export function handleTaskFormSubmit(event) {
       checkConfig
     }
     replaceTaskStore(currentEditingId, updated)
-    showToast('任务已更新。')
+    showToast(I18N.toast.workflow.taskUpdated)
   } else {
     const task = createTask({
       title,
@@ -333,7 +328,7 @@ export function handleTaskFormSubmit(event) {
       checkConfig
     })
     addTaskStore(task)
-    showToast('已添加新任务。')
+    showToast(I18N.toast.workflow.taskAdded)
   }
 
   renderWorkflow()

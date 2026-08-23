@@ -1,0 +1,177 @@
+/* =====================================================================
+ * anki.css — Anki 处理机：输入面板 / 分类卡片输出、工具栏、处理中 Loading
+ *   .anki-panel / .anki-textarea / .anki-toolbar /
+ *   .anki-cards / .anki-card / .anki-card__tag / .anki-card__textarea /
+ *   .anki-run / .anki-run-label / .anki-loading
+ *   API 配置表单复用 backup.css 的 .gist-form / .gist-field，
+ *   其中 select 外观见 backup.css 内 .gist-field__control > select。
+ * ===================================================================== */
+
+.anki-panel {
+  margin-top: 28px;
+  padding: 24px;
+  border-radius: var(--md-radius-large);
+  background: var(--md-surface-container);
+  box-shadow: var(--md-elevation-1);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 14%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.view--anki .hero-section + .anki-panel { margin-top: 90px; }
+
+.anki-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.anki-panel__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--md-on-surface);
+}
+.anki-panel__title .material-symbols { color: var(--md-primary); font-size: 22px; }
+.anki-panel__title h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
+.anki-panel__hint {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--md-on-surface-variant);
+  letter-spacing: .01em;
+}
+
+.anki-textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 150px;
+  padding: 16px 18px;
+  border-radius: var(--md-radius-medium);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 24%, transparent);
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.65;
+  font-family: 'Inter', 'Noto Sans SC', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: .005em;
+  resize: vertical;
+  transition: border-color var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard);
+}
+.anki-textarea::placeholder { color: var(--md-on-surface-variant); opacity: 0.6; }
+.anki-textarea:focus {
+  outline: 0;
+  border-color: var(--md-primary);
+  background: var(--md-surface-container-high);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
+}
+.anki-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.anki-toolbar .btn { min-height: 44px; }
+.anki-toolbar .btn--filled { margin-left: auto; }
+
+/* ===== 分类卡片输出区 ===== */
+.anki-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.anki-cards__empty {
+  margin: 0;
+  padding: 28px 18px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--md-on-surface-variant);
+  border: 1px dashed color-mix(in srgb, var(--md-outline) 32%, transparent);
+  border-radius: var(--md-radius-medium);
+}
+.anki-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--md-radius-medium);
+  background: var(--md-surface);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 16%, transparent);
+}
+.anki-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.anki-card__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--md-primary);
+  background: color-mix(in srgb, var(--md-primary) 12%, transparent);
+}
+.anki-card__textarea { min-height: 120px; }
+.anki-card__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.anki-card__toolbar .btn { min-height: 36px; }
+
+/* 处理按钮：内嵌 Loading 旋转点 */
+.anki-run { position: relative; }
+.anki-run-label { transition: opacity var(--md-motion-standard); }
+.anki-loading {
+  display: inline-block;
+  width: 16px; height: 16px;
+  margin-left: 4px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  animation: anki-loading-spin 0.7s linear infinite;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+@keyframes anki-loading-spin { to { transform: rotate(360deg); } }
+
+/* 处理中：禁用态（.btn:disabled 已降透明度，这里阻止重复点击） */
+.anki-run.is-busy { pointer-events: none; }
+.anki-run.is-busy .anki-run-label { opacity: 0.85; }
+
+/* ===== 移动端响应 ===== */
+@media (max-width: 680px) {
+  .view--anki .hero-section + .anki-panel { margin-top: 42px; }
+  .anki-panel { margin-top: 20px; padding: 18px; gap: 14px; }
+  .anki-toolbar .btn { flex: 1 1 100%; justify-content: center; margin-left: 0; }
+  .anki-card__toolbar .btn { flex: 1 1 100%; justify-content: center; }
+}
+
+/* ===== 异常警示卡片 ===== */
+.anki-card--abnormal {
+  background: color-mix(in srgb, var(--md-error) 8%, var(--md-surface-container));
+  border-color: color-mix(in srgb, var(--md-error) 32%, transparent);
+}
+.anki-card--abnormal .anki-card__tag {
+  color: var(--md-on-error-container);
+  background: color-mix(in srgb, var(--md-error) 12%, transparent);
+}
+.anki-card--abnormal .material-symbols {
+  color: var(--md-error);
+}
+.anki-card__abnormal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--md-error);
+  margin-left: 8px;
+}

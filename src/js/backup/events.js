@@ -1,9 +1,9 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
+import { I18N, t } from '../locales.js'
 import {
   setWorkflows,
   resetToDefaults,
-  replaceAll as replaceAllWorkflows,
   persistWorkflows,
   getWorkflows
 } from '../workflow/workflow-store.js'
@@ -18,6 +18,10 @@ import {
   restoreTodayCompletedFromHistory
 } from '../workflow/history-store.js'
 import { setUserSettings, persistUserSettings, getUserSettings } from '../core/settings-store.js'
+import { setAnkiSettings, persistAnkiSettings } from '../anki/anki-store.js'
+import { decryptAnkiSecret } from '../anki/anki-crypto.js'
+import { setPassphrase } from '../anki/anki-passphrase.js'
+import { renderAnkiSettingsInputs } from '../anki/anki-settings.js'
 import { renderWorkflow } from '../workflow/workflow-renderer.js'
 import { renderMemos, updateMemoCounters, renderTagSelector } from '../memo/memo-renderer.js'
 import { renderEditorList } from '../settings/workflow-editor.js'
@@ -72,11 +76,11 @@ export function bindBackupEvents() {
  *  - 复用 workflow-store 的 resetToDefaults
  */
 function resetWorkflowsToDefault() {
-  if (!confirm('确认把任务列表恢复为出厂默认？\n\n* 仅重置 workflows 配置；\n* 轮换规则、打卡勾选与生词笔记不会被改动。')) return
+  if (!confirm(I18N.toast.backup.resetToDefaultConfirm)) return
   resetToDefaults()
   renderWorkflow()
   renderEditorList()
-  showToast('已恢复默认任务列表。')
+  showToast(I18N.toast.backup.resetToDefaultDone)
 }
 
 /* ====================================================================
@@ -101,7 +105,7 @@ function bindGistSettingsEvents() {
         await uploadToGist()
       } catch (err) {
         DBG('gist:upload:exception', String(err))
-        showToast(`Gist 上传失败：${err?.message || '发生未知错误'}`)
+        showToast(t(I18N.toast.gist.uploadFailed, { msg: err?.message || I18N.toast.gist.unknownError }))
       } finally {
         finishBusy()
       }
@@ -115,7 +119,7 @@ function bindGistSettingsEvents() {
         await pullFromGist()
       } catch (err) {
         DBG('gist:pull:exception', String(err))
-        showToast(`Gist 拉取失败：${err?.message || '发生未知错误'}`)
+        showToast(t(I18N.toast.gist.pullFailed, { msg: err?.message || I18N.toast.gist.unknownError }))
       } finally {
         finishBusy()
       }
@@ -131,33 +135,61 @@ async function handleImportFile(file) {
   if (!file) return
   const name = file.name.toLowerCase()
   if (!name.endsWith('.json') && file.type !== 'application/json' && file.type !== '') {
-    showToast('请选择 .json 格式的备份文件。')
+    showToast(I18N.toast.backup.jsonOnly)
     return
   }
   let parsed
   try {
     parsed = JSON.parse(await readFileAsText(file))
   } catch {
-    showToast('JSON 解析失败，文件可能损坏。')
+    showToast(I18N.toast.backup.jsonParseFailed)
     return
   }
   const err = validateBackupPayload(parsed)
   if (err) { showToast(err); return }
 
+  // 解密加密的 API Key（若有）：口令缺失 / 错误 / 数据损坏时中止导入，不污染本地配置。
+  const ankiIn = parsed.data.ankiSettings
+  if (ankiIn && typeof ankiIn === 'object' && ankiIn.apiKeyEncrypted) {
+    const passphrase = window.prompt(I18N.toast.anki.importPassphrasePrompt)
+    if (passphrase == null) {
+      showToast(I18N.toast.backup.importCancelled)
+      return
+    }
+    try {
+      ankiIn.apiKey = await decryptAnkiSecret(ankiIn.apiKeyEncrypted, passphrase)
+      setPassphrase(passphrase)
+    } catch (err) {
+      const cryptoDown = err && (err.code === 'crypto-unavailable' || err.message === 'crypto-unavailable')
+      DBG('import:anki:decrypt:error', {
+        reason: cryptoDown ? 'crypto-unavailable' : 'decrypt-error',
+        name: err?.name,
+        message: err?.message
+      })
+      showToast(cryptoDown ? I18N.toast.anki.cryptoUnavailable : I18N.toast.anki.decryptFailed)
+      return
+    }
+  } else if (ankiIn && typeof ankiIn === 'object' && ankiIn.apiKey && !ankiIn.apiKeyEncrypted) {
+    showToast(I18N.toast.anki.plainApiKeyWarning)
+  }
+
   const historyDays = parsed.data.completionHistory ? Object.keys(parsed.data.completionHistory).length : 0
-  const confirmMsg =
-    `导入将覆盖当前设备的：\n` +
-    `  · 任务配置列表（${parsed.data.workflows.length} 条）\n` +
-    `  · 轮换规则（${Array.isArray(parsed.data.rotationRules) ? parsed.data.rotationRules.length : 0} 条）\n` +
-    `  · 生词笔记（${parsed.data.memos.length} 条）\n` +
-    (historyDays > 0 ? `  · 跨天打卡历史（${historyDays} 天）\n` : '') +
-    `\n注意：今日打卡勾选状态将从备份中恢复（如存在）。\n\n` +
-    `导出时间：${parsed.exportTime || '未知'}\n版本：${parsed.version || '未知'}\n\n确定继续吗？`
-  if (!confirm(confirmMsg)) { showToast('已取消导入。'); return }
+  const historyLine = historyDays > 0 ? t(I18N.toast.backup.historyLine, { days: historyDays }) : ''
+  const ankiLine = parsed.data.ankiSettings ? I18N.toast.backup.ankiLine : ''
+  const confirmMsg = t(I18N.toast.backup.importConfirmMsg, {
+    tasks: parsed.data.workflows.length,
+    rules: Array.isArray(parsed.data.rotationRules) ? parsed.data.rotationRules.length : 0,
+    notes: parsed.data.memos.length,
+    historyLine,
+    ankiLine,
+    time: parsed.exportTime || I18N.toast.backup.unknown,
+    version: parsed.version || I18N.toast.backup.unknown
+  })
+  if (!confirm(confirmMsg)) { showToast(I18N.toast.backup.importCancelled); return }
 
   const imported = persistBackupToStorage(parsed, { fallbackLastReset: '' })
   if (!imported) {
-    showToast('写入 LocalStorage 失败，请检查浏览器存储权限。')
+    showToast(I18N.toast.backup.storageWriteFailed)
     return
   }
 
@@ -168,6 +200,7 @@ async function handleImportFile(file) {
   if (imported.completionHistory) setCompletionHistory(imported.completionHistory)
   if (typeof imported.lastResetDate === 'string') setLastResetDate(imported.lastResetDate)
   if (imported.userSettings) setUserSettings(imported.userSettings)
+  if (imported.ankiSettings) setAnkiSettings(imported.ankiSettings)
 
   // 双保险：把每个 store 的 persist* 跑一遍，让内部状态与 localStorage 完全一致
   persistWorkflows()
@@ -176,6 +209,7 @@ async function handleImportFile(file) {
   persistCompletionHistory()
   persistLastResetDate()
   persistUserSettings()
+  if (imported.ankiSettings) persistAnkiSettings()
 
   // 跨天判断 + 今日打勾状态恢复（应用历史 today 列表）
   checkDailyReset({ force: true, reason: 'file-import' })
@@ -187,15 +221,21 @@ async function handleImportFile(file) {
   updateMemoCounters()
   renderTagSelector()
   renderEditorList()
+  renderAnkiSettingsInputs()
 
   DBG('import:success', {
     workflows: getWorkflows().length,
     rotationRules: imported.rotationRules.length,
     memos: getMemos().length,
     historyDays: Object.keys(getCompletionHistory()).length,
-    userSettingsKeys: Object.keys(getUserSettings()).length
+    userSettingsKeys: Object.keys(getUserSettings()).length,
+    hasAnkiKey: Boolean(imported.ankiSettings && imported.ankiSettings.apiKey)
   })
-  showToast(`导入成功：${getWorkflows().length} 任务 / ${imported.rotationRules.length} 规则 / ${getMemos().length} 笔记。`)
+  showToast(t(I18N.toast.backup.importSuccess, {
+    tasks: getWorkflows().length,
+    rules: imported.rotationRules.length,
+    notes: getMemos().length
+  }))
 }
 
 function bindDropZone() {
@@ -218,7 +258,7 @@ function bindDropZone() {
     drop.classList.remove('is-dragover')
     const file = e.dataTransfer?.files?.[0]
     if (file) {
-      if (hint) hint.textContent = `已识别：${file.name}`
+      if (hint) hint.textContent = t(I18N.toast.backup.fileRecognized, { name: file.name })
       await handleImportFile(file)
       setTimeout(() => { if (hint) hint.textContent = originalHint }, 1500)
     }
@@ -227,7 +267,7 @@ function bindDropZone() {
   if (input) {
     input.addEventListener('change', async (e) => {
       const file = e.target.files && e.target.files[0]
-      if (file && hint) hint.textContent = `已选择：${file.name}`
+      if (file && hint) hint.textContent = t(I18N.toast.backup.fileSelected, { name: file.name })
       await handleImportFile(file)
       e.target.value = ''
       setTimeout(() => { if (hint) hint.textContent = originalHint }, 1500)
@@ -247,5 +287,4 @@ export { handleImportFile }
 /* 重置默认任务列表也对外暴露（Gist 同步 UI 的偶尔测试按钮可能用到） */
 export { resetWorkflowsToDefault }
 
-// 抑制 lint：未引用的 import 提示
-void replaceAllWorkflows
+

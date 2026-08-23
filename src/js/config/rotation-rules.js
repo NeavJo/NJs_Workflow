@@ -1,22 +1,21 @@
 /**
  * 通用「周几轮换规则 (RotationRule)」引擎
  */
-export const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+import { I18N } from '../locales.js'
+
+export const WEEKDAY_LABELS = I18N.common.weekdays
 export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
 
 export const DEFAULT_ROTATION_RULES = [
   {
     id: 'rot-cet6',
-    name: 'CET-6 每日专项',
-    days: [
-      { label: '今日专项：听力', icon: 'headphones', variant: 'accent' },
-      { label: '今日专项：写作', icon: 'edit_note', variant: 'accent' },
-      { label: '今日专项：翻译', icon: 'translate', variant: 'accent' },
-      { label: '今日专项：选词填空', icon: 'join', variant: 'accent' },
-      { label: '今日专项：长篇阅读', icon: 'article', variant: 'accent' },
-      { label: '今日专项：仔细阅读', icon: 'menu_book', variant: 'accent' },
-      { label: '周六：休息日（不计入今日进度）', icon: 'coffee', variant: 'muted', disabled: true }
-    ]
+    name: I18N.defaults.cet6RuleName,
+    days: I18N.defaults.cet6Days.map((label, i) => ({
+      label,
+      icon: ['headphones', 'edit_note', 'translate', 'join', 'article', 'menu_book', 'coffee'][i],
+      variant: i === 6 ? 'muted' : 'accent',
+      disabled: i === 6
+    }))
   }
 ]
 
@@ -31,7 +30,7 @@ export function createEmptyDayEntry() {
 export function createRotationRule(overrides = {}) {
   const base = {
     id: `rot-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    name: '未命名轮换规则',
+    name: I18N.defaults.untitledRule,
     days: Array.from({ length: 7 }, createEmptyDayEntry)
   }
   return { ...base, ...overrides, days: overrides.days || base.days }
@@ -54,7 +53,7 @@ export function normalizeRotationRule(raw) {
   while (days.length < 7) days.push(createEmptyDayEntry())
   return {
     id: raw.id,
-    name: typeof raw.name === 'string' && raw.name ? raw.name : '未命名轮换规则',
+    name: typeof raw.name === 'string' && raw.name ? raw.name : I18N.defaults.untitledRule,
     days: days.map(normalizeDayEntry)
   }
 }
@@ -67,12 +66,13 @@ export function normalizeRotationRuleList(rawList) {
 export function evaluateRotationTag(rule, dayIndex = new Date().getDay()) {
   if (!rule || !Array.isArray(rule.days) || rule.days.length < 7) return null
   const entry = normalizeDayEntry(rule.days[dayIndex])
-  if (!entry.label && !entry.icon) return null
+  // 只要 label 为空就隐藏标签（即使有图标）
+  if (!entry.label) return null
   const variant = entry.disabled
     ? 'muted'
     : (entry.variant === 'muted' ? 'muted' : 'accent')
   return {
-    label: entry.label || '',
+    label: entry.label,
     icon: entry.icon || 'label',
     variant,
     disabled: Boolean(entry.disabled)

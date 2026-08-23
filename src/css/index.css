@@ -24,6 +24,7 @@
 /* 业务视图 */
 @import "./workflow.css";
 @import "./memo.css";
+@import "./anki.css";
 @import "./rotation.css";
 
 /* 设置子模块 */
@@ -40,6 +41,9 @@
 
 /* 浮层提示（覆盖在所有视图之上） */
 @import "./toast.css";
+
+/* Gist 上传状态指示器（桌面端导航栏下方 / 移动端右上角悬浮） */
+@import "./gist-indicator.css";
 
 /* 响应式与无障碍断点（最后，覆盖权重最高） */
 @import "./responsive.css";

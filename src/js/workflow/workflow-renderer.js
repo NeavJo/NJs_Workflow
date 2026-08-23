@@ -1,5 +1,6 @@
 import { DBG } from '../core/debug.js'
 import { updateProgress } from '../ui.js'
+import { I18N, t } from '../locales.js'
 import { getWorkflows } from './workflow-store.js'
 import { getCompletedIds } from './completion-store.js'
 import { evaluateTaskRuntime, isTaskTrackable, getTrackableTasks } from './workflow-runtime.js'
@@ -9,6 +10,31 @@ import { refreshWorkflowCarousel } from './workflow-carousel.js'
  * 工作流渲染层：只读 stores，产出 DOM；不写状态、不绑定事件。
  * 事件绑定交给 workflow-events.js，状态写入交给各 store。
  */
+
+// 背景图标池（Material Symbols）
+const BG_ICON_POOL = ['task_alt', 'menu_book', 'translate', 'headphones', 'edit_note', 'auto_awesome', 'schedule', 'event_available', 'school', 'psychology']
+// 会话内缓存：item.id -> iconName
+const BG_ICON_CACHE = new Map()
+let lastUsedIcon = null
+
+function getCardBgIcon(itemId) {
+  if (!itemId) return BG_ICON_POOL[0]
+  if (BG_ICON_CACHE.has(itemId)) return BG_ICON_CACHE.get(itemId)
+
+  let availablePool = BG_ICON_POOL.filter(icon => icon !== lastUsedIcon)
+  // 如果剩余池为空（极端情况），回退到完整池
+  if (availablePool.length === 0) availablePool = BG_ICON_POOL
+
+  const icon = availablePool[Math.floor(Math.random() * availablePool.length)]
+  lastUsedIcon = icon
+  BG_ICON_CACHE.set(itemId, icon)
+  return icon
+}
+
+function buildBgIconHtml(itemId) {
+  const iconName = getCardBgIcon(itemId)
+  return `<span class="material-symbols workflow-card__bg-icon" aria-hidden="true">${iconName}</span>`
+}
 
 function buildDynamicTagHtml(tagInfo) {
   if (!tagInfo) return ''
@@ -35,11 +61,12 @@ function createCard(rawItem, order) {
   if (rawItem.isPlaceholder) {
     card.className = 'workflow-card is-placeholder'
     card.innerHTML = `
+      ${buildBgIconHtml(rawItem.id)}
       <div class="order-badge" aria-hidden="true"></div>
       <div class="workflow-card__content">
         <div class="workflow-card__title-row">
           <h3 class="workflow-card__title"></h3>
-          <span class="coming-soon-chip">Coming Soon</span>
+          <span class="coming-soon-chip">${I18N.workflow.comingSoon}</span>
         </div>
         <p class="workflow-card__description"></p>
       </div>
@@ -62,7 +89,7 @@ function createCard(rawItem, order) {
   const effectiveDesc = (rawItem.desc && rawItem.desc.trim())
     ? rawItem.desc
     : (checkEnabled
-        ? `校验今日 ${rawItem.checkConfig.category || '常规'} 分类生词数 (≥${rawItem.checkConfig.targetCount} 自动打卡)`
+        ? t(I18N.workflow.descFallback, { category: rawItem.checkConfig.category || I18N.workflow.defaultCategory, count: rawItem.checkConfig.targetCount })
         : rawItem.desc)
 
   const checkboxLocked = disabled || checkEnabled
@@ -91,6 +118,7 @@ function createCard(rawItem, order) {
   const descriptionHtml = effectiveDesc ? `<p class="workflow-card__description"></p>` : ''
 
   card.innerHTML = `
+    ${buildBgIconHtml(rawItem.id)}
     <div class="order-badge" aria-hidden="true"></div>
     <div class="workflow-card__content">
       <h3 class="workflow-card__title"></h3>
@@ -121,12 +149,4 @@ export function renderWorkflow() {
   DBG('render:workflow', { completed, total: trackableTasks.length })
   updateProgress(completed, trackableTasks.length)
   refreshWorkflowCarousel()
-}
-
-export function renderDate() {
-  const element = document.querySelector('#current-date')
-  if (!element) return
-  const date = new Date()
-  element.dateTime = date.toISOString().slice(0, 10)
-  element.textContent = new Intl.DateTimeFormat('zh-CN', { weekday: 'long', month: 'long', day: 'numeric' }).format(date)
 }

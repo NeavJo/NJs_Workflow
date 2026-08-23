@@ -40,11 +40,15 @@ export {
   LAST_RESET_DATE_STORAGE_KEY,
   GIST_SETTINGS_STORAGE_KEY,
   USER_SETTINGS_STORAGE_KEY,
+  ANKI_SETTINGS_STORAGE_KEY,
   DEFAULT_GIST_SETTINGS,
   DEFAULT_USER_SETTINGS,
+  DEFAULT_ANKI_SETTINGS,
+  ANKI_API_TYPES,
   normalizeGistSettings,
   normalizeCompletionHistory,
-  normalizeUserSettings
+  normalizeUserSettings,
+  normalizeAnkiSettings
 } from './config/storage-config.js'
 
 export { pad2, getTodayDateString, getYesterdayDateString, getFullTimestamp, formatTimestamp } from './core/date.js'

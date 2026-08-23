@@ -1,0 +1,71 @@
+/* =====================================================================
+ * gist-indicator.css — Gist 上传状态指示器
+ *   桌面端：侧边导航栏底部
+ *   移动端：视口右上角悬浮（见 responsive.css）
+ *   状态：idle / uploading（旋转弧） / success（逐渐绘制的勾）
+ * ===================================================================== */
+
+.gist-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-top: auto;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--md-motion-standard), visibility 0s linear var(--md-motion-standard);
+}
+.gist-indicator[data-state="uploading"],
+.gist-indicator[data-state="success"] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--md-motion-standard);
+}
+
+.gist-indicator__svg {
+  width: 24px;
+  height: 24px;
+  overflow: visible;
+}
+.gist-indicator__frame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--md-outline) 50%, transparent);
+  stroke-width: 1.5;
+}
+.gist-indicator__spinner,
+.gist-indicator__check {
+  fill: none;
+  stroke: var(--md-primary);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.gist-indicator__spinner-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--md-primary) 18%, transparent);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.gist-indicator__spinner-arc {
+  transform-origin: 12px 12px;
+  animation: gist-spin 0.9s linear infinite;
+}
+.gist-indicator__check {
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+}
+.gist-indicator[data-state="success"] .gist-indicator__check {
+  animation: gist-check-draw 0.45s var(--md-ease-emphasized-decelerate) forwards;
+}
+.gist-indicator[data-state="success"] .gist-indicator__spinner,
+.gist-indicator[data-state="success"] .gist-indicator__spinner-track {
+  opacity: 0;
+  transition: opacity 0.18s linear;
+}
+.gist-indicator[data-state="success"] .gist-indicator__spinner-arc {
+  animation: none;
+}
+
+@keyframes gist-spin { to { transform: rotate(360deg); } }
+@keyframes gist-check-draw { to { stroke-dashoffset: 0; } }

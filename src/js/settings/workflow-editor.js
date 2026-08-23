@@ -1,5 +1,6 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
+import { I18N, t } from '../locales.js'
 import { getWorkflows, moveTask, removeTask } from '../workflow/workflow-store.js'
 import { renderWorkflow } from '../workflow/workflow-renderer.js'
 import { openModal, replaceModal, openConfirmDialog, closeModal } from './modal.js'
@@ -36,7 +37,7 @@ function createEditorTaskRow(task, idx, total) {
   row.className = 'editor-task-row'
   row.dataset.id = task.id
 
-  const descText = task.desc || (task.url ? task.url : '（无描述）')
+  const descText = task.desc || (task.url ? task.url : I18N.workflow.noDesc)
 
   row.innerHTML = `
     <div class="editor-task-row__order">${String(idx + 1).padStart(2, '0')}</div>
@@ -46,25 +47,25 @@ function createEditorTaskRow(task, idx, total) {
       <p class="editor-task-row__meta"></p>
     </div>
     <button type="button" class="editor-task-row__menu" data-editor-action="menu"
-            aria-label="任务操作" aria-haspopup="dialog" aria-controls="editor-action-modal">
+            aria-label="${I18N.workflow.taskOpAria}" aria-haspopup="dialog" aria-controls="editor-action-modal">
       <span class="material-symbols" aria-hidden="true">more_horiz</span>
     </button>
     <div class="editor-task-row__actions">
-      <button type="button" class="icon-btn-mini ${idx === 0 ? 'is-disabled' : ''}" data-editor-action="up" title="上移" aria-label="上移">
+      <button type="button" class="icon-btn-mini ${idx === 0 ? 'is-disabled' : ''}" data-editor-action="up" title="${I18N.workflow.moveUp}" aria-label="${I18N.workflow.moveUpAria}">
         <span class="material-symbols" aria-hidden="true">arrow_upward</span>
       </button>
-      <button type="button" class="icon-btn-mini ${idx === total - 1 ? 'is-disabled' : ''}" data-editor-action="down" title="下移" aria-label="下移">
+      <button type="button" class="icon-btn-mini ${idx === total - 1 ? 'is-disabled' : ''}" data-editor-action="down" title="${I18N.workflow.moveDown}" aria-label="${I18N.workflow.moveDownAria}">
         <span class="material-symbols" aria-hidden="true">arrow_downward</span>
       </button>
-      <button type="button" class="icon-btn-mini" data-editor-action="edit" title="编辑" aria-label="编辑">
+      <button type="button" class="icon-btn-mini" data-editor-action="edit" title="${I18N.workflow.editAria}" aria-label="${I18N.workflow.editAria}">
         <span class="material-symbols" aria-hidden="true">edit</span>
       </button>
-      <button type="button" class="icon-btn-mini icon-btn-mini--danger" data-editor-action="delete" title="删除" aria-label="删除">
+      <button type="button" class="icon-btn-mini icon-btn-mini--danger" data-editor-action="delete" title="${I18N.workflow.deleteAria}" aria-label="${I18N.workflow.deleteAria}">
         <span class="material-symbols" aria-hidden="true">delete</span>
       </button>
     </div>`
 
-  row.querySelector('.editor-task-row__title').textContent = task.title || '未命名任务'
+  row.querySelector('.editor-task-row__title').textContent = task.title || I18N.workflow.untitledTask
   row.querySelector('.editor-task-row__desc').textContent = descText
   row.querySelector('.editor-task-row__meta').textContent = buildMetaLine(task)
   return row
@@ -81,7 +82,7 @@ function openTaskActionSheet(taskId) {
   root.dataset.taskId = taskId
 
   const subtitle = root.querySelector('#editor-action-subtitle')
-  if (subtitle) subtitle.textContent = task.title || '未命名任务'
+  if (subtitle) subtitle.textContent = task.title || I18N.workflow.untitledTask
 
   const list = root.querySelector('#editor-action-list')
   if (!list) return
@@ -90,10 +91,10 @@ function openTaskActionSheet(taskId) {
   const isLast = idx === workflows.length - 1
 
   const items = [
-    { key: 'edit', icon: 'edit', label: '编辑任务', disabled: false },
-    { key: 'up', icon: 'arrow_upward', label: '上移', disabled: isFirst },
-    { key: 'down', icon: 'arrow_downward', label: '下移', disabled: isLast },
-    { key: 'delete', icon: 'delete', label: '删除任务', danger: true, disabled: false }
+    { key: 'edit', icon: 'edit', label: I18N.workflow.editTask, disabled: false },
+    { key: 'up', icon: 'arrow_upward', label: I18N.workflow.moveUp, disabled: isFirst },
+    { key: 'down', icon: 'arrow_downward', label: I18N.workflow.moveDown, disabled: isLast },
+    { key: 'delete', icon: 'delete', label: I18N.workflow.deleteTask, danger: true, disabled: false }
   ]
 
   list.replaceChildren(
@@ -115,21 +116,21 @@ function openTaskActionSheet(taskId) {
 
 async function performDelete(taskId) {
   const workflows = getWorkflows()
-  const t = workflows.find((w) => w.id === taskId)
-  if (!t) return
-  const title = t.title || '未命名任务'
+  const task = workflows.find((w) => w.id === taskId)
+  if (!task) return
+  const title = task.title || I18N.workflow.untitledTask
   const ok = await openConfirmDialog({
-    title: '删除任务？',
-    message: `「${title}」将从工作流中移除，此操作无法撤销。`,
-    confirmText: '删除',
-    cancelText: '取消',
+    title: I18N.workflow.deleteConfirmTitle,
+    message: t(I18N.workflow.deleteConfirmMsg, { title }),
+    confirmText: I18N.common.delete,
+    cancelText: I18N.common.cancel,
     danger: true
   })
   if (!ok) return
   removeTask(taskId)
   renderEditorList()
   renderWorkflow()
-  showToast('任务已删除。')
+  showToast(I18N.toast.workflow.taskDeleted)
   DBG('editor:delete', taskId)
 }
 
@@ -157,12 +158,14 @@ function handleEditorAction(event) {
 
   if (action === 'up') {
     if (i === 0) return
-    moveTask(i, i - 1)
+    moveTask(id, 'up')
     renderEditorList()
+    renderWorkflow()
   } else if (action === 'down') {
     if (i === workflows.length - 1) return
-    moveTask(i, i + 1)
+    moveTask(id, 'down')
     renderEditorList()
+    renderWorkflow()
   } else if (action === 'delete') {
     performDelete(id)
   }
@@ -192,8 +195,9 @@ async function handleSheetAction(event) {
   if (action === 'up' || action === 'down') {
     const target = action === 'up' ? i - 1 : i + 1
     if (target < 0 || target >= workflows.length) return
-    moveTask(i, target)
+    moveTask(taskId, action)
     renderEditorList()
+    renderWorkflow()
   } else if (action === 'delete') {
     await performDelete(taskId)
   }
@@ -206,7 +210,7 @@ export function renderEditorList() {
   const countLabel = document.getElementById('editor-task-count')
   if (!list) return
   const workflows = getWorkflows()
-  if (countLabel) countLabel.textContent = `共 ${workflows.length} 条任务`
+  if (countLabel) countLabel.textContent = t(I18N.workflow.taskCount, { count: workflows.length })
 
   if (!workflows.length) {
     list.innerHTML = ''

@@ -1,5 +1,6 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
+import { I18N, t } from '../locales.js'
 import {
   performDailyReset,
   getCompletionHistory,
@@ -32,15 +33,16 @@ export function renderDailyResetStatus() {
   const el = getResetStatusEl()
   if (!el) return
   const lastReset = getLastResetDate()
+  const today = getTodayDateString()
   if (lastReset) {
-    el.textContent = `上次自动重置于 ${lastReset} · 今天 ${getTodayDateString()}`
+    el.textContent = t(I18N.toast.reset.resetAt, { date: lastReset, today })
   } else {
-    el.textContent = `尚未执行过自动重置 · 今天 ${getTodayDateString()}`
+    el.textContent = t(I18N.toast.reset.neverReset, { today })
   }
   const daysEl = getResetHistoryDaysEl()
   if (daysEl) {
     const total = Object.keys(getCompletionHistory()).length
-    daysEl.textContent = `${total} 天历史已留存`
+    daysEl.textContent = t(I18N.toast.reset.historyDays, { count: total })
   }
 }
 
@@ -52,11 +54,11 @@ export function renderDailyResetStatus() {
  *  - 触发自动上传（如果有 Gist 凭证）
  */
 export function manualResetToday() {
-  if (!confirm('确认要立即清空今日所有已打卡任务？\n\n清空前会自动把当前已完成状态归档到昨日的历史记录里。')) return
+  if (!confirm(I18N.toast.reset.confirmReset)) return
   performDailyReset()
   renderDailyResetStatus()
   scheduleAutoUpload()
-  showToast('已手动重置今日打卡状态。')
+  showToast(I18N.toast.reset.manualResetDone)
   DBG('daily-reset:manual')
 }
 

@@ -1,5 +1,6 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
+import { I18N, t } from '../locales.js'
 import {
   WEEKDAY_LABELS,
   WEEKDAY_ORDER,
@@ -12,6 +13,7 @@ import {
   upsertRotationRule,
   deleteRotationRule
 } from '../workflow/rotation-store.js'
+import { $ } from '../utils/dom-utils.js'
 import {
   openModal,
   closeModal,
@@ -35,10 +37,6 @@ import { syncRotationRuleId } from './task-form.js'
 
 let currentRule = null
 
-function $(id) {
-  return document.getElementById(id)
-}
-
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -52,13 +50,13 @@ function loadRule(ruleId) {
   }
   const all = getRotationRules()
   if (all.length) return JSON.parse(JSON.stringify(all[0]))
-  return createRotationRule({ name: '新的轮换规则' })
+  return createRotationRule({ name: I18N.workflow.newRotationRule })
 }
 
 function writeBack() {
   if (!currentRule) return
   const nameInput = $('rotation-rule-name')
-  if (nameInput) currentRule.name = (nameInput.value || '').trim() || '未命名轮换规则'
+  if (nameInput) currentRule.name = (nameInput.value || '').trim() || I18N.workflow.rotationUntitled
 }
 
 function applyFormValues() {
@@ -70,13 +68,13 @@ function applyFormValues() {
  * 预设列表
  * ============================================================ */
 function summarizeDay(entry) {
-  if (!entry) return '未配置'
-  if (entry.disabled) return '休息日'
-  return entry.label || '未命名'
+  if (!entry) return I18N.workflow.notConfigured
+  if (entry.disabled) return I18N.common.restDay
+  return entry.label || I18N.common.untitled
 }
 
 function summarizeRule(rule) {
-  if (!rule || !Array.isArray(rule.days)) return '空规则'
+  if (!rule || !Array.isArray(rule.days)) return I18N.workflow.emptyRule
   const samples = WEEKDAY_ORDER.slice(0, 3).map((idx) => summarizeDay(rule.days[idx]))
   return samples.filter(Boolean).join(' · ')
 }
@@ -89,7 +87,7 @@ function renderPresetList() {
   if (!rules.length) {
     const empty = document.createElement('div')
     empty.className = 'rotation-preset-empty'
-    empty.textContent = '还没有任何预设，点击右上角「新建预设」开始。'
+    empty.textContent = I18N.workflow.noPresetYet
     list.appendChild(empty)
     return
   }
@@ -110,7 +108,7 @@ function renderPresetList() {
         <strong class="rotation-preset-row__name"></strong>
         <small class="rotation-preset-row__hint"></small>
       </span>`
-    btn.querySelector('.rotation-preset-row__name').textContent = rule.name || '未命名轮换规则'
+    btn.querySelector('.rotation-preset-row__name').textContent = rule.name || I18N.workflow.rotationUntitled
     btn.querySelector('.rotation-preset-row__hint').textContent = summarizeRule(rule)
     list.appendChild(btn)
   }
@@ -133,12 +131,12 @@ function selectRule(ruleId, { silent = false } = {}) {
 }
 
 function createNewPreset() {
-  const rule = createRotationRule({ name: `新预设 ${getRotationRules().length + 1}` })
+  const rule = createRotationRule({ name: t(I18N.workflow.newPresetCount, { count: getRotationRules().length + 1 }) })
   upsertRotationRule(rule)
   renderPresetList()
   selectRule(rule.id)
   DBG('rotation:create-preset', { id: rule.id })
-  showToast(`已新建预设：${rule.name}`)
+  showToast(t(I18N.toast.workflow.presetCreated, { name: rule.name }))
 }
 
 function updateEditSection() {
@@ -167,7 +165,7 @@ function renderSummaryList() {
     row.innerHTML = `
       <div class="rot-day-row__head">
         <strong class="rot-day-row__day"></strong>
-        ${isToday ? '<span class="rot-today-pill">今天</span>' : ''}
+        ${isToday ? `<span class="rot-today-pill">${I18N.common.today}</span>` : ''}
       </div>
       <div class="rot-day-row__fields">
         <label class="rot-day-row__icon">
@@ -180,7 +178,7 @@ function renderSummaryList() {
         <label class="rot-switch">
           <input type="checkbox" data-rot-field="disabled" />
           <span class="rot-switch__track"><span class="rot-switch__thumb"></span></span>
-          <small>休息日</small>
+          <small>${I18N.common.restDay}</small>
         </label>
       </div>`
     row.querySelector('.rot-day-row__day').textContent = WEEKDAY_LABELS[dayIdx]
@@ -264,11 +262,11 @@ async function handleRotationSave() {
     return
   }
   writeBack()
-  const name = (currentRule.name || '').trim() || '未命名轮换规则'
+  const name = (currentRule.name || '').trim() || I18N.workflow.rotationUntitled
   currentRule.name = name
   const id = upsertRotationRule(currentRule)
   syncRotationRuleId(id)
-  showToast(`已保存预设：${name}`)
+  showToast(t(I18N.toast.workflow.presetSaved, { name }))
   DBG('rotation:save', { id, name })
   await replaceModal('rotation', 'taskform', { opener: $('rotation-save') })
 }
@@ -279,17 +277,17 @@ async function handleRotationDelete() {
     return
   }
   const ok = await openConfirmDialog({
-    title: '删除轮换预设？',
-    message: '「' + (currentRule.name || '未命名') + '」将从预设库移除，使用此预设的任务将回到静态标题。',
-    confirmText: '删除',
-    cancelText: '取消',
+    title: I18N.workflow.deletePresetTitle,
+    message: t(I18N.workflow.deletePresetMsg, { name: currentRule.name || I18N.common.untitled }),
+    confirmText: I18N.common.delete,
+    cancelText: I18N.common.cancel,
     danger: true
   })
   if (!ok) return
   const removedId = currentRule.id
   deleteRotationRule(removedId)
   syncRotationRuleId(null)
-  showToast('已删除预设。')
+  showToast(I18N.toast.workflow.presetDeleted)
   DBG('rotation:delete', removedId)
   const next = getRotationRules()
   await replaceModal('rotation', 'taskform', { opener: $('rotation-save') })
@@ -312,7 +310,7 @@ function bindActionButtons() {
     delBtn.type = 'button'
     delBtn.id = 'rotation-delete'
     delBtn.className = 'btn btn--text btn--danger'
-    delBtn.innerHTML = '<span class="material-symbols" aria-hidden="true">delete</span>删除预设'
+    delBtn.innerHTML = `<span class="material-symbols" aria-hidden="true">delete</span>${I18N.workflow.deletePresetBtn}`
     const footer = root.querySelector('.modal__footer--mobile')
     if (footer) {
       delBtn.style.marginRight = 'auto'
@@ -340,7 +338,7 @@ export function openRotationModal(ruleId) {
     const all = getRotationRules()
     if (all.length) currentRule = JSON.parse(JSON.stringify(all[0]))
   }
-  if (!currentRule) currentRule = createRotationRule({ name: '新的轮换规则' })
+  if (!currentRule) currentRule = createRotationRule({ name: I18N.workflow.newRotationRule })
   applyFormValues()
   renderPresetList()
   renderSummaryList()

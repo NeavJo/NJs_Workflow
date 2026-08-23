@@ -1,10 +1,11 @@
 import { CET6_LEGACY_RULE_ID } from './rotation-rules.js'
+import { I18N } from '../locales.js'
 
 export const DEFAULT_WORKFLOWS = [
   {
     id: 'task-1',
-    title: 'Tageschau in einfacher Sprache',
-    desc: '观看最新一期',
+    title: I18N.defaults.workflow1Title,
+    desc: I18N.defaults.workflow1Desc,
     url: 'https://youtube.com/playlist?list=PLkKDSXRppVa5AtZJ_QzQXG_fusxuC1dGw&si=9k3o9AlIYgIyQyqN',
     type: 'jump_and_check',
     isPlaceholder: false,
@@ -13,8 +14,8 @@ export const DEFAULT_WORKFLOWS = [
   },
   {
     id: 'task-1-1',
-    title: '输入视频中的生词（至少7个）',
-    desc: '校验今日 tgs 分类生词数（≥7 自动打卡）',
+    title: I18N.defaults.workflow2Title,
+    desc: I18N.defaults.workflow2Desc,
     url: null,
     type: 'check_only',
     isPlaceholder: false,
@@ -24,7 +25,7 @@ export const DEFAULT_WORKFLOWS = [
   },
   {
     id: 'task-2',
-    title: '复习 CET-6',
+    title: I18N.defaults.workflow3Title,
     desc: null,
     url: null,
     type: 'check_only',
@@ -34,7 +35,7 @@ export const DEFAULT_WORKFLOWS = [
   },
   {
     id: 'task-3',
-    title: 'Anki - Deutsch',
+    title: I18N.defaults.workflow4Title,
     desc: null,
     url: null,
     type: 'check_only',
@@ -44,7 +45,7 @@ export const DEFAULT_WORKFLOWS = [
   },
   {
     id: 'task-4',
-    title: 'Anki - English',
+    title: I18N.defaults.workflow5Title,
     desc: null,
     url: null,
     type: 'check_only',
@@ -54,8 +55,8 @@ export const DEFAULT_WORKFLOWS = [
   },
   {
     id: 'task-5',
-    title: 'Anki - 导入',
-    desc: '确认将今天生成的德语生词与英语生词批量导入 Anki',
+    title: I18N.defaults.workflow6Title,
+    desc: I18N.defaults.workflow6Desc,
     url: null,
     type: 'check_only',
     isPlaceholder: false,
@@ -64,7 +65,7 @@ export const DEFAULT_WORKFLOWS = [
   },
   {
     id: 'task-6',
-    title: 'Anki - 清理旗标',
+    title: I18N.defaults.workflow7Title,
     desc: null,
     url: null,
     type: 'check_only',
@@ -111,7 +112,7 @@ export function normalizeTask(raw) {
 
   return {
     id: typeof raw.id === 'string' && raw.id ? raw.id : `task-${Date.now()}`,
-    title: typeof raw.title === 'string' ? raw.title : '未命名任务',
+    title: typeof raw.title === 'string' ? raw.title : I18N.defaults.untitledTask,
     desc: typeof raw.desc === 'string' && raw.desc ? raw.desc : null,
     url: typeof raw.url === 'string' && raw.url ? raw.url : null,
     type: raw.type === 'jump_and_check' ? 'jump_and_check' : 'check_only',

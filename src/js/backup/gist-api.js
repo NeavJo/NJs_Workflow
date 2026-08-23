@@ -1,4 +1,5 @@
 import { DBG } from '../core/debug.js'
+import { I18N, t } from '../locales.js'
 import { getGistSettings, hasGistCredentials } from '../core/settings-store.js'
 
 /**
@@ -50,10 +51,10 @@ export function gistApiRequest(path, opts = {}) {
  * 列举一组 Gist 同步时用到的网络错误中文提示。
  */
 export function gistErrorMessage(res, { kind = 'upload' } = {}) {
-  if (res.status === 401) return '认证失败：Token 无效或已过期。'
-  if (res.status === 404) return '找不到该 Gist，请检查 Gist ID。'
-  if (res.status === 0) return '网络异常，' + (kind === 'upload' ? '上传失败。' : '拉取失败。')
-  return (kind === 'upload' ? '上传失败' : '拉取失败') + `（HTTP ${res.status}）`
+  if (res.status === 401) return I18N.toast.gist.authFailed
+  if (res.status === 404) return I18N.toast.gist.notFound
+  if (res.status === 0) return kind === 'upload' ? I18N.toast.gist.networkUploadFailed : I18N.toast.gist.networkPullFailed
+  return t(kind === 'upload' ? I18N.toast.gist.uploadHttp : I18N.toast.gist.pullHttp, { status: res.status })
 }
 
 export { hasGistCredentials }

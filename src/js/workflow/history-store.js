@@ -112,12 +112,12 @@ export function checkDailyReset({ force = false, reason = 'init', onComplete } =
 export function restoreTodayCompletedFromHistory() {
   const todayStr = getTodayDateString()
   const todayIds = Array.isArray(completionHistory[todayStr]) ? completionHistory[todayStr] : []
+  setCompletedIds(todayIds)
+  persistCompleted()
   if (todayIds.length === 0) {
     DBG('restore:today-completed:empty', { today: todayStr })
     return false
   }
-  setCompletedIds(todayIds)
-  persistCompleted()
   DBG('restore:today-completed:ok', { today: todayStr, count: todayIds.length })
   return true
 }

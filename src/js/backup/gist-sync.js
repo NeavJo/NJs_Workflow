@@ -1,5 +1,7 @@
 import { DBG } from '../core/debug.js'
-import { showToast } from '../ui.js'
+import { showToast, showGistUploading, showGistUploaded, hideGistIndicator } from '../ui.js'
+import { I18N, t } from '../locales.js'
+import { debounce } from '../utils/throttle.js'
 import {
   getGistSettings,
   setGistSettings,
@@ -9,7 +11,7 @@ import {
 } from '../core/settings-store.js'
 import { normalizeGistSettings } from '../config/storage-config.js'
 import { gistApiRequest, gistErrorMessage, GIST_FILENAME } from './gist-api.js'
-import { buildExportPayload } from './snapshot.js'
+import { buildExportPayload, keyOmitReasonText } from './snapshot.js'
 import { validateBackupPayload } from './json.js'
 import { renderWorkflow } from '../workflow/workflow-renderer.js'
 import { renderMemos, updateMemoCounters, renderTagSelector } from '../memo/memo-renderer.js'
@@ -18,7 +20,6 @@ import {
   setLastResetDate,
   persistCompletionHistory,
   persistLastResetDate,
-  checkDailyReset,
   restoreTodayCompletedFromHistory
 } from '../workflow/history-store.js'
 import {
@@ -28,6 +29,10 @@ import {
 import { setRotationRules, persistRotationRules } from '../workflow/rotation-store.js'
 import { replaceMemos, persistMemos } from '../memo/memo-store.js'
 import { setUserSettings, persistUserSettings } from '../core/settings-store.js'
+import { setAnkiSettings, persistAnkiSettings, getAnkiSettings } from '../anki/anki-store.js'
+import { renderAnkiSettingsInputs } from '../anki/anki-settings.js'
+import { decryptAnkiSecret } from '../anki/anki-crypto.js'
+import { getEffectivePassphrase } from '../anki/anki-passphrase.js'
 import { registerAutoUploadHandler, suspendAutoUpload, resumeAutoUpload } from '../core/sync-hooks.js'
 
 /**
@@ -48,7 +53,7 @@ import { registerAutoUploadHandler, suspendAutoUpload, resumeAutoUpload } from '
  *  - 触发跨天判断，确认最后重置日一致
  *  - 重新拉取 task / rotation / memo / tag 状态并重新渲染
  */
-function applyImportedState({ workflows, rotationRules, memos, completionHistory, lastResetDate, userSettings }) {
+function applyImportedState({ workflows, rotationRules, memos, completionHistory, lastResetDate, userSettings, ankiSettings }) {
   suspendAutoUpload()
   try {
     setWorkflows(workflows)
@@ -57,12 +62,14 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     setCompletionHistory(completionHistory)
     if (typeof lastResetDate === 'string') setLastResetDate(lastResetDate)
     if (userSettings) setUserSettings(userSettings)
+    if (ankiSettings) setAnkiSettings(ankiSettings)
     persistWorkflows()
     persistRotationRules()
     persistMemos()
     persistCompletionHistory()
     persistLastResetDate()
     persistUserSettings()
+    if (ankiSettings) persistAnkiSettings()
   } finally {
     resumeAutoUpload()
   }
@@ -70,36 +77,51 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     workflows: workflows.length,
     rotationRules: rotationRules.length,
     memos: memos.length,
-    historyDays: Object.keys(completionHistory).length
+    historyDays: Object.keys(completionHistory).length,
+    hasAnkiKey: Boolean(ankiSettings && ankiSettings.apiKey)
   })
 }
 
 /**
  * 把当前数据推送到 Gist（覆盖原文件）。
+ *  - API Key 以对称加密密文形式进入 Gist；未设置口令 / 加密不可用时仅省略 API Key，其余数据照常上传，绝不阻断。
+ *  - notifyKeyOmitted=true（手动上传）：当 API Key 被省略时弹一条非阻断提示；自动上传传 false 以免反复弹窗。
  *  - 调用方负责先写入 input（saveGistSettingsFromInputs）
  */
-export async function uploadToGist() {
+export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
   if (!hasGistCredentials()) {
-    showToast('请先填写 GitHub Token 与 Gist ID。')
+    showToast(I18N.toast.gist.needCredentials)
     return { ok: false, reason: 'no-credentials' }
   }
-  const payload = buildExportPayload()
+  const built = await buildExportPayload()
+  if (!built.ok) {
+    showToast(I18N.toast.backup.exportFailed)
+    DBG('gist:upload:blocked', { reason: built.reason })
+    return { ok: false, reason: built.reason }
+  }
+  const payload = built.payload
   const body = {
     description: 'NJW daily backup',
     files: { [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) } }
   }
-  showToast('正在上传到 Gist…')
+  showGistUploading()
   const settings = getGistSettings()
   const res = await gistApiRequest(`gists/${settings.gistId}`, {
     method: 'PATCH',
     body
   })
   if (res.ok) {
-    showToast('已上传到 Gist。')
+    if (built.keyOmitted && notifyKeyOmitted) {
+      hideGistIndicator()
+      showToast(t(I18N.toast.anki.keyOmittedUpload, { reason: keyOmitReasonText(built.keyOmitReason) }))
+    } else {
+      showGistUploaded()
+    }
     markGistSyncSuccess('upload')
-    DBG('gist:upload:ok', { status: res.status })
-    return { ok: true }
+    DBG('gist:upload:ok', { status: res.status, keyOmitted: built.keyOmitted, omitReason: built.keyOmitReason })
+    return { ok: true, keyOmitted: built.keyOmitted }
   }
+  hideGistIndicator()
   const msg = gistErrorMessage(res, { kind: 'upload' })
   showToast(msg)
   DBG('gist:upload:fail', { status: res.status, body: res.rawText?.slice(0, 200) })
@@ -113,11 +135,11 @@ export async function uploadToGist() {
  */
 export async function pullFromGist({ silent = false } = {}) {
   if (!hasGistCredentials()) {
-    const msg = '请先填写 GitHub Token 与 Gist ID。'
+    const msg = I18N.toast.gist.needCredentials
     if (!silent) showToast(msg)
     return { ok: false, reason: 'no-credentials', notify: msg }
   }
-  if (!silent) showToast('正在从 Gist 拉取备份…')
+  if (!silent) showToast(I18N.toast.gist.pulling)
   const settings = getGistSettings()
   const res = await gistApiRequest(`gists/${settings.gistId}`, { method: 'GET' })
   if (!res.ok) {
@@ -128,7 +150,7 @@ export async function pullFromGist({ silent = false } = {}) {
   const files = res.data?.files || {}
   const file = files[GIST_FILENAME] || Object.values(files)[0]
   if (!file || !file.content) {
-    const msg = 'Gist 中找不到备份文件。'
+    const msg = I18N.toast.gist.noBackup
     if (!silent) showToast(msg)
     return { ok: false, reason: 'no-file', notify: msg }
   }
@@ -136,7 +158,7 @@ export async function pullFromGist({ silent = false } = {}) {
   try {
     parsed = JSON.parse(file.content)
   } catch {
-    const msg = 'Gist 文件不是合法的 JSON。'
+    const msg = I18N.toast.gist.invalidJson
     if (!silent) showToast(msg)
     return { ok: false, reason: 'parse-error', notify: msg }
   }
@@ -144,6 +166,34 @@ export async function pullFromGist({ silent = false } = {}) {
   if (validateErr) {
     if (!silent) showToast(validateErr)
     return { ok: false, reason: 'invalid-format', notify: validateErr }
+  }
+
+  // 解密加密的 API Key：口令缺失 / 解密失败时不阻断拉取——保留本地 apiKey，丢弃无法解密的密文，
+  // 其余 Anki 字段照常同步，并以非阻断提示告知用户。
+  const ankiIn = parsed.data.ankiSettings
+  if (ankiIn && typeof ankiIn === 'object' && ankiIn.apiKeyEncrypted) {
+    const passphrase = getEffectivePassphrase()
+    let ankiKeyOmitReason = null
+    if (!passphrase) {
+      ankiKeyOmitReason = 'no-passphrase'
+      DBG('gist:pull:anki-key:skip', { reason: 'no-passphrase', preservedLocalKey: Boolean(getAnkiSettings().apiKey) })
+    } else {
+      try {
+        ankiIn.apiKey = await decryptAnkiSecret(ankiIn.apiKeyEncrypted, passphrase)
+      } catch (err) {
+        const cryptoDown = err && (err.code === 'crypto-unavailable' || err.message === 'crypto-unavailable')
+        ankiKeyOmitReason = cryptoDown ? 'crypto-unavailable' : 'decrypt-error'
+        DBG('gist:pull:decrypt:error', { reason: ankiKeyOmitReason, name: err?.name, message: err?.message })
+      }
+    }
+    if (ankiKeyOmitReason) {
+      const localKey = getAnkiSettings().apiKey
+      if (localKey) ankiIn.apiKey = localKey
+      ankiIn.apiKeyEncrypted = ''
+      if (!silent) showToast(t(I18N.toast.anki.keyOmittedPull, { reason: keyOmitReasonText(ankiKeyOmitReason) }))
+    }
+  } else if (ankiIn && typeof ankiIn === 'object' && ankiIn.apiKey && !ankiIn.apiKeyEncrypted) {
+    if (!silent) showToast(I18N.toast.anki.plainApiKeyWarning)
   }
 
   // 应用到各 store + 重新渲染
@@ -159,23 +209,26 @@ export async function pullFromGist({ silent = false } = {}) {
       memos: parsed.data.memos,
       completionHistory: parsed.data.completionHistory,
       lastResetDate: parsed.data.lastResetDate,
-      userSettings: parsed.data.userSettings
+      userSettings: parsed.data.userSettings,
+      ankiSettings: parsed.data.ankiSettings
     })
 
-    // 跨天判断 + 今日打勾状态恢复
-    checkDailyReset({ force: true, reason: 'gist-pull' })
+    // 今日打勾状态恢复：直接用云端 completionHistory[today] 覆盖本地完成态
+    // 不走 checkDailyReset(force)，否则 archiveTodayToHistory 会把本地旧打勾状态
+    // 并入刚拉取的云端历史，导致"取消打勾"无法跨设备同步
     restoreTodayCompletedFromHistory()
 
     renderWorkflow()
     renderMemos()
     updateMemoCounters()
     renderTagSelector()
+    renderAnkiSettingsInputs()
   } finally {
     resumeAutoUpload()
   }
 
   markGistSyncSuccess('pull')
-  if (!silent) showToast('已从 Gist 拉取并覆盖本地数据。')
+  if (!silent) showToast(I18N.toast.gist.pulled)
   DBG('gist:pull:ok')
   return { ok: true }
 }
@@ -183,27 +236,37 @@ export async function pullFromGist({ silent = false } = {}) {
 /**
  * 去抖上传：所有 persist* 函数都会触发，延迟 1200ms 后再真正上传。
  *  - 凭证缺失时直接跳过
+ *  - 存在明文 API Key 但会话无加密口令时静默跳过，防止自动上传反复弹窗（手动上传仍会提示）
  *  - 同一时刻只允许一个上传任务运行
  */
 let gistAutoUploadPending = null
 let gistAutoUploadRunning = false
 
+// 使用防抖优化的自动上传
+const debouncedAutoUpload = debounce(async () => {
+  if (gistAutoUploadRunning) return
+  gistAutoUploadRunning = true
+  try {
+    await uploadToGist({ notifyKeyOmitted: false })
+  } finally {
+    gistAutoUploadRunning = false
+  }
+}, 1200)
+
 export function scheduleAutoUpload() {
   if (!hasGistCredentials()) return
-  if (gistAutoUploadPending) clearTimeout(gistAutoUploadPending)
-  gistAutoUploadPending = setTimeout(async () => {
-    gistAutoUploadPending = null
-    if (gistAutoUploadRunning) return
-    gistAutoUploadRunning = true
-    try {
-      await uploadToGist()
-    } finally {
-      gistAutoUploadRunning = false
-    }
-  }, 1200)
+  debouncedAutoUpload()
 }
 
 registerAutoUploadHandler(scheduleAutoUpload)
+
+/**
+ * 取消待处理的自动上传（用于紧急情况）
+ */
+export function cancelPendingAutoUpload() {
+  debouncedAutoUpload.cancel()
+  gistAutoUploadPending = null
+}
 
 /**
  * 从输入框读取 token / gistId 并与当前设置合并，持久化。
@@ -222,9 +285,9 @@ export function saveGistSettingsFromInputs() {
   const persisted = persistGistSettings()
   renderGistSettingsInputs()
   if (!persisted) {
-    showToast('Gist 配置保存失败，请检查浏览器存储权限。')
+    showToast(I18N.toast.gist.configSaveFailed)
   } else if (changed) {
-    showToast('Gist 同步配置已保存。')
+    showToast(I18N.toast.gist.configSaved)
   }
 }
 
@@ -242,19 +305,19 @@ export function renderGistSettingsInputs() {
   if (statusEl) {
     const ready = hasGistCredentials()
     statusEl.textContent = ready
-      ? '已配置：启动时自动拉取，数据变更后自动推送。'
-      : '未配置：请填写 GitHub Token 与 Gist ID。'
+      ? I18N.settings.gistStatusConfigured
+      : I18N.settings.gistStatusNotConfigured
     statusEl.classList.toggle('is-ready', ready)
   }
   if (statusMetaEl) {
     const action = settings.lastSyncAction
     const time = settings.lastSyncTime
     if (action && time) {
-      const label = action === 'upload' ? '最近上传' : action === 'pull' ? '最近拉取' : '最近同步'
+      const label = action === 'upload' ? I18N.settings.lastUpload : action === 'pull' ? I18N.settings.lastPull : I18N.settings.lastSync
       statusMetaEl.textContent = `${label}：${time}`
       statusMetaEl.classList.add('is-record')
     } else {
-      statusMetaEl.textContent = '暂无同步记录'
+      statusMetaEl.textContent = I18N.settings.noSyncRecord
       statusMetaEl.classList.remove('is-record')
     }
   }
@@ -302,7 +365,7 @@ export function setGistBusy(action) {
   if (statusEl) {
     statusEl.classList.remove('is-ready', 'is-error')
     statusEl.classList.add('is-syncing')
-    statusEl.textContent = action === 'upload' ? '正在上传到 Gist…' : '正在从 Gist 拉取…'
+    statusEl.textContent = action === 'upload' ? I18N.toast.gist.uploading : I18N.toast.gist.pullingBusy
   }
   if (statusMetaEl) statusMetaEl.classList.remove('is-record')
   return finishBusy

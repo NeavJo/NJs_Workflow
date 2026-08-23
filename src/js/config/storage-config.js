@@ -8,6 +8,19 @@ export const GIST_SETTINGS_STORAGE_KEY = 'njs-workflow-gist-settings'
 
 export const USER_SETTINGS_STORAGE_KEY = 'njs-workflow-user-settings'
 
+export const ANKI_SETTINGS_STORAGE_KEY = 'njs-workflow-anki-settings'
+
+export const DEFAULT_ANKI_SETTINGS = Object.freeze({
+  apiType: 'gemini',
+  baseUrl: 'https://generativelanguage.googleapis.com',
+  modelId: 'gemini-3.5-flash-lite',
+  apiKey: '',
+  apiKeyEncrypted: '',
+  prompt: ''
+})
+
+export const ANKI_API_TYPES = ['gemini', 'openai']
+
 export const DEFAULT_GIST_SETTINGS = Object.freeze({
   token: '',
   gistId: '',
@@ -53,4 +66,15 @@ export function normalizeUserSettings(raw) {
     }
   }
   return result
+}
+
+export function normalizeAnkiSettings(raw) {
+  const safe = raw && typeof raw === 'object' ? raw : {}
+  const apiType = ANKI_API_TYPES.includes(safe.apiType) ? safe.apiType : 'gemini'
+  const baseUrl = typeof safe.baseUrl === 'string' ? safe.baseUrl.trim() : ''
+  const modelId = typeof safe.modelId === 'string' ? safe.modelId.trim() : ''
+  const apiKey = typeof safe.apiKey === 'string' ? safe.apiKey : ''
+  const apiKeyEncrypted = typeof safe.apiKeyEncrypted === 'string' ? safe.apiKeyEncrypted : ''
+  const prompt = typeof safe.prompt === 'string' ? safe.prompt.trim() : ''
+  return { apiType, baseUrl, modelId, apiKey, apiKeyEncrypted, prompt }
 }

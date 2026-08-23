@@ -1,3 +1,5 @@
+import { I18N } from '../locales.js'
+
 export const MEMO_TAGS_STORAGE_KEY = 'njs-workflow-memo-tags'
 
 export const DEFAULT_MEMO_TAGS = [
@@ -9,7 +11,7 @@ export const DEFAULT_MEMO_TAGS = [
 export function normalizeMemoTag(raw) {
   if (!raw || typeof raw !== 'object') return null
   const name = typeof raw.name === 'string' ? raw.name.trim() : ''
-  const id = typeof raw.id === 'string' && raw.id ? raw.id : `#${name || '未命名'}`
+  const id = typeof raw.id === 'string' && raw.id ? raw.id : `#${name || I18N.common.untitled}`
   if (!name) return null
   const icon = typeof raw.icon === 'string' && raw.icon ? raw.icon : 'label'
   return { id, name, icon, isLocked: Boolean(raw.isLocked) }
