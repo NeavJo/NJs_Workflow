@@ -208,7 +208,7 @@ function exportCategory(name) {
     return
   }
   const filename = `Anki_${sanitizeFilename(name)}_${getTodayDateString()}.txt`
-  triggerDownload(filename, text)
+  triggerDownload(filename, text, 'text/plain;charset=utf-8')
   DBG('anki:download:category', { filename, length: text.length })
   showToast(t(I18N.toast.anki.categoryDownloadStarted, { name }))
 }
@@ -232,7 +232,7 @@ export function downloadAllAnkiTxt() {
   }
   const text = sections.map((s) => s.text).join('\n')
   const filename = `${ANKI_TXT_FILENAME_PREFIX}${getTodayDateString()}.txt`
-  triggerDownload(filename, text)
+  triggerDownload(filename, text, 'text/plain;charset=utf-8')
   DBG('anki:download:all', { filename, length: text.length, sections: sections.length })
   showToast(I18N.toast.anki.downloadStarted)
 }

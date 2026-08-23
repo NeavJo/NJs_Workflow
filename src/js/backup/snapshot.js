@@ -33,11 +33,15 @@ export function formatTimestampForFilename(d = new Date()) {
 }
 
 /**
- * 在浏览器中触发 .json 文件下载。
+ * 在浏览器中触发文件下载。
  * 使用 Blob + 临时 <a> 标签；下载完成后释放 ObjectURL。
+ *
+ * @param {string} filename  - 下载文件名（含扩展名）
+ * @param {string} text      - 文件内容
+ * @param {string} [mimeType='application/json'] - Blob MIME 类型，默认 JSON；下载 .txt 时需显式传入 'text/plain;charset=utf-8'
  */
-export function triggerDownload(filename, text) {
-  const blob = new Blob([text], { type: 'application/json;charset=utf-8' })
+export function triggerDownload(filename, text, mimeType = 'application/json;charset=utf-8') {
+  const blob = new Blob([text], { type: mimeType })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

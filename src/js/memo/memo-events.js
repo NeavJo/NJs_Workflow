@@ -85,6 +85,7 @@ function enterEditMode(card, id) {
   const cancelBtn = card.querySelector('.memo-card__cancel')
   const deleteBtn = card.querySelector('.memo-card__delete')
   const copyBtn = card.querySelector('.memo-card__copy')
+  const ankiBtn = card.querySelector('.memo-card__anki')
 
   if (!editor) return
   editor.value = memo.content
@@ -100,6 +101,7 @@ function enterEditMode(card, id) {
   if (cancelBtn) cancelBtn.hidden = false
   if (deleteBtn) deleteBtn.hidden = true
   if (copyBtn) copyBtn.hidden = true
+  if (ankiBtn) ankiBtn.hidden = true
   card.classList.add('is-editing')
   setTimeout(() => editor.focus(), 0)
 }
@@ -114,6 +116,7 @@ function exitEditMode(card) {
   const cancelBtn = card.querySelector('.memo-card__cancel')
   const deleteBtn = card.querySelector('.memo-card__delete')
   const copyBtn = card.querySelector('.memo-card__copy')
+  const ankiBtn = card.querySelector('.memo-card__anki')
 
   if (editor) editor.hidden = true
   if (contentEl) contentEl.hidden = false
@@ -124,6 +127,7 @@ function exitEditMode(card) {
   if (cancelBtn) cancelBtn.hidden = true
   if (deleteBtn) deleteBtn.hidden = false
   if (copyBtn) copyBtn.hidden = false
+  if (ankiBtn) ankiBtn.hidden = false
   card.classList.remove('is-editing')
 }
 
