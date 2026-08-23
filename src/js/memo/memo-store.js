@@ -52,6 +52,15 @@ export function loadMemos() {
   return memos
 }
 
+export function setMemoTags(tags) {
+  memoTags = Array.isArray(tags) ? normalizeMemoTagList(tags) : []
+  if (!selectedMemoTag || !memoTags.find((t) => t.id === selectedMemoTag)) {
+    selectedMemoTag = memoTags[0]?.id || DEFAULT_MEMO_TAGS[0].id
+  }
+  emitTagsChange()
+  return memoTags
+}
+
 export function loadMemoTags() {
   const raw = safeStorageGet(MEMO_TAGS_STORAGE_KEY, null)
   const normalized = normalizeMemoTagList(raw)

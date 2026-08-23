@@ -198,7 +198,9 @@
 
 /* 右下角大号复制按钮（只读态可见） */
 .memo-card__copy {
-  flex: 0 0 auto;
+  position: absolute;
+  right: 16px;
+  bottom: 70px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -217,6 +219,7 @@
   letter-spacing: .01em;
   box-shadow: var(--md-elevation-1);
   transition: background var(--md-motion-standard), color var(--md-motion-standard), transform var(--md-motion-standard), box-shadow var(--md-motion-standard), filter var(--md-motion-standard);
+  z-index: 10; /* 提高层级，浮于文字之上 */
 }
 .memo-card__copy .material-symbols { font-size: 20px; }
 .memo-card__copy__label { white-space: nowrap; }
@@ -230,7 +233,9 @@
 .memo-card__copy:active { transform: translateY(0); }
 
 .memo-card__anki {
-  flex: 0 0 auto;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -249,9 +254,9 @@
   letter-spacing: .01em;
   box-shadow: var(--md-elevation-1);
   transition: background var(--md-motion-standard), color var(--md-motion-standard), transform var(--md-motion-standard), box-shadow var(--md-motion-standard), filter var(--md-motion-standard);
+  z-index: 10; /* 提高层级，浮于文字之上 */
 }
 .memo-card__anki .material-symbols { font-size: 20px; }
-.memo-card__anki__label { white-space: nowrap; }
 .memo-card__anki:hover {
   background: var(--md-primary);
   color: var(--md-on-primary);

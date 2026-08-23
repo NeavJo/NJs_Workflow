@@ -6,6 +6,7 @@ import { renderMemos, renderMemoTagPickerList, renderMemoTagPickerTrigger, rende
 import { openModal, closeModal, isModalOpen } from '../settings/modal.js'
 import { switchView } from '../settings/navigation.js'
 import { bindBatch, bindOnce } from '../utils/event-manager.js'
+import { uploadToGist } from '../backup/gist-sync.js'
 
 /**
  * 笔记事件层：表单提交、刷新、标签选择、卡片按钮（编辑/保存/取消/删除/复制）。
@@ -58,9 +59,13 @@ function handleCardAction(card, action) {
       }
     }
   } else if (action === 'delete') {
-    if (!confirm('确认删除这条笔记？')) return
-    if (deleteMemo(id)) showToast('笔记已删除。')
-  } else if (action === 'copy') {
+  if (!confirm('确认删除这条笔记？')) return
+  if (deleteMemo(id)) {
+    showToast('笔记已删除。')
+    // 添加Gist上传触发
+    uploadToGist()
+  }
+} else if (action === 'copy') {
     copyMemoContent(card)
   } else if (action === 'anki') {
     processInAnki(card)
@@ -256,35 +261,44 @@ export function bindMemoEvents() {
   /* 移动端：标签触发器 -> 底部弹窗选择 */
   const tagPickerTrigger = document.getElementById('memo-tag-picker-trigger')
   if (tagPickerTrigger) {
-    bindOnce(tagPickerTrigger, 'click', () => {
-      if (isModalOpen('memo-tag-picker')) return
-      openMemoTagPicker()
-    })
+    bindBatch(tagPickerTrigger, [{
+      event: 'click',
+      handler: () => {
+        if (isModalOpen('memo-tag-picker')) return
+        openMemoTagPicker()
+      }
+    }])
   }
 
   const tagPickerList = document.getElementById('memo-tag-picker-list')
   if (tagPickerList) {
-    bindOnce(tagPickerList, 'click', (event) => {
-      const btn = event.target.closest('[data-action="select-memo-tag-from-sheet"]')
-      if (!btn) return
-      const id = btn.dataset.value
-      if (!id) return
-      if (setSelectedMemoTag(id)) {
-        closeMemoTagPicker()
-      } else {
-        closeMemoTagPicker()
+    bindBatch(tagPickerList, [{
+      event: 'click',
+      handler: (event) => {
+        const btn = event.target.closest('[data-action="select-memo-tag-from-sheet"]')
+        if (!btn) return
+        const id = btn.dataset.value
+        if (!id) return
+        if (setSelectedMemoTag(id)) {
+          closeMemoTagPicker()
+        } else {
+          closeMemoTagPicker()
+        }
       }
-    })
+    }])
   }
 
   /* 弹窗外的关闭按钮（防御：若 sheet 内 click 被消费，回退到通用 data-close-modal） */
   const tagPickerModal = document.getElementById('memo-tag-picker-modal')
   if (tagPickerModal) {
-    bindOnce(tagPickerModal, 'click', (event) => {
-      if (event.target.closest('[data-close-modal="memo-tag-picker"]')) {
-        setTagPickerExpanded(false)
+    bindBatch(tagPickerModal, [{
+      event: 'click',
+      handler: (event) => {
+        if (event.target.closest('[data-close-modal="memo-tag-picker"]')) {
+          setTagPickerExpanded(false)
+        }
       }
-    })
+    }])
   }
 
   // 批量绑定流区域事件

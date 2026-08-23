@@ -13,6 +13,7 @@ import {
   upsertRotationRule,
   deleteRotationRule
 } from '../workflow/rotation-store.js'
+import { uploadToGist } from '../backup/gist-sync.js'
 import { $ } from '../utils/dom-utils.js'
 import {
   openModal,
@@ -295,6 +296,9 @@ async function handleRotationDelete() {
     // 全部删除：清理任务表单的选择
     syncRotationRuleId(null)
   }
+  
+  // 添加Gist上传触发
+  await uploadToGist()
 }
 
 function bindActionButtons() {

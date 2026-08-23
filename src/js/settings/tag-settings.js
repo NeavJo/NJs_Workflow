@@ -2,6 +2,7 @@ import { showToast } from '../ui.js'
 import { I18N, t } from '../locales.js'
 import { getMemoTags, addMemoTag as addMemoTagStore, deleteMemoTag as deleteMemoTagStore, renameMemoTag, persistMemoTags } from '../memo/memo-store.js'
 import { renderTagSelector, renderMemos } from '../memo/memo-renderer.js'
+import { uploadToGist } from '../backup/gist-sync.js'
 
 /**
  * 标签设置页：列表渲染 + 新增 / 重命名 / 删除。
@@ -75,6 +76,7 @@ export function addMemoTagFromInput() {
   input.value = ''
   input.focus()
   showToast(t(I18N.toast.memo.tagAdded, { name }))
+  uploadToGist()
 }
 
 export function startEditMemoTag(id) {
@@ -123,4 +125,7 @@ export function deleteMemoTagFromSettings(id) {
   renderTagSelector()
   renderMemos()
   showToast(t(I18N.toast.memo.tagDeleted, { name: tag.name }))
+  
+  // 添加Gist上传触发
+  uploadToGist()
 }

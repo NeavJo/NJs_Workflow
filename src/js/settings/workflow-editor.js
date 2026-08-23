@@ -5,6 +5,7 @@ import { getWorkflows, moveTask, removeTask } from '../workflow/workflow-store.j
 import { renderWorkflow } from '../workflow/workflow-renderer.js'
 import { openModal, replaceModal, openConfirmDialog, closeModal } from './modal.js'
 import { openTaskForm } from './task-form.js'
+import { uploadToGist } from '../backup/gist-sync.js'
 
 /**
  * 工作流编辑器：在 settings → workflow 视图中以列表形式展示任务。
@@ -132,6 +133,9 @@ async function performDelete(taskId) {
   renderWorkflow()
   showToast(I18N.toast.workflow.taskDeleted)
   DBG('editor:delete', taskId)
+  
+  // 添加Gist上传触发
+  await uploadToGist()
 }
 
 function handleEditorAction(event) {

@@ -1,5 +1,6 @@
 import { evaluateRotationTag } from '../config/rotation-rules.js'
 import { DBG } from '../core/debug.js'
+import { I18N } from '../locales.js'
 import { getTodayDateString } from '../core/date.js'
 import { findRotationRule } from './rotation-store.js'
 import { getWorkflows } from './workflow-store.js'

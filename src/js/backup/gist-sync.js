@@ -27,7 +27,7 @@ import {
   persistWorkflows
 } from '../workflow/workflow-store.js'
 import { setRotationRules, persistRotationRules } from '../workflow/rotation-store.js'
-import { replaceMemos, persistMemos } from '../memo/memo-store.js'
+import { replaceMemos, persistMemos, setMemoTags, persistMemoTags } from '../memo/memo-store.js'
 import { setUserSettings, persistUserSettings } from '../core/settings-store.js'
 import { setAnkiSettings, persistAnkiSettings, getAnkiSettings } from '../anki/anki-store.js'
 import { renderAnkiSettingsInputs } from '../anki/anki-settings.js'
@@ -53,7 +53,7 @@ import { registerAutoUploadHandler, suspendAutoUpload, resumeAutoUpload } from '
  *  - 触发跨天判断，确认最后重置日一致
  *  - 重新拉取 task / rotation / memo / tag 状态并重新渲染
  */
-function applyImportedState({ workflows, rotationRules, memos, completionHistory, lastResetDate, userSettings, ankiSettings }) {
+function applyImportedState({ workflows, rotationRules, memos, completionHistory, lastResetDate, userSettings, ankiSettings, memoTags }) {
   suspendAutoUpload()
   try {
     setWorkflows(workflows)
@@ -63,6 +63,7 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     if (typeof lastResetDate === 'string') setLastResetDate(lastResetDate)
     if (userSettings) setUserSettings(userSettings)
     if (ankiSettings) setAnkiSettings(ankiSettings)
+    if (Array.isArray(memoTags)) setMemoTags(memoTags)
     persistWorkflows()
     persistRotationRules()
     persistMemos()
@@ -70,6 +71,7 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     persistLastResetDate()
     persistUserSettings()
     if (ankiSettings) persistAnkiSettings()
+    if (Array.isArray(memoTags)) persistMemoTags()
   } finally {
     resumeAutoUpload()
   }
@@ -78,7 +80,8 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     rotationRules: rotationRules.length,
     memos: memos.length,
     historyDays: Object.keys(completionHistory).length,
-    hasAnkiKey: Boolean(ankiSettings && ankiSettings.apiKey)
+    hasAnkiKey: Boolean(ankiSettings && ankiSettings.apiKey),
+    memoTags: Array.isArray(memoTags) ? memoTags.length : 0
   })
 }
 
@@ -210,7 +213,8 @@ export async function pullFromGist({ silent = false } = {}) {
       completionHistory: parsed.data.completionHistory,
       lastResetDate: parsed.data.lastResetDate,
       userSettings: parsed.data.userSettings,
-      ankiSettings: parsed.data.ankiSettings
+      ankiSettings: parsed.data.ankiSettings,
+      memoTags: parsed.data.memoTags
     })
 
     // 今日打勾状态恢复：直接用云端 completionHistory[today] 覆盖本地完成态
