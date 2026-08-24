@@ -165,7 +165,8 @@ export function bindEditorEvents() {
   if (addBtn) addBtn.addEventListener('click', () => openAddForm(addBtn))
   if (emptyAddBtn) emptyAddBtn.addEventListener('click', () => openAddForm(emptyAddBtn))
 
-  if (taskFormBack) {
+  if (taskFormBack && !taskFormBack.dataset.bound) {
+    taskFormBack.dataset.bound = '1'
     taskFormBack.addEventListener('click', () => replaceModal('taskform', 'editor'))
   }
 

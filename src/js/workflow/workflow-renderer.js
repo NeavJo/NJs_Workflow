@@ -108,11 +108,13 @@ function createCard(rawItem, order) {
   if (checkEnabled) cardClasses.push('has-check-lock')
   card.className = cardClasses.join(' ')
 
-  const actionHtml = rawItem.url
+  const jumpButtonHtml = rawItem.url
     ? `<a class="workflow-card__action" href="${rawItem.url}" target="_blank" rel="noopener noreferrer" aria-label="跳转：${rawItem.title}"><span class="material-symbols" aria-hidden="true">open_in_new</span></a>`
-    : checkEnabled
-      ? `<button class="workflow-card__check-btn" type="button" data-check-action="memo-count" data-item-id="${rawItem.id}" aria-label="检查并打卡：${rawItem.title}"><span class="material-symbols" aria-hidden="true">fact_check</span><span class="workflow-card__check-btn__label">检查</span></button>`
-      : ''
+    : ''
+  const checkButtonHtml = checkEnabled
+    ? `<button class="workflow-card__check-btn" type="button" data-check-action="memo-count" data-item-id="${rawItem.id}" aria-label="检查并打卡：${rawItem.title}"><span class="material-symbols" aria-hidden="true">fact_check</span><span class="workflow-card__check-btn__label">检查</span></button>`
+    : ''
+  const actionHtml = jumpButtonHtml + checkButtonHtml
 
   const tagBlockHtml = buildDynamicTagHtml(tagInfo)
   const descriptionHtml = effectiveDesc ? `<p class="workflow-card__description"></p>` : ''

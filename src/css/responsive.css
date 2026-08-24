@@ -242,7 +242,7 @@
   .memo-card.is-editing .memo-card__actions { flex: 1 0 auto; justify-content: flex-end; }
 }
 
-/* 手机：Dialog / 编辑器 */
+/* 手机：Dialog / 编辑器 / 表单 / Rotation */
 @media (max-width: 680px) {
   /* === 页面式 Modal：全屏子页面 === */
   .modal--mobile-page {
@@ -301,101 +301,48 @@
     padding: 14px 12px;
     border-radius: var(--md-radius-medium);
   }
-  .editor-task-row__order {
-    width: 28px; height: 28px;
-    border-radius: 9px;
-    font-size: 11px;
-  }
+  .editor-task-row__order { width: 28px; height: 28px; border-radius: 9px; font-size: 11px; }
   .editor-task-row__title {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-    white-space: normal;
-    word-break: break-word;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden; white-space: normal; word-break: break-word;
   }
   .editor-task-row__desc {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-    white-space: normal;
-    color: var(--md-on-surface-variant);
-    margin-top: 4px;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden; white-space: normal; color: var(--md-on-surface-variant); margin-top: 4px;
   }
-  .editor-task-row__menu {
-    width: 48px; height: 48px;
-    border-radius: 14px;
-  }
-  .editor-task-row__actions { display: none; }
-  .editor-task-row__type { display: none; }
+  .editor-task-row__menu { width: 48px; height: 48px; border-radius: 14px; }
+  .editor-task-row__actions,
+  .editor-task-row__type,
   .editor-task-row__meta { display: none; }
-
   .editor-empty { padding: 32px 16px; text-align: center; gap: 12px; }
   .editor-empty__icon { font-size: 36px; }
 
   /* 表单单列 */
-  .form-grid { grid-template-columns: minmax(0, 1fr); }
-  .form-field,
-  .form-field--span-2 { grid-column: auto; min-width: 0; }
-  .form-field input,
-  .form-field textarea,
-  .form-field select { min-width: 0; width: 100%; }
-
+  .form-grid, .form-grid--taskform { grid-template-columns: minmax(0, 1fr); }
+  .form-field, .form-field--span-2 { grid-column: auto; min-width: 0; }
+  .form-field input, .form-field textarea, .form-field select { min-width: 0; width: 100%; }
   .taskform-actions { flex-direction: row; }
   .form-switch { padding: 12px; align-items: center; }
   .form-switch__meta { min-width: 0; }
   .form-switch__meta strong { font-size: 14px; }
   .form-switch__meta small { font-size: 12px; }
-}
+  .taskform-section__card { padding: 14px; gap: 14px; }
+  .taskform-section__title::before { display: none; }
 
-/* 小屏手机：Gist 按钮单列 */
-@media (max-width: 480px) {
-  .gist-actions__btn { flex: 1 1 100%; }
-}
-
-/* 手机：Rotation 编辑面板紧凑 */
-@media (max-width: 680px) {
+  /* Rotation 编辑面板紧凑 */
   .rotation-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
   .rotation-toolbar__actions { display: flex; gap: 8px; }
   .rotation-summary-list { display: grid; gap: 10px; }
-  .rot-summary {
-    display: grid;
-    grid-template-columns: 56px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    border-radius: var(--md-radius-medium);
-  }
+  .rot-summary { padding: 12px; border-radius: var(--md-radius-medium); }
   .rot-summary__day { font-size: 14px; font-weight: 700; }
   .rot-summary__title { font-size: 13px; line-height: 1.4; }
   .rot-summary__hint { font-size: 12px; color: var(--md-on-surface-variant); }
   .rot-summary__chevron { font-size: 22px; color: var(--md-on-surface-variant); }
-
   .check-config-fields { grid-template-columns: 1fr; }
   .form-field--inline { flex-direction: column; align-items: stretch; }
   .form-field--inline > span { font-size: 12px; }
-}
 
-/* 手机：轮换单日编辑紧凑（仅旧版 .rot-day-row；新版 --edit 在 rotation.css 自带响应式） */
-@media (max-width: 680px) {
-  .rot-day-row:not(.rot-day-row--edit) {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto auto;
-    grid-template-areas:
-      "day"
-      "disabled"
-      "icon"
-      "label";
-    padding: 14px;
-    gap: 10px;
-  }
-  .rot-day-row:not(.rot-day-row--edit) .rot-day-row__day { font-size: 14px; font-weight: 700; }
-  .rot-day-row:not(.rot-day-row--edit) .rot-day-row__label { font-size: 13px; }
-}
-
-/* 手机：Gist / Backup */
-@media (max-width: 680px) {
+  /* Gist / Backup */
   .backup-card--gist { padding: 16px; gap: 14px; }
   .gist-form { gap: 14px; }
   .gist-field__label { font-size: 13px; }
@@ -404,8 +351,6 @@
   .reset-info__row { grid-template-columns: 84px 1fr; gap: 10px; padding: 10px 12px; }
   .backup-card__actions .btn--tonal { width: 100%; justify-content: center; }
 }
-
-/* 手机：TaskForm 单列 —— 已在 .modal--mobile-page 块中处理 */
 
 /* ============================================================
  * 无障碍：减少动效

@@ -97,9 +97,13 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  border-radius: var(--md-radius-medium);
-  background: var(--md-surface);
+  border-radius: var(--md-radius-large);
+  background: var(--md-surface-container);
   border: 1px solid color-mix(in srgb, var(--md-outline) 16%, transparent);
+  transition: box-shadow var(--md-motion-fast);
+}
+.anki-card:hover {
+  box-shadow: var(--md-elevation-1);
 }
 .anki-card__header {
   display: flex;
@@ -122,9 +126,37 @@
 .anki-card__toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px dashed color-mix(in srgb, var(--md-outline) 18%, transparent);
+  margin-top: 4px;
 }
 .anki-card__toolbar .btn { min-height: 36px; }
+
+/* ===== 底部操作卡片 ===== */
+.anki-footer-card {
+  display: flex;
+  justify-content: center;
+  padding: 16px 20px;
+  border-radius: var(--md-radius-large);
+  background: var(--md-surface-container-low);
+  border: 1px dashed color-mix(in srgb, var(--md-outline) 28%, transparent);
+  margin-top: 4px;
+}
+.anki-footer-card__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.anki-footer-card__btn {
+  min-width: 140px;
+  min-height: 44px;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 20px;
+}
+.anki-footer-card__btn .material-symbols { font-size: 18px; }
 
 /* 处理按钮：内嵌 Loading 旋转点 */
 .anki-run { position: relative; }
@@ -152,6 +184,9 @@
   .anki-panel { margin-top: 20px; padding: 18px; gap: 14px; }
   .anki-toolbar .btn { flex: 1 1 100%; justify-content: center; margin-left: 0; }
   .anki-card__toolbar .btn { flex: 1 1 100%; justify-content: center; }
+  .anki-footer-card { padding: 12px 14px; }
+  .anki-footer-card__actions { flex-direction: column; width: 100%; }
+  .anki-footer-card__btn { width: 100%; }
 }
 
 /* ===== 异常警示卡片 ===== */

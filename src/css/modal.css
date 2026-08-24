@@ -155,14 +155,60 @@
   border-top: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
   background: var(--md-surface);
 }
-.modal__footer--mobile .modal__footer-primary { flex: 1 1 auto; }
+.modal__footer--mobile .modal__footer-primary { flex: 0 0 auto; }
 .modal__footer--mobile .modal__footer-secondary { flex: 0 0 auto; }
 
 /* 编辑器/轮换等只有一个按钮的 footer：按钮自适应宽度，靠右 */
 .modal__footer--mobile .modal__footer-done {
   flex: 0 0 auto;
-  min-width: 120px;
+  min-width: 95px;
   margin-left: auto;
+  justify-content: center;
+}
+
+/* =====================================================================
+ * 桌面端任务表单：非全屏，标准 dialog 居中卡片
+ * ===================================================================== */
+@media (min-width: 681px) {
+  .modal--taskform .modal__dialog,
+  .modal--rotation .modal__dialog {
+    width: min(680px, calc(100% - 48px));
+    max-height: min(88vh, 780px);
+    border-radius: var(--md-radius-extra-large);
+  }
+  .modal--taskform .modal__header--mobile,
+  .modal--rotation .modal__header--mobile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px 28px 18px;
+    border-bottom: 1px solid color-mix(in srgb, var(--md-outline) 14%, transparent);
+  }
+  .modal--taskform .modal__header--mobile .modal__title-wrap--centered,
+  .modal--rotation .modal__header--mobile .modal__title-wrap--centered {
+    justify-content: flex-start;
+    text-align: left;
+  }
+  .modal--taskform .modal__header--mobile h2,
+  .modal--rotation .modal__header--mobile h2 {
+    font-size: 20px;
+  }
+  .modal--taskform .modal__header--mobile .modal__subtitle,
+  .modal--rotation .modal__header--mobile .modal__subtitle {
+    font-size: 13px;
+  }
+  .modal--taskform .modal__body--taskform,
+  .modal--rotation .modal__body--rotation {
+    padding: 24px 28px;
+    gap: 20px;
+  }
+  .modal--taskform .modal__footer--mobile,
+  .modal--rotation .modal__footer--mobile {
+    padding: 14px 28px 20px;
+    border-top: 1px solid color-mix(in srgb, var(--md-outline) 14%, transparent);
+    background: transparent;
+  }
 }
 
 /* Alert Dialog (删除等危险操作) */

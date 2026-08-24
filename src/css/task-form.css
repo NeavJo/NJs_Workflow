@@ -10,9 +10,38 @@
   display: grid; gap: 18px;
   grid-template-columns: 1fr 1fr;
 }
+.form-grid--taskform {
+  grid-template-columns: 1fr 1fr;
+}
 .form-field { margin-bottom: 18px; }
-.form-field { margin: 0; } /* scoped：taskform 内统一无外边距 */
 .form-field--span-2 { grid-column: 1 / -1; }
+
+/* taskform 桌面布局：全宽 / 半宽 */
+.taskform-section--full { grid-column: 1 / -1; }
+.taskform-section--half { grid-column: span 1; }
+
+/* taskform 桌面：section 标题用更清晰的视觉分隔 */
+.taskform-section__title {
+  margin: 0 0 10px;
+  padding: 0;
+  color: var(--md-on-surface-variant);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.taskform-section__title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--md-primary);
+  flex-shrink: 0;
+}
 
 /* 通用输入字段（含 label / helper / 输入框） */
 .form-field > label {
@@ -258,33 +287,34 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 14px 14px;
+  padding: 16px 16px;
   border: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
-  background: var(--md-surface);
-  border-radius: var(--md-radius-medium);
+  background: var(--md-surface-container-low);
+  border-radius: var(--md-radius-large);
   font: inherit;
   text-align: left;
   cursor: pointer;
   color: var(--md-on-surface);
-  transition: background var(--md-motion-standard), border-color var(--md-motion-standard);
+  transition: background var(--md-motion-standard), border-color var(--md-motion-standard), box-shadow var(--md-motion-fast);
 }
 .taskform-link-row:hover,
 .taskform-link-row:focus-visible {
-  background: color-mix(in srgb, var(--md-primary) 4%, var(--md-surface));
+  background: color-mix(in srgb, var(--md-primary) 5%, var(--md-surface-container-low));
   border-color: color-mix(in srgb, var(--md-primary) 36%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-primary) 14%, transparent);
 }
 .taskform-link-row[disabled],
 .taskform-link-row.is-disabled {
   cursor: not-allowed;
-  opacity: 0.55;
-  background: color-mix(in srgb, var(--md-on-surface) 4%, var(--md-surface));
-  border-color: color-mix(in srgb, var(--md-outline) 12%, transparent);
+  opacity: 0.5;
+  background: color-mix(in srgb, var(--md-on-surface) 3%, var(--md-surface-container-low));
+  border-color: color-mix(in srgb, var(--md-outline) 10%, transparent);
   pointer-events: none;
 }
 .taskform-link-row[disabled]:hover,
 .taskform-link-row.is-disabled:hover {
-  background: color-mix(in srgb, var(--md-on-surface) 4%, var(--md-surface));
-  border-color: color-mix(in srgb, var(--md-outline) 12%, transparent);
+  background: color-mix(in srgb, var(--md-on-surface) 3%, var(--md-surface-container-low));
+  border-color: color-mix(in srgb, var(--md-outline) 10%, transparent);
 }
 .taskform-link-row__icon {
   display: grid;
@@ -450,20 +480,21 @@
   grid-template-columns: 56px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 14px;
+  padding: 14px 16px;
   border: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
-  background: var(--md-surface);
-  border-radius: var(--md-radius-medium);
+  background: var(--md-surface-container-low);
+  border-radius: var(--md-radius-large);
   cursor: pointer;
   font: inherit;
   text-align: left;
   color: var(--md-on-surface);
-  transition: background var(--md-motion-fast), border-color var(--md-motion-fast);
+  transition: background var(--md-motion-fast), border-color var(--md-motion-fast), box-shadow var(--md-motion-fast);
 }
 .rot-summary:hover,
 .rot-summary:focus-visible {
-  background: color-mix(in srgb, var(--md-primary) 4%, var(--md-surface));
+  background: color-mix(in srgb, var(--md-primary) 5%, var(--md-surface-container-low));
   border-color: color-mix(in srgb, var(--md-primary) 36%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-primary) 14%, transparent);
 }
 .rot-summary__day { font-weight: 700; font-size: 13px; color: var(--md-on-surface-variant); }
 .rot-summary__title { font-size: 13px; line-height: 1.45; }
@@ -473,4 +504,16 @@
 /* 通用 .taskform-section 内层字段自适应 */
 @media (max-width: 680px) {
   .taskform-section__card { padding: 14px; gap: 14px; }
+  .taskform-section__title::before { display: none; }
+}
+
+/* 桌面：form-grid 两列布局 */
+@media (min-width: 681px) {
+  .form-grid--taskform {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .taskform-section--full { grid-column: 1 / -1; }
+  .taskform-section--half { grid-column: span 1; }
+  .taskform-section__card { padding: 20px 22px; }
 }

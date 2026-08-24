@@ -1,370 +1,34 @@
 /* ============================================================
  * Rotation Editor —— 周几轮换规则管理面板（内嵌于 Task Form）
  * ============================================================ */
-.rotation-block-label {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
-  column-gap: 10px;
-  row-gap: 2px;
-  align-items: center;
-  padding: 10px 12px;
-  background: var(--md-tertiary-container);
-  color: var(--md-on-tertiary-container);
-  border-radius: var(--md-radius-small);
-  margin-bottom: 10px;
-}
-.rotation-block-label .material-symbols {
-  grid-row: 1 / span 2;
-  align-self: center;
-  font-size: 22px;
-  font-weight: 500;
-}
-.rotation-block-label strong {
-  align-self: end;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-}
-.rotation-block-label small {
-  align-self: start;
-  font-size: 11px;
-  opacity: 0.88;
-  line-height: 1.4;
-}
 
-/* ---- 模式 A：选择器 + 快捷按钮 ---- */
-.rotation-picker {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
-}
-.rotation-picker select {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 100%;
-  padding: 11px 40px 11px 14px;
-  font: inherit;
-  font-size: 13px;
-  color: var(--md-on-surface);
-  background: var(--md-surface-container)
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2349454f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")
-    no-repeat right 12px center;
-  background-size: 18px;
-  border: 1px solid var(--md-outline);
-  border-radius: var(--md-radius-small);
-  transition: border-color var(--md-motion-standard), box-shadow var(--md-motion-standard), background-color var(--md-motion-standard);
-}
-.rotation-picker select:focus {
-  outline: 0;
-  border-color: var(--md-primary);
-  background-color: var(--md-surface-container-high);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
-}
-.rotation-picker__actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-/* ---- 模式 B：7x 编辑面板 ---- */
-.rotation-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-  background: var(--md-surface-container);
-  border: 1px solid color-mix(in srgb, var(--md-outline) 40%, transparent);
-  border-radius: var(--md-radius-medium);
-}
-.rotation-editor__header {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  align-items: center;
-}
-.rot-name {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--md-on-surface-variant);
-  letter-spacing: 0.02em;
-}
-.rot-name input {
-  flex: 1;
-  min-width: 0;
-  padding: 10px 12px;
-  border-radius: var(--md-radius-small);
-  border: 1px solid var(--md-outline);
-  background: var(--md-surface);
-  color: var(--md-on-surface);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  transition: border-color var(--md-motion-standard), box-shadow var(--md-motion-standard), background-color var(--md-motion-standard);
-}
-.rot-name input:focus {
-  outline: 0;
-  border-color: var(--md-primary);
-  background-color: var(--md-surface-container-high);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
-}
-.rotation-editor__actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-.rotation-editor__grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* 每天的一行：周几 label + icon 输入 + label 输入 + 休息日 switch */
-.rot-day-row {
-  display: grid;
-  grid-template-columns: 80px minmax(160px, 1fr) 90px;
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    "day   label   disabled"
-    "icon  label   disabled";
-  column-gap: 12px;
-  row-gap: 8px;
-  align-items: center;
-  padding: 10px 12px;
-  background: var(--md-surface);
-  border: 1px solid color-mix(in srgb, var(--md-outline) 30%, transparent);
-  border-radius: var(--md-radius-small);
-  transition: border-color var(--md-motion-standard), background-color var(--md-motion-standard), transform var(--md-motion-standard);
-}
-.rot-day-row:hover {
-  border-color: color-mix(in srgb, var(--md-primary) 50%, transparent);
-}
-.rot-day-row.is-today {
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--md-primary-container) 60%, var(--md-surface)) 0%,
-    var(--md-surface) 100%);
-  border-color: color-mix(in srgb, var(--md-primary) 60%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-primary) 18%, transparent),
-              var(--md-elevation-1);
-}
-.rot-day-row.is-disabled-day {
-  opacity: 0.72;
-  background: linear-gradient(180deg,
-    color-mix(in srgb, #c1b1ff 16%, var(--md-surface)) 0%,
-    var(--md-surface) 100%);
-}
-
-.rot-day-row__label {
-  grid-area: day;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 800;
-  color: var(--md-on-surface);
-  letter-spacing: 0.02em;
-}
-.rot-day-row__label strong { font-size: 13px; }
-.rot-today-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 7px;
-  font-size: 10px;
-  font-weight: 900;
-  color: var(--md-on-primary);
-  background: var(--md-primary);
-  border-radius: 999px;
-  letter-spacing: 0.06em;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-on-primary) 18%, transparent),
-              0 2px 6px color-mix(in srgb, var(--md-primary) 24%, transparent);
-}
-
-.rot-day-row__icon {
-  grid-area: icon;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.rot-icon-preview {
-  font-size: 20px;
-  color: var(--md-primary);
-  background: color-mix(in srgb, var(--md-primary) 12%, transparent);
-  padding: 6px;
-  border-radius: 9px;
-  flex-shrink: 0;
-}
-.rot-icon-input {
-  flex: 1;
-  min-width: 0;
-  padding: 7px 10px;
-  border: 1px solid var(--md-outline);
-  border-radius: 10px;
-  background: var(--md-surface-container);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--md-on-surface-variant);
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  letter-spacing: 0.01em;
-  transition: border-color var(--md-motion-standard), background-color var(--md-motion-standard);
-}
-.rot-icon-input::placeholder { opacity: 0.55; }
-.rot-icon-input:focus {
-  outline: 0;
-  border-color: var(--md-primary);
-  background: var(--md-surface-container-high);
-}
-
-.rot-label-input {
-  grid-area: label;
-  padding: 10px 12px;
-  border: 1px solid var(--md-outline);
-  border-radius: var(--md-radius-small);
-  background: var(--md-surface-container);
-  color: var(--md-on-surface);
-  font: inherit;
-  font-size: 13px;
-  transition: border-color var(--md-motion-standard), box-shadow var(--md-motion-standard), background-color var(--md-motion-standard);
-}
-.rot-label-input::placeholder { color: var(--md-on-surface-variant); opacity: 0.55; }
-.rot-label-input:focus {
-  outline: 0;
-  border-color: var(--md-primary);
-  background-color: var(--md-surface-container-high);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
-}
-
-/* 休息日 switch（紧凑专用小尺寸） */
-.rot-switch {
-  grid-area: disabled;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 3px;
-}
-.rot-switch input { display: none; }
-.rot-switch__track {
-  position: relative;
-  width: 38px;
-  height: 22px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--md-on-surface) 16%, transparent);
-  transition: background-color var(--md-motion-standard);
-}
-.rot-switch__thumb {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--md-surface);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
-  transition: transform var(--md-motion-standard), background-color var(--md-motion-standard);
-}
-.rot-switch input:checked + .rot-switch__track {
-  background: var(--md-tertiary);
-}
-.rot-switch input:checked + .rot-switch__track .rot-switch__thumb {
-  transform: translateX(16px);
-  background: var(--md-on-tertiary);
-}
-.rot-switch small {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--md-on-surface-variant);
-  letter-spacing: 0.02em;
-}
-
-/* ============================================================
- * 紧凑摘要（rot-summary）的新结构：title + hint 包裹在 __body 中
- * —— 由 rotation-editor.js 在「按规则」模式下渲染
- * ============================================================ */
-.rot-summary {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  background: var(--md-surface);
-  border: 1px solid color-mix(in srgb, var(--md-outline) 30%, transparent);
-  border-radius: var(--md-radius-medium);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color var(--md-motion-fast), background-color var(--md-motion-fast), transform var(--md-motion-fast);
-}
-.rot-summary:hover {
-  border-color: color-mix(in srgb, var(--md-primary) 50%, transparent);
-}
-.rot-summary.is-today {
-  background: color-mix(in srgb, var(--md-primary-container) 60%, var(--md-surface));
-  border-color: color-mix(in srgb, var(--md-primary) 40%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-primary) 18%, transparent);
-}
-.rot-summary__day {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--md-on-surface);
-  letter-spacing: 0.02em;
-}
-.rot-summary__body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.rot-summary__title {
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--md-on-surface);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.rot-summary__hint {
-  font-size: 11px;
-  color: var(--md-on-surface-variant);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.rot-summary__chevron {
-  font-size: 22px;
-  color: var(--md-on-surface-variant);
-  justify-self: end;
-}
-
-/* ============================================================
- * rot-day-row--edit —— 单日编辑展开行（新结构）
- * 头部：周几 + 今天徽标 + 折叠按钮
- * 字段：icon 输入 / label 输入 / 休息日 switch
- * ============================================================ */
+/* ---- 每日编辑行 ---- */
 .rot-day-row--edit {
   display: grid;
   grid-template-rows: auto auto;
   gap: 12px;
   padding: 14px;
-  background: var(--md-surface);
-  border: 1px solid color-mix(in srgb, var(--md-outline) 30%, transparent);
-  border-radius: var(--md-radius-medium);
+  background: var(--md-surface-container-low);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 20%, transparent);
+  border-radius: var(--md-radius-large);
   transition: border-color var(--md-motion-standard), background-color var(--md-motion-standard);
 }
 .rot-day-row--edit:hover {
-  border-color: color-mix(in srgb, var(--md-primary) 50%, transparent);
+  border-color: color-mix(in srgb, var(--md-primary) 40%, transparent);
 }
 .rot-day-row--edit.is-today {
   background: linear-gradient(180deg,
-    color-mix(in srgb, var(--md-primary-container) 60%, var(--md-surface)) 0%,
-    var(--md-surface) 100%);
-  border-color: color-mix(in srgb, var(--md-primary) 60%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-primary) 18%, transparent),
+    color-mix(in srgb, var(--md-primary-container) 50%, var(--md-surface-container-low)) 0%,
+    var(--md-surface-container-low) 100%);
+  border-color: color-mix(in srgb, var(--md-primary) 50%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-primary) 14%, transparent),
               var(--md-elevation-1);
 }
 .rot-day-row--edit.is-disabled-day {
-  opacity: 0.78;
+  opacity: 0.75;
   background: linear-gradient(180deg,
-    color-mix(in srgb, #c1b1ff 16%, var(--md-surface)) 0%,
-    var(--md-surface) 100%);
+    color-mix(in srgb, #c1b1ff 12%, var(--md-surface-container-low)) 0%,
+    var(--md-surface-container-low) 100%);
 }
 
 .rot-day-row__head {
@@ -480,7 +144,12 @@
 .rot-day-row--edit .rot-switch small { font-size: 11px; }
 
 /* ============================================================
- * 手机适配：rot-day-row--edit / rot-summary
+ * rot-summary —— 每日配置摘要卡片
+ * （主样式定义在 task-form.css，此处仅做旋转专属扩展）
+ * ============================================================ */
+
+/* ============================================================
+ * 手机适配：rot-day-row--edit 单列堆叠
  * ============================================================ */
 @media (max-width: 680px) {
   .rot-day-row--edit .rot-day-row__fields {
@@ -500,9 +169,5 @@
   .rot-day-row--edit .rot-switch {
     justify-self: stretch;
     padding-top: 10px;
-  }
-  .rot-summary {
-    grid-template-columns: 56px minmax(0, 1fr) auto;
-    padding: 12px;
   }
 }

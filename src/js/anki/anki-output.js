@@ -163,8 +163,29 @@ export function renderAnkiCards(rawText) {
   for (const section of sections) {
     container.append(buildCard(section))
   }
+  // 底部操作按钮封装为独立卡片
+  const footer = buildFooterCard()
+  if (footer) container.append(footer)
   DBG('anki:cards:render', { count: sections.length, names: sections.map((s) => s.name) })
   return sections.length
+}
+
+function buildFooterCard() {
+  const footer = document.createElement('div')
+  footer.className = 'anki-footer-card'
+  footer.innerHTML = `
+    <div class="anki-footer-card__actions">
+      <button type="button" id="anki-copy" class="btn btn--tonal anki-footer-card__btn" data-anki-action="copy-all">
+        <span class="material-symbols" aria-hidden="true">content_copy</span>
+        <span data-i18n="anki.copyAll">${I18N.anki.copyAll}</span>
+      </button>
+      <button type="button" id="anki-download" class="btn btn--filled anki-footer-card__btn" data-anki-action="download-all">
+        <span class="material-symbols" aria-hidden="true">download</span>
+        <span data-i18n="anki.exportAllTxt">${I18N.anki.exportAllTxt}</span>
+      </button>
+    </div>
+  `
+  return footer
 }
 
 function findCategoryArea(name) {
@@ -239,18 +260,27 @@ export function downloadAllAnkiTxt() {
 
 export function bindAnkiOutputEvents() {
   const container = $('anki-output-cards')
-  const copyBtn = $('anki-copy')
-  const dlBtn = $('anki-download')
-  copyBtn?.addEventListener('click', copyAllAnkiOutput)
-  dlBtn?.addEventListener('click', downloadAllAnkiTxt)
-  container?.addEventListener('click', (event) => {
+  if (!container) return
+  container.addEventListener('click', (event) => {
+    // 分类级按钮
     const btn = event.target?.closest?.('button[data-action]')
-    if (!btn || btn.disabled || !container.contains(btn)) return
-    const name = btn.dataset.cat || ''
-    if (btn.dataset.action === 'copy') {
-      copyCategory(name)
-    } else if (btn.dataset.action === 'export') {
-      exportCategory(name)
+    if (btn && !btn.disabled && container.contains(btn)) {
+      const name = btn.dataset.cat || ''
+      if (btn.dataset.action === 'copy') {
+        copyCategory(name)
+      } else if (btn.dataset.action === 'export') {
+        exportCategory(name)
+      }
+      return
+    }
+    // 底部全局按钮
+    const footerBtn = event.target?.closest?.('button[data-anki-action]')
+    if (footerBtn && !footerBtn.disabled && container.contains(footerBtn)) {
+      if (footerBtn.dataset.ankiAction === 'copy-all') {
+        copyAllAnkiOutput()
+      } else if (footerBtn.dataset.ankiAction === 'download-all') {
+        downloadAllAnkiTxt()
+      }
     }
   })
 }

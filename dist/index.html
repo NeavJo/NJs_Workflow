@@ -23,8 +23,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" />
-    <script type="module" crossorigin src="./assets/index-FCLIIR8k.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BQRsHUrD.css">
+    <script type="module" crossorigin src="./assets/index-DJ0tYU4F.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Dp2Zd_vd.css">
   </head>
   <body class="app-loading">
     <div id="app-loading" role="status" aria-live="polite" data-i18n="loading">正在加载工作流</div>
@@ -659,16 +659,6 @@
                 <span class="anki-panel__hint" data-i18n="anki.outputHint">AI 结果按分类分卡展示，可直接编辑后复制 / 导出</span>
               </div>
               <div id="anki-output-cards" class="anki-cards" aria-live="polite"></div>
-              <div class="anki-toolbar">
-                <button id="anki-copy" type="button" class="btn btn--tonal">
-                  <span class="material-symbols" aria-hidden="true">content_copy</span>
-                  <span data-i18n="anki.copyAll">复制全部</span>
-                </button>
-                <button id="anki-download" type="button" class="btn btn--filled">
-                  <span class="material-symbols" aria-hidden="true">download</span>
-                  <span data-i18n="anki.exportAllTxt">导出全部 .txt</span>
-                </button>
-              </div>
             </section>
           </section>
         </main>
@@ -763,10 +753,10 @@
               <span class="material-symbols" aria-hidden="true">close</span>
             </button>
           </header>
-          <div class="modal__body">
-            <div class="form-grid">
+          <div class="modal__body modal__body--taskform">
+            <div class="form-grid form-grid--taskform">
               <!-- 基本信息 -->
-              <section class="taskform-section" data-taskform-section="basic">
+              <section class="taskform-section taskform-section--full" data-taskform-section="basic">
                 <h3 class="taskform-section__title" data-i18n="workflow.basicSection">基本信息</h3>
                 <div class="taskform-section__card">
                   <div class="form-field form-field--span-2">
@@ -807,7 +797,7 @@
               </section>
 
               <!-- 轮换规则摘要入口 -->
-              <section class="taskform-section" data-taskform-section="rotation">
+              <section class="taskform-section taskform-section--half" data-taskform-section="rotation">
                 <h3 class="taskform-section__title" data-i18n="workflow.rotationSection">轮换规则</h3>
                 <div class="taskform-section__card">
                   <div class="form-field form-field--span-2">
@@ -893,8 +883,7 @@
             <span class="material-symbols" aria-hidden="true">close</span>
           </button>
         </header>
-        <div class="modal__body">
-          <!-- 预设列表 -->
+        <div class="modal__body modal__body--rotation">
           <section class="taskform-section">
             <div class="rotation-toolbar">
               <h3 class="taskform-section__title" data-i18n="workflow.presetSection">预设</h3>
