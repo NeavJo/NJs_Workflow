@@ -144,15 +144,13 @@
     outline: 2px solid var(--md-primary);
     outline-offset: 3px;
   }
-  .workflow-card { grid-template-columns: 30px minmax(0, 1fr) 40px; gap: 10px 10px; padding: 14px; align-items: start; }
-  .workflow-card { grid-template-areas: "badge content check" "badge meta meta"; }
+  .workflow-card { display: grid; grid-template-columns: 28px minmax(0, 1fr) 34px; grid-template-rows: auto; grid-template-areas: "badge content check"; gap: 0 12px; padding: 14px; align-items: center; }
   .workflow-card .order-badge { grid-area: badge; }
   .workflow-card .workflow-card__content { grid-area: content; }
-  .workflow-card .checkbox-wrapper { grid-area: check; }
-  .workflow-card .workflow-card__action,
-  .workflow-card .workflow-card__check-btn { grid-area: meta; justify-self: end; align-self: center; }
-  .workflow-card__action { justify-self: end; }
-  .workflow-card__check-btn { width: auto; max-width: 100%; }
+  .workflow-card:has(.workflow-card__action):has(.checkbox-wrapper),
+  .workflow-card:has(.workflow-card__check-btn):has(.checkbox-wrapper) { grid-template-columns: 28px minmax(0, 1fr) minmax(0, auto) 34px; grid-template-areas: "badge content actions check"; }
+  .workflow-card__action-area { grid-area: actions; display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+  .workflow-card .checkbox-wrapper { position: static; grid-area: check; display: grid; width: 34px; height: 34px; place-items: center; margin: 0; justify-self: end; align-self: center; transform: none; }
   .workflow-card__action, .workflow-card__check-btn { height: 40px; padding: 0 13px; font-size: 12px; }
   .workflow-card__action { width: 40px; padding: 0; }
   .workflow-card__title-row { flex-direction: column; align-items: flex-start; gap: 4px; }

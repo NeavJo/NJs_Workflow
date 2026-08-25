@@ -12,10 +12,10 @@
   .workflow-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-.workflow-card { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 14px 18px; padding: 20px; border-radius: var(--md-radius-medium); background: var(--md-surface-container); box-shadow: var(--md-elevation-1); transition: transform var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard), opacity var(--md-motion-standard); position: relative; overflow: hidden; }
-/* 当存在【外链/检查】按钮时，自动增加一列供其放置 */
+.workflow-card { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "badge content actions"; align-items: center; gap: 14px 18px; padding: 20px; border-radius: var(--md-radius-medium); background: var(--md-surface-container); box-shadow: var(--md-elevation-1); transition: transform var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard), opacity var(--md-motion-standard); position: relative; overflow: hidden; }
+/* 当存在【外链/检查】按钮时，actions 列自动撑开 */
 .workflow-card:has(.workflow-card__action),
-.workflow-card:has(.workflow-card__check-btn) { grid-template-columns: 40px 1fr auto auto; }
+.workflow-card:has(.workflow-card__check-btn) { grid-template-columns: 40px minmax(0, 1fr) auto auto; grid-template-areas: "badge content actions check"; }
 .workflow-card:hover { transform: translateY(-2px); box-shadow: var(--md-elevation-2); }
 .workflow-card.is-complete { background: color-mix(in srgb, var(--md-success-container) 32%, var(--md-surface-container)); }
 
@@ -138,7 +138,19 @@
   z-index: 1;
 }
 
-/* ===== 背景水印可调变量 ===== */
+/* 网格区域分配 */
+.order-badge { grid-area: badge; }
+.workflow-card__content { grid-area: content; }
+.workflow-card__action-area { grid-area: actions; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+/* 按钮行无内容时不占位，保持布局简洁 */
+.workflow-card__action-area:empty { display: none; }
+/* 复选框：始终固定在右侧最后一列 */
+.checkbox-wrapper { grid-area: check; justify-self: center; align-self: center; }
+/* 无按钮时复选框仍可见（占据 actions 位置） */
+.workflow-card:has(.checkbox-wrapper):not(:has(.workflow-card__action)):not(:has(.workflow-card__check-btn)) { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "badge content actions"; }
+.workflow-card:has(.checkbox-wrapper):not(:has(.workflow-card__action)):not(:has(.workflow-card__check-btn)) .checkbox-wrapper { grid-area: actions; }
+
+/* 背景水印可调变量 ===== */
 :root {
   /* 位置控制：水印距离卡片右/下边缘的偏移量（px） */
   --bg-icon-right-offset: 80px;

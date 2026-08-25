@@ -114,7 +114,9 @@ function createCard(rawItem, order) {
   const checkButtonHtml = checkEnabled
     ? `<button class="workflow-card__check-btn" type="button" data-check-action="memo-count" data-item-id="${rawItem.id}" aria-label="检查并打卡：${rawItem.title}"><span class="material-symbols" aria-hidden="true">fact_check</span><span class="workflow-card__check-btn__label">检查</span></button>`
     : ''
-  const actionHtml = jumpButtonHtml + checkButtonHtml
+  const actionAreaHtml = jumpButtonHtml || checkButtonHtml
+    ? `<div class="workflow-card__action-area">${jumpButtonHtml}${checkButtonHtml}</div>`
+    : ''
 
   const tagBlockHtml = buildDynamicTagHtml(tagInfo)
   const descriptionHtml = effectiveDesc ? `<p class="workflow-card__description"></p>` : ''
@@ -127,7 +129,7 @@ function createCard(rawItem, order) {
       ${descriptionHtml}
       ${tagBlockHtml}
     </div>
-    ${actionHtml}
+    ${actionAreaHtml}
     <label class="checkbox-wrapper">
       <input type="checkbox" ${checkboxAttrs} />
       <span class="checkbox-mark"><span class="material-symbols" aria-hidden="true">${checkIcon}</span></span>
