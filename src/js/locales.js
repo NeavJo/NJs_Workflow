@@ -507,7 +507,8 @@ export const I18N = {
       networkUploadFailed: '网络异常，上传失败。',
       networkPullFailed: '网络异常，拉取失败。',
       uploadHttp: '上传失败（HTTP {status}）',
-      pullHttp: '拉取失败（HTTP {status}）'
+      pullHttp: '拉取失败（HTTP {status}）',
+      conflictResolved: '检测到云端有新数据，已自动拉取并刷新。'
     },
 
     reset: {

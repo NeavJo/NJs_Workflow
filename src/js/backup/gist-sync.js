@@ -86,6 +86,28 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
 }
 
 /**
+ * 上传前冲突检测：
+ * 读取 Gist 的 updated_at，若比本地 lastSyncTime 更新则认为云端有新数据。
+ * 冲突时静默拉取一次（不弹提示），然后返回 { conflict: true }，调用方应中止上传。
+ * 无凭证或网络错误时直接返回 { conflict: false } 放行上传（避免阻断正常流程）。
+ */
+export async function checkForGistConflict() {
+  if (!hasGistCredentials()) return { conflict: false }
+  const settings = getGistSettings()
+  const res = await gistApiRequest(`gists/${settings.gistId}`)
+  if (!res.ok) return { conflict: false }
+  const gistUpdatedAt = res.data?.updated_at
+  if (!gistUpdatedAt) return { conflict: false }
+  const localLastSync = settings.lastSyncTime || ''
+  if (new Date(gistUpdatedAt) > new Date(localLastSync)) {
+    DBG('gist:conflict:detected', { gistUpdatedAt, localLastSync })
+    await pullFromGist({ silent: true })
+    return { conflict: true }
+  }
+  return { conflict: false }
+}
+
+/**
  * 把当前数据推送到 Gist（覆盖原文件）。
  *  - API Key 以对称加密密文形式进入 Gist；未设置口令 / 加密不可用时仅省略 API Key，其余数据照常上传，绝不阻断。
  *  - notifyKeyOmitted=true（手动上传）：当 API Key 被省略时弹一条非阻断提示；自动上传传 false 以免反复弹窗。
@@ -106,6 +128,12 @@ export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
   const body = {
     description: 'NJW daily backup',
     files: { [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) } }
+  }
+  const conflict = await checkForGistConflict()
+  if (conflict.conflict) {
+    DBG('gist:upload:blocked:conflict')
+    showToast(t(I18N.toast.gist.conflictResolved))
+    return { ok: false, reason: 'conflict-resolved' }
   }
   showGistUploading()
   const settings = getGistSettings()

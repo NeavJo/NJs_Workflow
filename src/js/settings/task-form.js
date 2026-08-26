@@ -41,6 +41,7 @@ import { bindRotationModalEvents, openRotationModal } from './rotation-editor.js
 
 let currentMode = 'add'
 let currentEditingId = null
+let openedFromEditor = false
 
 function setFieldError(fieldId, message) {
   const input = $(fieldId)
@@ -169,9 +170,10 @@ function bindRotationLink() {
 /* ============================================================
  * 打开表单：填充初始值
  * ============================================================ */
-export function openTaskForm(mode = 'add', taskId = null) {
+export function openTaskForm(mode = 'add', taskId = null, fromEditor = false) {
   currentMode = mode
   currentEditingId = taskId
+  openedFromEditor = fromEditor
   clearTaskFormErrors()
 
   const titleEl = $('taskform-title')
@@ -234,9 +236,15 @@ export function openTaskForm(mode = 'add', taskId = null) {
 }
 
 export function closeTaskForm() {
+  const wasFromEditor = openedFromEditor
   currentMode = 'add'
   currentEditingId = null
-  closeModal('taskform')
+  openedFromEditor = false
+  if (wasFromEditor) {
+    replaceModal('taskform', 'editor')
+  } else {
+    closeModal('taskform')
+  }
 }
 
 /* ============================================================

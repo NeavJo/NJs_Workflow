@@ -160,7 +160,7 @@ export function bindEditorEvents() {
   if (closeBtn) closeBtn.addEventListener('click', () => closeModal('editor'))
   if (scrim) scrim.addEventListener('click', () => closeModal('editor'))
 
-  const openAddForm = (opener) => replaceModal('editor', 'taskform', { opener }).then(() => openTaskForm('add'))
+  const openAddForm = (opener) => replaceModal('editor', 'taskform', { opener }).then(() => openTaskForm('add', null, true))
 
   if (addBtn) addBtn.addEventListener('click', () => openAddForm(addBtn))
   if (emptyAddBtn) emptyAddBtn.addEventListener('click', () => openAddForm(emptyAddBtn))

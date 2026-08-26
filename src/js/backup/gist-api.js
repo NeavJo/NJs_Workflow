@@ -38,12 +38,12 @@ export function gistApiRequest(path, opts = {}) {
       const text = await res.text()
       let data = null
       try { data = text ? JSON.parse(text) : null } catch { data = null }
-      return { status: res.status, ok: res.ok, data, rawText: text }
+      return { status: res.status, ok: res.ok, data, rawText: text, headers: Object.fromEntries(res.headers.entries()) }
     })
     .catch((err) => {
       clearTimeout(timer)
       DBG('gist:request:error', { path, method, err: String(err) })
-      return { status: 0, ok: false, data: null, rawText: '', error: String(err) }
+      return { status: 0, ok: false, data: null, rawText: '', headers: {}, error: String(err) }
     })
 }
 

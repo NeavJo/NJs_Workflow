@@ -152,7 +152,7 @@ function handleEditorAction(event) {
     return
   }
   if (action === 'edit') {
-    replaceModal('editor', 'taskform', { opener: btn }).then(() => openTaskForm('edit', id))
+    replaceModal('editor', 'taskform', { opener: btn }).then(() => openTaskForm('edit', id, true))
     return
   }
 
@@ -188,7 +188,7 @@ async function handleSheetAction(event) {
 
   if (action === 'edit') {
     await replaceModal('editor', 'taskform', { opener: btn })
-    openTaskForm('edit', taskId)
+    openTaskForm('edit', taskId, true)
     return
   }
 

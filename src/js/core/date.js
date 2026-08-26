@@ -12,9 +12,9 @@ export function getYesterdayDateString(d = new Date()) {
 }
 
 export function getFullTimestamp(d = new Date()) {
-  return `${getTodayDateString(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  return `${getTodayDateString(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
 
 export function formatTimestamp(d) {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
