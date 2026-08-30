@@ -69,6 +69,82 @@ function handleCardAction(card, action) {
     copyMemoContent(card)
   } else if (action === 'anki') {
     processInAnki(card)
+  } else if (action === 'expand') {
+    toggleExpand(card)
+  }
+}
+
+function updateExpandButton(btn, isCollapsed) {
+  if (!btn) return
+  const icon = btn.querySelector('.memo-card__expand__icon')
+  const label = btn.querySelector('.memo-card__expand__label')
+  if (isCollapsed) {
+    btn.setAttribute('aria-expanded', 'false')
+    btn.setAttribute('aria-label', I18N.memo.expandAria)
+    if (icon) icon.textContent = 'expand_more'
+    if (label) label.textContent = I18N.memo.expandBtn
+  } else {
+    btn.setAttribute('aria-expanded', 'true')
+    btn.setAttribute('aria-label', I18N.memo.collapseAria)
+    if (icon) icon.textContent = 'expand_less'
+    if (label) label.textContent = '收起'
+  }
+}
+
+function toggleExpand(card) {
+  const contentEl = card.querySelector('.memo-card__content')
+  const expandBtn = card.querySelector('.memo-card__expand')
+  if (!contentEl || !expandBtn) return
+  const isCollapsed = contentEl.classList.contains('memo-card__content--collapsed')
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  if (isCollapsed) {
+    const startHeight = contentEl.offsetHeight
+    contentEl.classList.remove('memo-card__content--collapsed')
+    const endHeight = contentEl.offsetHeight
+    if (reduced) {
+      updateExpandButton(expandBtn, false)
+      return
+    }
+    contentEl.style.maxHeight = startHeight + 'px'
+    contentEl.style.opacity = '0.85'
+    void contentEl.offsetHeight
+    contentEl.style.transition = 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease'
+    contentEl.style.maxHeight = endHeight + 'px'
+    contentEl.style.opacity = '1'
+    var onExpandEnd = function() {
+      contentEl.style.transition = ''
+      contentEl.style.maxHeight = ''
+      contentEl.style.opacity = ''
+      contentEl.removeEventListener('transitionend', onExpandEnd)
+    }
+    contentEl.addEventListener('transitionend', onExpandEnd)
+    updateExpandButton(expandBtn, false)
+  } else {
+    var fullHeight = contentEl.offsetHeight
+    var collapsedHeight = 7 * 14 * 1.7
+    if (reduced) {
+      contentEl.classList.add('memo-card__content--collapsed')
+      updateExpandButton(expandBtn, true)
+      return
+    }
+    contentEl.style.overflow = 'hidden'
+    contentEl.style.maxHeight = fullHeight + 'px'
+    contentEl.style.opacity = '1'
+    void contentEl.offsetHeight
+    contentEl.style.transition = 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease'
+    contentEl.style.maxHeight = collapsedHeight + 'px'
+    contentEl.style.opacity = '0.85'
+    var onCollapseEnd = function() {
+      contentEl.classList.add('memo-card__content--collapsed')
+      contentEl.style.transition = ''
+      contentEl.style.maxHeight = ''
+      contentEl.style.opacity = ''
+      contentEl.style.overflow = ''
+      contentEl.removeEventListener('transitionend', onCollapseEnd)
+    }
+    contentEl.addEventListener('transitionend', onCollapseEnd)
+    updateExpandButton(expandBtn, true)
   }
 }
 
@@ -102,6 +178,8 @@ function enterEditMode(card, id) {
   if (deleteBtn) deleteBtn.hidden = true
   if (copyBtn) copyBtn.hidden = true
   if (ankiBtn) ankiBtn.hidden = true
+  const footer = card.querySelector('.memo-card__footer')
+  if (footer) footer.hidden = true
   card.classList.add('is-editing')
   setTimeout(() => editor.focus(), 0)
 }
@@ -128,6 +206,8 @@ function exitEditMode(card) {
   if (deleteBtn) deleteBtn.hidden = false
   if (copyBtn) copyBtn.hidden = false
   if (ankiBtn) ankiBtn.hidden = false
+  const footer = card.querySelector('.memo-card__footer')
+  if (footer) footer.hidden = false
   card.classList.remove('is-editing')
 }
 

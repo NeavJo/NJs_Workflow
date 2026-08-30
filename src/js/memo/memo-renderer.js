@@ -20,6 +20,8 @@ function createMemoCard(memo) {
   card.className = 'memo-card'
   card.dataset.id = String(memo.id)
   const lineCount = countWords(memo.content)
+  const isLong = lineCount > 7
+  card.classList.toggle("memo-card--long", isLong)
   const memoTags = getMemoTags()
   const tagOptions = memoTags
     .map((t) => `<option value="${t.id}" ${t.id === memo.tag ? 'selected' : ''}>${t.name}</option>`)
@@ -49,7 +51,7 @@ function createMemoCard(memo) {
       </div>
     </div>
     <div class="memo-card__body">
-      <pre class="memo-card__content"></pre>
+      <pre class="memo-card__content${isLong ? ' memo-card__content--collapsed' : ''}"></pre>
       <textarea class="memo-card__editor" rows="5" hidden></textarea>
       <button class="memo-card__copy" type="button" data-memo-action="copy" aria-label="${I18N.memo.copyAria}">
         <span class="material-symbols" aria-hidden="true">content_copy</span>
@@ -59,7 +61,14 @@ function createMemoCard(memo) {
         <span class="material-symbols" aria-hidden="true">psychology</span>
         <span class="memo-card__anki__label">${I18N.anki.processInAnki}</span>
       </button>
-    </div>`
+    </div>
+    ${isLong ? `<div class="memo-card__footer">
+      <button class="memo-card__expand" type="button" data-memo-action="expand" aria-label="${I18N.memo.expandAria}" aria-expanded="false">
+        <span class="memo-card__expand__label">${I18N.memo.expandBtn}</span>
+        <span class="material-symbols memo-card__expand__icon" aria-hidden="true">expand_more</span>
+      </button>
+    </div>` : ''}
+  `;
 
   const timeEl = card.querySelector('.memo-card__time')
   timeEl.dateTime = new Date(memo.id).toISOString()

@@ -38,7 +38,7 @@
   height: 52px; padding: 0 14px;
   border-radius: var(--md-radius-medium);
   border: 1px solid color-mix(in srgb, var(--md-outline) 24%, transparent);
-  background: color-mix(in srgb, var(--md-secondary-container) 32%, var(--md-surface));
+  background: color-mix(in srgb, var(--md-secondary-container) 32%, var(--md-surface-container));
   color: var(--md-on-surface);
   font: inherit; font-size: 13px; font-weight: 700; line-height: 1.2;
   text-align: center;
@@ -153,6 +153,7 @@
   border-radius: var(--md-radius-medium);
   background: var(--md-surface-container);
   box-shadow: var(--md-elevation-1);
+  overflow: hidden;
   transition: transform var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard);
 }
 .memo-card:hover { transform: translateY(-2px); box-shadow: var(--md-elevation-2); }
@@ -182,8 +183,26 @@
   word-break: break-word;
   font-family: 'Inter', 'Noto Sans SC', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   letter-spacing: .005em;
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1 1 auto; min-width: 0;
+  position: relative;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+.memo-card__content--collapsed {
+  max-height: calc(7 * 14px * 1.7);
+  overflow: hidden;
+}
+.memo-card__content--collapsed::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  background: linear-gradient(to bottom, transparent, var(--md-surface-container));
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .memo-card__content { transition: none; }
 }
 
 /* 卡片主体区：内容区与右下角大号复制按钮共存 */
@@ -266,6 +285,45 @@
   filter: brightness(1.04);
 }
 .memo-card__anki:active { transform: translateY(0); }
+
+/* 独立折叠控制区（长笔记用） */
+.memo-card__footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 0 0;
+  margin-top: 4px;
+  border-top: 1px solid var(--md-outline-variant);
+}
+.memo-card__expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 99px;
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.memo-card__expand:hover {
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+}
+.memo-card__expand__icon {
+  font-size: 20px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.memo-card__expand[aria-expanded="true"] .memo-card__expand__icon {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .memo-card__expand__icon { transition: none; }
+}
 
 /* ===== 笔记卡片编辑模式 ===== */
 
