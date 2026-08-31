@@ -47,6 +47,10 @@
 .workflow-card.is-disabled:hover { transform: none; box-shadow: none; }
 .workflow-card.is-disabled .checkbox-wrapper { cursor: not-allowed; }
 
+/* 前置任务未解锁：卡片低透明 + checkbox 禁用视觉 */
+.workflow-card.is-prereq-locked { opacity: 0.72; }
+.workflow-card.is-prereq-locked .checkbox-wrapper { cursor: not-allowed; }
+
 /* 复选框 */
 .checkbox-wrapper { display: inline-flex; align-items: center; cursor: pointer; }
 .checkbox-wrapper input { position: absolute; opacity: 0; width: 0; height: 0; }
@@ -67,6 +71,12 @@
 .workflow-card__title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .workflow-card__title { margin: 0; font-size: 16px; }
 .workflow-card__description { margin: 5px 0 0; color: var(--md-on-surface-variant); font-size: 13px; }
+
+/* 前置任务 Badge */
+.workflow-card__prereq-indicator { flex-shrink: 0; }
+.prereq-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; letter-spacing: .02em; white-space: nowrap; line-height: 1.4; }
+.prereq-badge--locked { background: var(--md-warning-container); color: var(--md-on-warning-container); border: 1px solid color-mix(in srgb, var(--md-warning) 20%, transparent); }
+.prereq-badge--ready { background: var(--md-success-container); color: var(--md-on-success-container); border: 1px solid color-mix(in srgb, var(--md-success) 20%, transparent); }
 
 /* Coming Soon 芯片 */
 .coming-soon-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 99px; background: var(--md-secondary-container); color: var(--md-on-surface-variant); font-size: 11px; font-weight: 600; letter-spacing: .03em; white-space: nowrap; }

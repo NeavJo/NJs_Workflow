@@ -1,4 +1,4 @@
-﻿/**
+/**
  * locales.js · 全局文案配置文件（i18n 单一数据源）
  * -----------------------------------------------------------------------------
  * 项目中所有写死的界面文字统一集中在这里，按功能模块组织：
@@ -96,6 +96,12 @@ export const I18N = {
     checkMeta: '检查 {cat}≥{count}',
     noDesc: '（无描述）',
     untitledTask: '未命名任务',
+    prerequisiteBadgeLocked: '需先完成 {list}',
+    prerequisiteBadgeUnlocked: '前置已完成',
+    prerequisiteEditorLabel: '前置任务（完成这些任务后才能打卡此任务）',
+    prerequisiteEditorEmpty: '暂无其他任务可选',
+    prerequisiteSectionTitle: '前置任务',
+    prerequisiteHelper: '可勾选多个，所有勾选的任务完成后此任务才可打卡。',
 
     // 任务编辑器
     editorEyebrow: 'WORKFLOW LIST',
@@ -400,7 +406,8 @@ export const I18N = {
       taskAdded: '已添加新任务。',
       presetCreated: '已新建预设：{name}',
       presetSaved: '已保存预设：{name}',
-      presetDeleted: '已删除预设。'
+      presetDeleted: '已删除预设。',
+      prerequisitesLocked: '需先完成前置任务：{list}'
     },
 
     memo: {

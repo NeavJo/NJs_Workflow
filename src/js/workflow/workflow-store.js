@@ -35,6 +35,10 @@ function migrateKnownTasks(tasks) {
       stored.desc = def.desc
     }
   }
+  // 确保所有任务都有 prerequisites 字段
+  for (const t of tasks) {
+    if (!Array.isArray(t.prerequisites)) t.prerequisites = []
+  }
 }
 
 export function serializeWorkflowArray(list) {
@@ -47,7 +51,8 @@ export function serializeWorkflowArray(list) {
     isPlaceholder: Boolean(t.isPlaceholder),
     hasDynamicTag: Boolean(t.hasDynamicTag || t.rotationRuleId),
     rotationRuleId: t.rotationRuleId || null,
-    checkConfig: t.checkConfig || null
+    checkConfig: t.checkConfig || null,
+    prerequisites: Array.isArray(t.prerequisites) ? t.prerequisites.filter(Boolean) : []
   }))
 }
 

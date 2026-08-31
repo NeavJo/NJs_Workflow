@@ -795,6 +795,18 @@
                 </div>
               </section>
 
+              <!-- 前置任务 -->
+              <section class="taskform-section taskform-section--half" data-taskform-section="prerequisites">
+                <h3 class="taskform-section__title" data-i18n="workflow.prerequisiteSectionTitle">前置任务</h3>
+                <div class="taskform-section__card">
+                  <div class="form-field form-field--span-2">
+                    <label data-i18n="workflow.prerequisiteEditorLabel">前置任务（完成这些任务后才能打卡此任务）</label>
+                    <div id="taskform-prereq-list" class="prereq-list" aria-describedby="taskform-prereq-helper"></div>
+                    <small id="taskform-prereq-helper" class="form-field__helper" data-i18n="workflow.prerequisiteHelper">可勾选多个，所有勾选的任务完成后此任务才可打卡。</small>
+                  </div>
+                </div>
+              </section>
+
               <!-- 轮换规则摘要入口 -->
               <section class="taskform-section taskform-section--half" data-taskform-section="rotation">
                 <h3 class="taskform-section__title" data-i18n="workflow.rotationSection">轮换规则</h3>

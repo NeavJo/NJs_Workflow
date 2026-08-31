@@ -85,6 +85,14 @@
 }
 .form-field > .form-field__helper.is-error { color: #c21f26; font-weight: 700; }
 
+/* 前置任务复选框列表 */
+.prereq-list { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow-y: auto; border: 1.5px solid color-mix(in srgb, var(--md-outline) 36%, transparent); border-radius: var(--md-radius-medium); padding: 4px 0; background: var(--md-surface); }
+.prereq-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; border-radius: 6px; transition: background var(--md-motion-standard); }
+.prereq-item:hover { background: color-mix(in srgb, var(--md-primary-container) 40%, transparent); }
+.prereq-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--md-primary); cursor: pointer; flex-shrink: 0; }
+.prereq-item__text { font-size: 13px; line-height: 1.4; color: var(--md-on-surface); user-select: none; }
+.prereq-empty { padding: 12px; font-size: 13px; color: var(--md-on-surface-variant); text-align: center; }
+
 /* 通用 .form-field__input 旧结构兼容 */
 .form-field__input {
   width: 100%;

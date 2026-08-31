@@ -210,6 +210,14 @@ export function openTaskForm(mode = 'add', taskId = null, fromEditor = false) {
     fCheck.checked = Boolean(cfg?.enabled)
     fCheckCategory.value = cfg?.category || ''
     fCheckCount.value = cfg?.targetCount || 7
+
+    // 加载前置任务选中状态
+    const fPrereq = $('taskform-prereq-list')
+    if (fPrereq && Array.isArray(task.prerequisites)) {
+      fPrereq.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+        cb.checked = task.prerequisites.includes(cb.value)
+      })
+    }
   } else {
     if (titleEl) titleEl.textContent = I18N.workflow.taskFormAddTitle
     if (subtitleEl) subtitleEl.textContent = I18N.workflow.taskFormAddSubtitle
@@ -227,6 +235,7 @@ export function openTaskForm(mode = 'add', taskId = null, fromEditor = false) {
   applyCheckFieldVisibility()
   applyRotationEnabledUI()
   renderRotationSummary(rotationRuleId)
+  populatePrerequisitesSelect(taskId)
   openModal('taskform')
 
   setTimeout(() => {
@@ -245,6 +254,31 @@ export function closeTaskForm() {
   } else {
     closeModal('taskform')
   }
+}
+
+/**
+ * 填充前置任务复选框列表（排除自身，防止循环依赖）。
+ */
+export function populatePrerequisitesSelect(excludeId = null) {
+  const container = $('taskform-prereq-list')
+  if (!container) return
+  const allWorkflows = getWorkflows()
+  const filtered = allWorkflows.filter((t) => t.id !== excludeId)
+  container.innerHTML = ''
+  if (filtered.length === 0) {
+    const empty = document.createElement('p')
+    empty.className = 'prereq-empty'
+    empty.textContent = I18N.workflow.prerequisiteEditorEmpty
+    container.appendChild(empty)
+    return
+  }
+  filtered.forEach((t, i) => {
+    const displayNum = String(allWorkflows.indexOf(t) + 1).padStart(2, '0')
+    const label = document.createElement('label')
+    label.className = 'prereq-item'
+    label.innerHTML = `<input type="checkbox" value="${t.id}"><span class="prereq-item__text">#${displayNum} · ${t.title}</span>`
+    container.appendChild(label)
+  })
 }
 
 /* ============================================================
@@ -320,7 +354,10 @@ export function handleTaskFormSubmit(event) {
       isPlaceholder,
       hasDynamicTag,
       rotationRuleId: validRotationId,
-      checkConfig
+      checkConfig,
+      prerequisites: Array.from(($('taskform-prereq-list') || {}).querySelectorAll('input[type="checkbox"]:checked'))
+        .map((cb) => cb.value)
+        .filter(Boolean)
     }
     replaceTaskStore(currentEditingId, updated)
     showToast(I18N.toast.workflow.taskUpdated)
@@ -333,7 +370,10 @@ export function handleTaskFormSubmit(event) {
       isPlaceholder,
       hasDynamicTag,
       rotationRuleId: validRotationId,
-      checkConfig
+      checkConfig,
+      prerequisites: Array.from(($('taskform-prereq-list') || {}).querySelectorAll('input[type="checkbox"]:checked'))
+        .map((cb) => cb.value)
+        .filter(Boolean)
     })
     addTaskStore(task)
     showToast(I18N.toast.workflow.taskAdded)

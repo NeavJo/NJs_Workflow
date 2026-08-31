@@ -3,7 +3,7 @@ import { updateProgress } from '../ui.js'
 import { I18N, t } from '../locales.js'
 import { getWorkflows } from './workflow-store.js'
 import { getCompletedIds } from './completion-store.js'
-import { evaluateTaskRuntime, isTaskTrackable, getTrackableTasks } from './workflow-runtime.js'
+import { evaluateTaskRuntime, isTaskTrackable, getTrackableTasks, checkPrerequisites } from './workflow-runtime.js'
 import { refreshWorkflowCarousel } from './workflow-carousel.js'
 
 /**
@@ -83,6 +83,9 @@ function createCard(rawItem, order) {
   const cardClasses = ['workflow-card']
   if (disabled) cardClasses.push('is-disabled')
   if (isComplete && !disabled) cardClasses.push('is-complete')
+  const { ready: prereqReady, missingIds } = checkPrerequisites(rawItem)
+  const prereqLocked = !prereqReady && missingIds.length > 0
+  if (prereqLocked) cardClasses.push('is-prereq-locked')
   card.className = cardClasses.join(' ')
 
   const checkEnabled = Boolean(rawItem.checkConfig?.enabled)
@@ -92,7 +95,7 @@ function createCard(rawItem, order) {
         ? t(I18N.workflow.descFallback, { category: rawItem.checkConfig.category || I18N.workflow.defaultCategory, count: rawItem.checkConfig.targetCount })
         : rawItem.desc)
 
-  const checkboxLocked = disabled || checkEnabled
+  const checkboxLocked = disabled || checkEnabled || prereqLocked
   const checkboxAttrs = checkboxLocked
     ? `disabled aria-label="${rawItem.title}" ${checkEnabled && isComplete ? 'checked' : ''}`
     : `data-item-id="${rawItem.id}" ${isComplete ? 'checked' : ''} aria-label="${rawItem.title}"`
@@ -118,6 +121,20 @@ function createCard(rawItem, order) {
     ? `<div class="workflow-card__action-area">${jumpButtonHtml}${checkButtonHtml}</div>`
     : ''
 
+  // 前置任务 Badge
+  const prereqBadgeHtml = Array.isArray(rawItem.prerequisites) && rawItem.prerequisites.length > 0
+    ? (() => {
+        const locked = prereqLocked
+        const workflows = getWorkflows()
+        const otherTasks = workflows.filter((t) => rawItem.prerequisites.includes(t.id))
+        const nums = otherTasks.map((t) => `#${String(workflows.indexOf(t) + 1).padStart(2, '0')}`).join(' ')
+        const label = locked
+          ? t(I18N.workflow.prerequisiteBadgeLocked, { list: nums })
+          : t(I18N.workflow.prerequisiteBadgeUnlocked, { list: nums })
+        return `<span class="prereq-badge ${locked ? 'prereq-badge--locked' : 'prereq-badge--ready'}" aria-label="前置任务：${label}">🔗 ${label}</span>`
+      })()
+    : ''
+
   const tagBlockHtml = buildDynamicTagHtml(tagInfo)
   const descriptionHtml = effectiveDesc ? `<p class="workflow-card__description"></p>` : ''
 
@@ -125,7 +142,10 @@ function createCard(rawItem, order) {
     ${buildBgIconHtml(rawItem.id)}
     <div class="order-badge" aria-hidden="true"></div>
     <div class="workflow-card__content">
-      <h3 class="workflow-card__title"></h3>
+      <div class="workflow-card__title-row">
+        <h3 class="workflow-card__title"></h3>
+        ${prereqBadgeHtml ? `<span class="workflow-card__prereq-indicator">${prereqBadgeHtml}</span>` : ''}
+      </div>
       ${descriptionHtml}
       ${tagBlockHtml}
     </div>

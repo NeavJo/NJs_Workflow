@@ -1,10 +1,10 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
-import { I18N } from '../locales.js'
+import { I18N, t } from '../locales.js'
 import { getWorkflows } from './workflow-store.js'
 import { getCompletedIds, persistCompleted, hasCompleted, toggleCompleted } from './completion-store.js'
 import { renderWorkflow } from './workflow-renderer.js'
-import { runMemoCountCheck } from './workflow-runtime.js'
+import { runMemoCountCheck, checkPrerequisites } from './workflow-runtime.js'
 import { bindBatch } from '../utils/event-manager.js'
 
 /**
@@ -19,6 +19,18 @@ function toggleItem(id, { forced = false } = {}) {
     showToast(I18N.toast.workflow.systemCheckOnly)
     renderWorkflow()
     return
+  }
+  // 前置任务检查
+  if (!forced && task) {
+    const { ready, missingIds } = checkPrerequisites(task)
+    if (!ready && missingIds.length > 0) {
+    const workflows = getWorkflows()
+      const otherTasks = workflows.filter((t) => missingIds.includes(t.id))
+      const list = otherTasks.map((t) => `#${String(workflows.indexOf(t) + 1).padStart(2, '0')}`).join(', ')
+      showToast(t(I18N.toast.workflow.prerequisitesLocked, { list }))
+      renderWorkflow()
+      return
+    }
   }
   const before = getCompletedIds().has(id)
   DBG('toggleItem:enter', { id, forced, before })

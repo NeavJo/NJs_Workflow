@@ -7,6 +7,18 @@ import { getWorkflows } from './workflow-store.js'
 import { hasCompleted, addCompleted, persistCompleted } from './completion-store.js'
 
 /**
+ * 评估任务的前置条件是否已满足。
+ * @returns {{ ready: boolean, missingIds: string[] }}
+ */
+export function checkPrerequisites(task) {
+  if (!task || !Array.isArray(task.prerequisites) || task.prerequisites.length === 0) {
+    return { ready: true, missingIds: [] }
+  }
+  const missingIds = task.prerequisites.filter((id) => !hasCompleted(id))
+  return { ready: missingIds.length === 0, missingIds }
+}
+
+/**
  * 工作流运行时：评估任务的动态标签、是否可跟踪、生词本校验。
  * 运行时只读"状态层"store，副作用（如渲染）通过依赖注入由 bootstrap 接入，
  * 避免与 renderer / events 循环依赖。

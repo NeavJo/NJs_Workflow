@@ -86,6 +86,7 @@ export function createTask(overrides = {}) {
     hasDynamicTag: false,
     rotationRuleId: null,
     checkConfig: null,
+    prerequisites: [],
     ...overrides
   }
 }
@@ -119,6 +120,7 @@ export function normalizeTask(raw) {
     isPlaceholder: Boolean(raw.isPlaceholder),
     hasDynamicTag: rawLegacy || Boolean(rotationRuleId),
     rotationRuleId,
-    checkConfig
+    checkConfig,
+    prerequisites: Array.isArray(raw.prerequisites) ? raw.prerequisites.filter(Boolean) : []
   }
 }
