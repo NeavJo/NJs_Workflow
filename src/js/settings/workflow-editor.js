@@ -6,6 +6,7 @@ import { renderWorkflow } from '../workflow/workflow-renderer.js'
 import { openModal, replaceModal, openConfirmDialog, closeModal } from './modal.js'
 import { openTaskForm } from './task-form.js'
 import { uploadToGist } from '../backup/gist-sync.js'
+import { $, escapeHtml } from '../utils/dom-utils.js'
 
 /**
  * 工作流编辑器：在 settings → workflow 视图中以列表形式展示任务。
@@ -13,12 +14,6 @@ import { uploadToGist } from '../backup/gist-sync.js'
  * 移动：每行只显示序号 + 标题/描述 + 一个「更多」按钮；
  *      点更多后弹出 Bottom Sheet 菜单，包含 编辑 / 上移 / 下移 / 删除。
  */
-
-export function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[ch]))
-}
 
 function buildMetaLine(task) {
   const parts = []

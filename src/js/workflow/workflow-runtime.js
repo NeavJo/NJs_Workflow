@@ -4,17 +4,20 @@ import { I18N } from '../locales.js'
 import { getTodayDateString } from '../core/date.js'
 import { findRotationRule } from './rotation-store.js'
 import { getWorkflows } from './workflow-store.js'
-import { hasCompleted, addCompleted, persistCompleted } from './completion-store.js'
+import { hasCompleted, addCompleted, persistCompleted, getCompletedIds } from './completion-store.js'
 
 /**
  * 评估任务的前置条件是否已满足。
+ * @param {object} task
+ * @param {Set<string>|null} [completedIds] 可选预计算集合，避免每次调用重复创建 Set
  * @returns {{ ready: boolean, missingIds: string[] }}
  */
-export function checkPrerequisites(task) {
+export function checkPrerequisites(task, completedIds) {
   if (!task || !Array.isArray(task.prerequisites) || task.prerequisites.length === 0) {
     return { ready: true, missingIds: [] }
   }
-  const missingIds = task.prerequisites.filter((id) => !hasCompleted(id))
+  const source = completedIds || getCompletedIds()
+  const missingIds = task.prerequisites.filter((id) => !source.has(id))
   return { ready: missingIds.length === 0, missingIds }
 }
 

@@ -6,15 +6,10 @@ import {
 import { safeStorageGet, safeStorageSet } from '../core/storage.js'
 import { DBG } from '../core/debug.js'
 import { requestAutoUpload } from '../core/sync-hooks.js'
+import { createPubSub } from '../utils/pubsub.js'
 
 let rotationRules = []
-const changeListeners = new Set()
-
-function emitChange() {
-  for (const fn of changeListeners) {
-    try { fn(rotationRules) } catch (e) { DBG('rotation:listener:error', String(e)) }
-  }
-}
+const pubsub = createPubSub()
 
 function deepCopyRule(rule) {
   return JSON.parse(JSON.stringify(rule))
@@ -39,7 +34,7 @@ export function getRotationRules() {
 
 export function setRotationRules(next) {
   rotationRules = Array.isArray(next) ? next : []
-  emitChange()
+  pubsub.emit(rotationRules)
   return rotationRules
 }
 
@@ -62,7 +57,7 @@ export function upsertRotationRule(rule) {
   if (idx === -1) rotationRules.push(clean)
   else rotationRules[idx] = clean
   persistRotationRules()
-  emitChange()
+  pubsub.emit(rotationRules)
   return clean.id
 }
 
@@ -78,11 +73,10 @@ export function detachRotationRuleFromTasks(ruleId) {
 export function deleteRotationRule(ruleId) {
   rotationRules = rotationRules.filter((r) => r.id !== ruleId)
   persistRotationRules()
-  emitChange()
+  pubsub.emit(rotationRules)
   return rotationRules
 }
 
 export function onRotationRulesChange(fn) {
-  changeListeners.add(fn)
-  return () => changeListeners.delete(fn)
+  return pubsub.on(fn)
 }

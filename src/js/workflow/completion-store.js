@@ -3,15 +3,10 @@ import { safeStorageGet, safeStorageSet } from '../core/storage.js'
 import { DBG } from '../core/debug.js'
 import { getWorkflows } from './workflow-store.js'
 import { requestAutoUpload } from '../core/sync-hooks.js'
+import { createPubSub } from '../utils/pubsub.js'
 
 const completedItems = new Set()
-const changeListeners = new Set()
-
-function emitChange() {
-  for (const fn of changeListeners) {
-    try { fn(new Set(completedItems)) } catch (e) { DBG('completion:listener:error', String(e)) }
-  }
-}
+const pubsub = createPubSub()
 
 function normalizeCompletedIds(rawList) {
   if (!Array.isArray(rawList)) return []
@@ -45,7 +40,7 @@ export function hasCompleted(id) {
 export function setCompletedIds(ids) {
   completedItems.clear()
   for (const id of ids) completedItems.add(id)
-  emitChange()
+  pubsub.emit(new Set(completedItems))
 }
 
 export function persistCompleted() {
@@ -63,7 +58,7 @@ export function toggleCompleted(id, { forced = false } = {}) {
     completedItems.add(id)
   }
   persistCompleted()
-  emitChange()
+  pubsub.emit(new Set(completedItems))
   return completedItems.has(id)
 }
 
@@ -71,7 +66,7 @@ export function addCompleted(id) {
   if (completedItems.has(id)) return false
   completedItems.add(id)
   persistCompleted()
-  emitChange()
+  pubsub.emit(new Set(completedItems))
   return true
 }
 
@@ -79,14 +74,14 @@ export function removeCompleted(id) {
   if (!completedItems.has(id)) return false
   completedItems.delete(id)
   persistCompleted()
-  emitChange()
+  pubsub.emit(new Set(completedItems))
   return true
 }
 
 export function clearCompleted() {
   completedItems.clear()
   persistCompleted()
-  emitChange()
+  pubsub.emit(new Set(completedItems))
 }
 
 export function pruneCompleted(validIds) {
@@ -99,12 +94,11 @@ export function pruneCompleted(validIds) {
   }
   if (changed) {
     persistCompleted()
-    emitChange()
+    pubsub.emit(new Set(completedItems))
   }
   return changed
 }
 
 export function onCompletedChange(fn) {
-  changeListeners.add(fn)
-  return () => changeListeners.delete(fn)
+  return pubsub.on(fn)
 }

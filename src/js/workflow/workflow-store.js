@@ -3,23 +3,14 @@ import {
   normalizeTask,
   createTask
 } from '../config/workflow-config.js'
+import { DBG } from '../core/debug.js'
 import { WORKFLOWS_STORAGE_KEY } from '../config/storage-config.js'
 import { safeStorageGet, safeStorageSet } from '../core/storage.js'
-import { DBG } from '../core/debug.js'
 import { requestAutoUpload } from '../core/sync-hooks.js'
+import { createPubSub } from '../utils/pubsub.js'
 
 let workflows = []
-const changeListeners = new Set()
-
-function emitChange() {
-  for (const fn of changeListeners) {
-    try { fn(workflows) } catch (e) { DBG('workflow:listener:error', String(e)) }
-  }
-}
-
-function hydrateTasksForRuntime(tasks) {
-  return tasks.map((t) => ({ ...t }))
-}
+const pubsub = createPubSub()
 
 function migrateKnownTasks(tasks) {
   for (const def of DEFAULT_WORKFLOWS) {
@@ -63,14 +54,12 @@ export function loadWorkflows() {
     if (normalized.length > 0) {
       migrateKnownTasks(normalized)
       DBG('init:workflows:from-storage', { count: normalized.length })
-      workflows = hydrateTasksForRuntime(normalized)
+      workflows = normalized
       return workflows
     }
   }
   DBG('init:workflows:from-default', { count: DEFAULT_WORKFLOWS.length })
-  workflows = hydrateTasksForRuntime(
-    DEFAULT_WORKFLOWS.map((t) => normalizeTask({ ...t })).filter(Boolean)
-  )
+  workflows = DEFAULT_WORKFLOWS.map((t) => normalizeTask({ ...t })).filter(Boolean)
   return workflows
 }
 
@@ -80,7 +69,7 @@ export function getWorkflows() {
 
 export function setWorkflows(next) {
   workflows = Array.isArray(next) ? next : []
-  emitChange()
+  pubsub.emit(workflows)
   return workflows
 }
 
@@ -94,10 +83,8 @@ export function persistWorkflows() {
 
 export function persistWorkflowsAndRender(afterPersist) {
   const ok = persistWorkflows()
-  emitChange()
-  if (typeof afterPersist === 'function') {
-    try { afterPersist(workflows) } catch (e) { DBG('workflow:afterPersist:error', String(e)) }
-  }
+  pubsub.emit(workflows)
+  try { afterPersist(workflows) } catch (e) { DBG('workflow:afterPersist:error', String(e)) }
   return ok
 }
 
@@ -105,7 +92,7 @@ export function addTask(overrides) {
   const task = createTask(overrides || {})
   workflows.push(task)
   persistWorkflows()
-  emitChange()
+  pubsub.emit(workflows)
   return task
 }
 
@@ -114,7 +101,7 @@ export function updateTask(id, patch) {
   if (idx === -1) return null
   workflows[idx] = { ...workflows[idx], ...patch }
   persistWorkflows()
-  emitChange()
+  pubsub.emit(workflows)
   return workflows[idx]
 }
 
@@ -123,7 +110,7 @@ export function replaceTask(id, next) {
   if (idx === -1) return null
   workflows[idx] = next
   persistWorkflows()
-  emitChange()
+  pubsub.emit(workflows)
   return workflows[idx]
 }
 
@@ -132,7 +119,7 @@ export function removeTask(id) {
   workflows = workflows.filter((t) => t.id !== id)
   if (workflows.length !== before) {
     persistWorkflows()
-    emitChange()
+    pubsub.emit(workflows)
   }
   return workflows
 }
@@ -145,25 +132,23 @@ export function moveTask(id, direction) {
   const j = direction === 'up' ? i - 1 : i + 1
   ;[workflows[i], workflows[j]] = [workflows[j], workflows[i]]
   persistWorkflows()
-  emitChange()
+  pubsub.emit(workflows)
   return true
 }
 
 export function resetToDefaults() {
-  const normalized = DEFAULT_WORKFLOWS.map((t) => normalizeTask({ ...t })).filter(Boolean)
-  workflows = hydrateTasksForRuntime(normalized)
+  workflows = DEFAULT_WORKFLOWS.map((t) => normalizeTask({ ...t })).filter(Boolean)
   persistWorkflows()
-  emitChange()
+  pubsub.emit(workflows)
   return workflows
 }
 
 export function replaceAll(next) {
   workflows = Array.isArray(next) ? next : []
-  emitChange()
+  pubsub.emit(workflows)
   return workflows
 }
 
 export function onWorkflowsChange(fn) {
-  changeListeners.add(fn)
-  return () => changeListeners.delete(fn)
+  return pubsub.on(fn)
 }

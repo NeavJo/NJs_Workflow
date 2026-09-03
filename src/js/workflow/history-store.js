@@ -8,17 +8,12 @@ import { DBG } from '../core/debug.js'
 import { getTodayDateString } from '../core/date.js'
 import { getCompletedIds, setCompletedIds, persistCompleted, clearCompleted } from './completion-store.js'
 import { requestAutoUpload } from '../core/sync-hooks.js'
+import { createPubSub } from '../utils/pubsub.js'
 
 let completionHistory = {}
 let lastResetDate = ''
 
-const historyListeners = new Set()
-
-function emitHistoryChange() {
-  for (const fn of historyListeners) {
-    try { fn({ history: completionHistory, lastResetDate }) } catch (e) { DBG('history:listener:error', String(e)) }
-  }
-}
+const pubsub = createPubSub()
 
 export function loadCompletionHistory() {
   completionHistory = normalizeCompletionHistory(safeStorageGet(COMPLETION_HISTORY_STORAGE_KEY, {}))
@@ -94,7 +89,7 @@ export function performDailyReset({ silent = false, onComplete } = {}) {
   clearCompleted()
   lastResetDate = today
   persistLastResetDate()
-  emitHistoryChange()
+  pubsub.emit(completionHistory)
   DBG('reset:daily', { today, archivedDate, archived, cleared: before })
   if (typeof onComplete === 'function') {
     try { onComplete({ today, archivedDate, archived, cleared: before, silent }) } catch (e) { DBG('reset:onComplete:error', String(e)) }
@@ -123,6 +118,5 @@ export function restoreTodayCompletedFromHistory() {
 }
 
 export function onHistoryChange(fn) {
-  historyListeners.add(fn)
-  return () => historyListeners.delete(fn)
+  return pubsub.on(fn)
 }

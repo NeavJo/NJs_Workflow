@@ -34,11 +34,11 @@ function toggleItem(id, { forced = false } = {}) {
   }
   const before = getCompletedIds().has(id)
   DBG('toggleItem:enter', { id, forced, before })
-  toggleCompleted(id)
+  const after = toggleCompleted(id)
   const persisted = persistCompleted()
   if (!persisted) showToast(I18N.toast.workflow.updateStorageFail)
-  renderWorkflow()
-  showToast(hasCompleted(id) ? I18N.toast.workflow.completed : I18N.toast.workflow.reopened)
+  if (after !== before) renderWorkflow()
+  showToast(after ? I18N.toast.workflow.completed : I18N.toast.workflow.reopened)
 }
 
 export function bindWorkflowListEvents() {

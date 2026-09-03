@@ -50,11 +50,10 @@ function hydrateDynamicTag(root, tagInfo) {
   return true
 }
 
-function createCard(rawItem, order) {
+function createCard(rawItem, order, completedIds, workflows) {
   const card = document.createElement('article')
   card.id = `workflow-card-${rawItem.id}`
   card.dataset.itemId = rawItem.id
-  const completedIds = getCompletedIds()
   const isComplete = completedIds.has(rawItem.id)
   const { tagInfo, disabled } = evaluateTaskRuntime(rawItem)
 
@@ -125,7 +124,6 @@ function createCard(rawItem, order) {
   const prereqBadgeHtml = Array.isArray(rawItem.prerequisites) && rawItem.prerequisites.length > 0
     ? (() => {
         const locked = prereqLocked
-        const workflows = getWorkflows()
         const otherTasks = workflows.filter((t) => rawItem.prerequisites.includes(t.id))
         const nums = otherTasks.map((t) => `#${String(workflows.indexOf(t) + 1).padStart(2, '0')}`).join(' ')
         const label = locked
@@ -167,9 +165,10 @@ export function renderWorkflow() {
   const list = document.querySelector('#workflow-list')
   if (!list) return
   const workflows = getWorkflows()
+  const completedIds = getCompletedIds()
   const trackableTasks = getTrackableTasks()
-  list.replaceChildren(...workflows.map((item, index) => createCard(item, index + 1)))
-  const completed = trackableTasks.filter((t) => getCompletedIds().has(t.id)).length
+  list.replaceChildren(...workflows.map((item, index) => createCard(item, index + 1, completedIds, workflows)))
+  const completed = trackableTasks.filter((t) => completedIds.has(t.id)).length
   DBG('render:workflow', { completed, total: trackableTasks.length })
   updateProgress(completed, trackableTasks.length)
   refreshWorkflowCarousel()

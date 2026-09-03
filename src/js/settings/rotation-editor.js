@@ -14,7 +14,7 @@ import {
   deleteRotationRule
 } from '../workflow/rotation-store.js'
 import { uploadToGist } from '../backup/gist-sync.js'
-import { $ } from '../utils/dom-utils.js'
+import { $, escapeHtml } from '../utils/dom-utils.js'
 import {
   openModal,
   closeModal,
@@ -37,12 +37,6 @@ import { syncRotationRuleId } from './task-form.js'
  */
 
 let currentRule = null
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[ch]))
-}
 
 function loadRule(ruleId) {
   if (ruleId) {

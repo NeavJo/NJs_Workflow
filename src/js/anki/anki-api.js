@@ -22,30 +22,6 @@ function buildOpenAIUrl(baseUrl) {
   return `${root}/chat/completions`
 }
 
-function fetchWithTimeout(url, init, timeout = ANKI_API_TIMEOUT) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeout)
-  return fetch(url, { ...init, signal: controller.signal })
-    .then(async (res) => {
-      clearTimeout(timer)
-      const text = await res.text()
-      let data = null
-      try { data = text ? JSON.parse(text) : null } catch { data = null }
-      return { status: res.status, ok: res.ok, data, rawText: text }
-    })
-    .catch((err) => {
-      clearTimeout(timer)
-      const aborted = err && err.name === 'AbortError'
-      return {
-        status: 0,
-        ok: false,
-        data: null,
-        rawText: '',
-        error: aborted ? I18N.toast.system.timeout : String(err)
-      }
-    })
-}
-
 /**
  * Google Gemini 原生 API。
  * URL: {baseUrl}/v1beta/models/{modelId}:generateContent?key={apiKey}
@@ -98,7 +74,7 @@ export function requestOpenAI({ baseUrl, modelId, apiKey, systemPrompt, userMess
       Authorization: `Bearer ${apiKey || ''}`
     },
     body: JSON.stringify(body)
-  }).then((res) => {
+  }, ANKI_API_TIMEOUT, I18N.toast.system.timeout).then((res) => {
     if (!res.ok || !res.data) {
       return { ok: false, status: res.status, text: '', error: openaiErrorMessage(res) }
     }

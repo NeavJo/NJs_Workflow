@@ -138,13 +138,18 @@ function renderCarouselPagination() {
     dot.setAttribute('aria-label', t(I18N.workflow.jumpAria, { title }))
     dot.setAttribute('role', 'tab')
     dot.setAttribute('aria-selected', 'false')
-    dot.addEventListener('click', () => {
-      setActiveCard(card, { scroll: true })
-    })
     fragment.appendChild(dot)
   })
   paginationEl.appendChild(fragment)
   syncPaginationActive()
+  paginationEl.addEventListener('click', (event) => {
+    const dot = event.target.closest('.workflow-carousel-pagination__dot')
+    if (!dot) return
+    const itemId = dot.dataset.itemId
+    if (!itemId) return
+    const card = getList()?.querySelector(`.workflow-card[data-item-id="${itemId}"]`)
+    if (card) setActiveCard(card, { scroll: true })
+  })
 }
 
 function syncPaginationActive() {

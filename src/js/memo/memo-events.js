@@ -6,6 +6,7 @@ import { renderMemos, renderMemoTagPickerList, renderMemoTagPickerTrigger, rende
 import { openModal, closeModal, isModalOpen } from '../settings/modal.js'
 import { switchView } from '../settings/navigation.js'
 import { bindBatch, bindOnce } from '../utils/event-manager.js'
+import { once } from '../utils/dom-utils.js'
 import { uploadToGist } from '../backup/gist-sync.js'
 
 /**
@@ -59,13 +60,13 @@ function handleCardAction(card, action) {
       }
     }
   } else if (action === 'delete') {
-  if (!confirm('确认删除这条笔记？')) return
-  if (deleteMemo(id)) {
-    showToast('笔记已删除。')
-    // 添加Gist上传触发
-    uploadToGist()
-  }
-} else if (action === 'copy') {
+    if (!confirm('确认删除这条笔记？')) return
+    if (deleteMemo(id)) {
+      showToast('笔记已删除。')
+      // 添加Gist上传触发
+      uploadToGist()
+    }
+  } else if (action === 'copy') {
     copyMemoContent(card)
   } else if (action === 'anki') {
     processInAnki(card)
@@ -112,13 +113,11 @@ function toggleExpand(card) {
     contentEl.style.transition = 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease'
     contentEl.style.maxHeight = endHeight + 'px'
     contentEl.style.opacity = '1'
-    var onExpandEnd = function() {
+    once(contentEl, 'transitionend', () => {
       contentEl.style.transition = ''
       contentEl.style.maxHeight = ''
       contentEl.style.opacity = ''
-      contentEl.removeEventListener('transitionend', onExpandEnd)
-    }
-    contentEl.addEventListener('transitionend', onExpandEnd)
+    })
     updateExpandButton(expandBtn, false)
   } else {
     var fullHeight = contentEl.offsetHeight
@@ -135,15 +134,13 @@ function toggleExpand(card) {
     contentEl.style.transition = 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease'
     contentEl.style.maxHeight = collapsedHeight + 'px'
     contentEl.style.opacity = '0.85'
-    var onCollapseEnd = function() {
+    once(contentEl, 'transitionend', () => {
       contentEl.classList.add('memo-card__content--collapsed')
       contentEl.style.transition = ''
       contentEl.style.maxHeight = ''
       contentEl.style.opacity = ''
       contentEl.style.overflow = ''
-      contentEl.removeEventListener('transitionend', onCollapseEnd)
-    }
-    contentEl.addEventListener('transitionend', onCollapseEnd)
+    })
     updateExpandButton(expandBtn, true)
   }
 }

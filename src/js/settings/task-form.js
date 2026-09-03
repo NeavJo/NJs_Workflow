@@ -9,7 +9,8 @@ import {
 import {
   getWorkflows,
   replaceTask as replaceTaskStore,
-  addTask as addTaskStore
+  addTask as addTaskStore,
+  onWorkflowsChange
 } from '../workflow/workflow-store.js'
 import { renderWorkflow } from '../workflow/workflow-renderer.js'
 import { renderEditorList } from './workflow-editor.js'
@@ -264,21 +265,51 @@ export function populatePrerequisitesSelect(excludeId = null) {
   if (!container) return
   const allWorkflows = getWorkflows()
   const filtered = allWorkflows.filter((t) => t.id !== excludeId)
-  container.innerHTML = ''
+
   if (filtered.length === 0) {
+    container.innerHTML = ''
     const empty = document.createElement('p')
     empty.className = 'prereq-empty'
     empty.textContent = I18N.workflow.prerequisiteEditorEmpty
     container.appendChild(empty)
     return
   }
-  filtered.forEach((t, i) => {
-    const displayNum = String(allWorkflows.indexOf(t) + 1).padStart(2, '0')
-    const label = document.createElement('label')
-    label.className = 'prereq-item'
-    label.innerHTML = `<input type="checkbox" value="${t.id}"><span class="prereq-item__text">#${displayNum} · ${t.title}</span>`
-    container.appendChild(label)
-  })
+
+  const needsRebuild = filtered.length !== prereqLastCount || prereqCache.size === 0
+
+  if (needsRebuild) {
+    prereqCache.clear()
+    container.innerHTML = ''
+    filtered.forEach((t) => {
+      const displayNum = String(allWorkflows.indexOf(t) + 1).padStart(2, '0')
+      const label = document.createElement('label')
+      label.className = 'prereq-item'
+      label.innerHTML = `<input type="checkbox" value="${t.id}"><span class="prereq-item__text">#${displayNum} · ${t.title}</span>`
+      container.appendChild(label)
+      prereqCache.set(t.id, label)
+    })
+    prereqLastCount = filtered.length
+  } else {
+    const currentIds = new Set(filtered.map((t) => t.id))
+    prereqCache.forEach((label, id) => {
+      label.hidden = !currentIds.has(id)
+    })
+    for (const [id, label] of prereqCache) {
+      if (!currentIds.has(id)) prereqCache.delete(id)
+    }
+    const fragment = document.createDocumentFragment()
+    filtered.forEach((t) => {
+      if (!prereqCache.has(t.id)) {
+        const displayNum = String(allWorkflows.indexOf(t) + 1).padStart(2, '0')
+        const label = document.createElement('label')
+        label.className = 'prereq-item'
+        label.innerHTML = `<input type="checkbox" value="${t.id}"><span class="prereq-item__text">#${displayNum} · ${t.title}</span>`
+        fragment.appendChild(label)
+        prereqCache.set(t.id, label)
+      }
+    })
+    if (fragment.firstChild) container.appendChild(fragment)
+  }
 }
 
 /* ============================================================

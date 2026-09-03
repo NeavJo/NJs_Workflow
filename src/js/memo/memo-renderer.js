@@ -15,14 +15,13 @@ function countWords(content) {
   }).length
 }
 
-function createMemoCard(memo) {
+function createMemoCard(memo, memoTags) {
   const card = document.createElement('article')
   card.className = 'memo-card'
   card.dataset.id = String(memo.id)
   const lineCount = countWords(memo.content)
   const isLong = lineCount > 7
   card.classList.toggle("memo-card--long", isLong)
-  const memoTags = getMemoTags()
   const tagOptions = memoTags
     .map((t) => `<option value="${t.id}" ${t.id === memo.tag ? 'selected' : ''}>${t.name}</option>`)
     .join('')
@@ -88,8 +87,9 @@ export function renderMemos() {
   const stream = document.querySelector('#memo-stream')
   if (!stream) return
   const memos = getMemos()
+  const tags = getMemoTags()
   const sorted = [...memos].sort((a, b) => b.id - a.id)
-  stream.replaceChildren(...sorted.map(createMemoCard))
+  stream.replaceChildren(...sorted.map((memo) => createMemoCard(memo, tags)))
   const empty = document.querySelector('#memo-empty')
   if (empty) empty.hidden = sorted.length > 0
   updateMemoCounters()
@@ -144,43 +144,43 @@ export function renderMemoTagPickerList() {
   if (!list) return
   const tags = getMemoTags()
   const selectedId = getSelectedMemoTag()
-  list.replaceChildren(
-    ...tags.map((tag) => {
-      const li = document.createElement('li')
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = 'memo-tag-picker__item' + (tag.id === selectedId ? ' is-selected' : '')
-      btn.dataset.value = tag.id
-      btn.dataset.action = 'select-memo-tag-from-sheet'
+  const fragment = document.createDocumentFragment()
+  tags.forEach((tag) => {
+    const li = document.createElement('li')
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'memo-tag-picker__item' + (tag.id === selectedId ? ' is-selected' : '')
+    btn.dataset.value = tag.id
+    btn.dataset.action = 'select-memo-tag-from-sheet'
 
-      const icon = document.createElement('span')
-      icon.className = 'material-symbols'
-      icon.setAttribute('aria-hidden', 'true')
-      icon.textContent = tag.icon || 'label'
+    const icon = document.createElement('span')
+    icon.className = 'material-symbols'
+    icon.setAttribute('aria-hidden', 'true')
+    icon.textContent = tag.icon || 'label'
 
-      const labelWrap = document.createElement('span')
-      labelWrap.className = 'memo-tag-picker__item__label'
-      const name = document.createElement('span')
-      name.className = 'memo-tag-picker__item__name'
-      name.textContent = tag.name
-      const sub = document.createElement('span')
-      sub.className = 'memo-tag-picker__item__id'
-      sub.textContent = tag.id
-      labelWrap.append(name, sub)
+    const labelWrap = document.createElement('span')
+    labelWrap.className = 'memo-tag-picker__item__label'
+    const name = document.createElement('span')
+    name.className = 'memo-tag-picker__item__name'
+    name.textContent = tag.name
+    const sub = document.createElement('span')
+    sub.className = 'memo-tag-picker__item__id'
+    sub.textContent = tag.id
+    labelWrap.append(name, sub)
 
-      const check = document.createElement('span')
-      check.className = 'memo-tag-picker__item__check'
-      check.setAttribute('aria-hidden', 'true')
-      const checkIcon = document.createElement('span')
-      checkIcon.className = 'material-symbols'
-      checkIcon.textContent = 'check'
-      check.append(checkIcon)
+    const check = document.createElement('span')
+    check.className = 'memo-tag-picker__item__check'
+    check.setAttribute('aria-hidden', 'true')
+    const checkIcon = document.createElement('span')
+    checkIcon.className = 'material-symbols'
+    checkIcon.textContent = 'check'
+    check.append(checkIcon)
 
-      btn.append(icon, labelWrap, check)
-      li.append(btn)
-      return li
-    })
-  )
+    btn.append(icon, labelWrap, check)
+    li.append(btn)
+    fragment.appendChild(li)
+  })
+  list.replaceChildren(fragment)
 }
 
 /**

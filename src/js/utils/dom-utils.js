@@ -576,10 +576,6 @@ export function on(element, event, handler, options) {
   return DOM.on(element, event, handler, options)
 }
 
-export function once(element, event, handler, options) {
-  return DOM.once(element, event, handler, options)
-}
-
 export function off(element, event, handler) {
   DOM.off(element, event, handler)
 }
@@ -598,4 +594,23 @@ export function toggleClass(element, className, force) {
 
 export function hasClass(element, className) {
   return DOM.hasClass(element, className)
+}
+
+export function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]))
+}
+
+/**
+ * 一次性事件监听器：触发后自动移除。
+ * 比 bindOnce 轻量，不依赖全局 EventManager，适合独立组件使用。
+ */
+export function once(element, event, handler, options) {
+  const wrapped = (...args) => {
+    handler(...args)
+    element.removeEventListener(event, wrapped, options)
+  }
+  element.addEventListener(event, wrapped, options)
+  return wrapped
 }

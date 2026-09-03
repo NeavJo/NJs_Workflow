@@ -52,7 +52,7 @@ const STORAGE_KEYS_FOR_IMPORT = {
 export function validateBackupPayload(raw) {
   if (!raw || typeof raw !== 'object') return '备份文件结构为空或格式不合法。'
   const ver = typeof raw.version === 'string' ? raw.version : ''
-  const supported = ver.startsWith('1.0') || ver.startsWith('1.1') || ver.startsWith('1.2') || ver.startsWith('1.3')
+  const supported = ['1.0', '1.1', '1.2', '1.3'].some((v) => ver.startsWith(v))
   if (!supported) {
     return `不兼容的备份版本：${ver || '未知'}，需要 1.0 / 1.1 / 1.2 / 1.3 系列。`
   }

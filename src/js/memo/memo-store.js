@@ -7,30 +7,19 @@ import { getTodayDateString, getFullTimestamp } from '../core/date.js'
 import { cleanExpiredMemos } from './memo-retention.js'
 import { appendToCategory } from './memo-parser.js'
 import { requestAutoUpload } from '../core/sync-hooks.js'
+import { createPubSub } from '../utils/pubsub.js'
 
 /**
  * 笔记状态源：memos 数组 + memoTags + 当前选中标签。
  * 所有变更走 store 函数，事件层通过 onMemosChange / onMemoTagsChange 订阅刷新。
  */
 
-const changeListeners = new Set()
-const tagChangeListeners = new Set()
+const memosPubsub = createPubSub()
+const tagsPubsub = createPubSub()
 
 let memos = []
 let memoTags = []
 let selectedMemoTag = ''
-
-function emitMemosChange() {
-  for (const fn of changeListeners) {
-    try { fn(memos) } catch (e) { DBG('memo:listener:error', String(e)) }
-  }
-}
-
-function emitTagsChange() {
-  for (const fn of tagChangeListeners) {
-    try { fn({ tags: memoTags, selectedId: selectedMemoTag }) } catch (e) { DBG('memoTag:listener:error', String(e)) }
-  }
-}
 
 function persistMemosImpl() {
   const ok = safeStorageSet(MEMO_STORAGE_KEY, memos)
@@ -57,7 +46,7 @@ export function setMemoTags(tags) {
   if (!selectedMemoTag || !memoTags.find((t) => t.id === selectedMemoTag)) {
     selectedMemoTag = memoTags[0]?.id || DEFAULT_MEMO_TAGS[0].id
   }
-  emitTagsChange()
+  tagsPubsub.emit({ tags: memoTags, selectedId: selectedMemoTag })
   return memoTags
 }
 
@@ -87,7 +76,7 @@ export function getSelectedMemoTag() {
 export function setSelectedMemoTag(id) {
   if (!memoTags.find((t) => t.id === id)) return false
   selectedMemoTag = id
-  emitTagsChange()
+  tagsPubsub.emit({ tags: memoTags, selectedId: selectedMemoTag })
   return true
 }
 
@@ -102,7 +91,7 @@ export function persistMemoTags() {
 
 export function replaceMemos(next) {
   memos = Array.isArray(next) ? next : []
-  emitMemosChange()
+  memosPubsub.emit(memos)
   return memos
 }
 
@@ -111,7 +100,7 @@ export function addMemoTag(tag) {
   if (memoTags.find((t) => t.id === tag.id)) return false
   memoTags.push(tag)
   const ok = persistMemoTagsImpl()
-  emitTagsChange()
+  tagsPubsub.emit({ tags: memoTags, selectedId: selectedMemoTag })
   return ok
 }
 
@@ -123,7 +112,7 @@ export function deleteMemoTag(id) {
     selectedMemoTag = memoTags[0]?.id || DEFAULT_MEMO_TAGS[0].id
   }
   const ok = persistMemoTagsImpl()
-  emitTagsChange()
+  tagsPubsub.emit({ tags: memoTags, selectedId: selectedMemoTag })
   return ok
 }
 
@@ -134,7 +123,7 @@ export function renameMemoTag(id, newName) {
   if (!next || next === tag.name) return false
   tag.name = next
   const ok = persistMemoTagsImpl()
-  emitTagsChange()
+  tagsPubsub.emit({ tags: memoTags, selectedId: selectedMemoTag })
   return ok
 }
 
@@ -175,7 +164,7 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
   cleanExpiredMemosInPlace()
   const persisted = persistMemosImpl()
   if (!persisted) return null
-  emitMemosChange()
+  memosPubsub.emit(memos)
   return { mode, memo: targetMemo || memos[0], word, category: cat }
 }
 
@@ -195,7 +184,7 @@ export function addMemo(content, tag, category = I18N.memo.defaultCategory) {
   cleanExpiredMemosInPlace()
   const persisted = persistMemosImpl()
   if (!persisted) return null
-  emitMemosChange()
+  memosPubsub.emit(memos)
   return memo
 }
 
@@ -204,7 +193,7 @@ export function deleteMemo(id) {
   memos = memos.filter((m) => m.id !== id)
   if (memos.length === before) return false
   const ok = persistMemosImpl()
-  emitMemosChange()
+  memosPubsub.emit(memos)
   return ok
 }
 
@@ -216,7 +205,7 @@ export function updateMemoContent(id, nextContent) {
   const newId = Date.now()
   if (newId !== memo.id) memo.id = newId
   const ok = persistMemosImpl()
-  emitMemosChange()
+  memosPubsub.emit(memos)
   return ok
 }
 
@@ -225,7 +214,7 @@ export function updateMemoTag(id, nextTag) {
   if (!memo) return false
   memo.tag = nextTag
   const ok = persistMemosImpl()
-  emitMemosChange()
+  memosPubsub.emit(memos)
   return ok
 }
 
@@ -239,11 +228,9 @@ function cleanExpiredMemosInPlace() {
 }
 
 export function onMemosChange(fn) {
-  changeListeners.add(fn)
-  return () => changeListeners.delete(fn)
+  return memosPubsub.on(fn)
 }
 
 export function onMemoTagsChange(fn) {
-  tagChangeListeners.add(fn)
-  return () => tagChangeListeners.delete(fn)
+  return tagsPubsub.on(fn)
 }
