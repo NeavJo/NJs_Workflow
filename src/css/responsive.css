@@ -238,6 +238,30 @@
   .memo-card.is-editing .memo-card__header { flex-wrap: wrap; }
   .memo-card.is-editing .memo-card__meta { flex: 1 1 100%; }
   .memo-card.is-editing .memo-card__actions { flex: 1 0 auto; justify-content: flex-end; }
+
+  /* 小屏手机（≤480px）：带按钮的任务卡上下堆叠，文字区完整宽度 */
+  @media (max-width: 480px) {
+    .workflow-card:has(.workflow-card__action):has(.checkbox-wrapper),
+    .workflow-card:has(.workflow-card__check-btn):has(.checkbox-wrapper) {
+      grid-template-columns: 28px minmax(0, 1fr) 34px;
+      grid-template-rows: auto auto;
+      /* check 区域纵向跨两行，使打勾框以卡片全高为基准垂直居中 */
+      grid-template-areas:
+        "badge content check"
+        ".     actions check";
+      align-items: start;
+      gap: 4px 12px;
+    }
+    /* 跨行后显式居中，覆盖卡片的 align-items: start */
+    .checkbox-wrapper { align-self: center; }
+    .workflow-card__action-area {
+      grid-area: actions;
+      justify-content: flex-start;
+      padding-top: 6px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+  }
 }
 
 /* 手机：Dialog / 编辑器 / 表单 / Rotation */

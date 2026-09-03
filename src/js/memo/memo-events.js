@@ -259,7 +259,6 @@ export function bindMemoEvents() {
   const wordInput = document.getElementById('memo-word-input')
   const categoryInput = document.getElementById('memo-category-input')
   const appendBtn = document.getElementById('memo-btn-append')
-  const refreshBtn = document.querySelector('.view--memo .icon-button')
   const stream = document.getElementById('memo-stream')
   const tagSelector = document.querySelector('.tag-selector')
 
@@ -309,15 +308,6 @@ export function bindMemoEvents() {
           e.preventDefault()
           focusMemoInput()
         }
-      }
-    },
-    {
-      element: refreshBtn,
-      event: 'click',
-      handler: () => {
-        loadMemos()
-        renderMemos()
-        showToast(I18N.toast.memo.reloaded)
       }
     },
     {

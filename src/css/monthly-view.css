@@ -1,0 +1,173 @@
+/* =====================================================================
+ * monthly-view.css — 月览导航组件
+ *   展示过去30天任务完成情况的网格视图
+ * ===================================================================== */
+
+.monthly-view {
+  margin-top: 90px;
+  margin-bottom: 32px;
+  padding: 12px 14px;
+  background: var(--md-surface-container-high);
+  border-radius: var(--md-radius-medium);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 12%, transparent);
+  width: 520px;
+  max-width: 100%;
+}
+
+.monthly-view__grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  /* 允许放大后的方格视觉上溢出网格容器 */
+  overflow: visible;
+}
+
+.monthly-view__cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 2px;
+  cursor: pointer;
+  transform-origin: center;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.22s ease,
+              z-index 0s;
+  z-index: 1;
+}
+
+.monthly-view__cell-inner {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--md-primary) calc(var(--cell-opacity) * 85%), var(--md-surface));
+  opacity: var(--cell-opacity);
+  transition: opacity var(--md-motion-standard), background var(--md-motion-standard);
+}
+
+.monthly-view__cell--full .monthly-view__cell-inner {
+  background: var(--md-success);
+  opacity: 0.9;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--md-success) 50%, transparent),
+              0 0 24px color-mix(in srgb, var(--md-success) 20%, transparent);
+}
+
+.monthly-view__cell--full:hover .monthly-view__cell-inner {
+  box-shadow: 0 0 16px color-mix(in srgb, var(--md-success) 60%, transparent),
+              0 0 32px color-mix(in srgb, var(--md-success) 30%, transparent);
+}
+
+.monthly-view__cell--today .monthly-view__cell-inner {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 1px var(--md-surface), 0 0 6px color-mix(in srgb, var(--md-primary) 25%, transparent);
+}
+
+/* ===== Inline Cell Info Label ===== */
+.monthly-view__cell-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  z-index: 1;
+}
+
+.monthly-view__cell-label-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.monthly-view__cell-label-stats {
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* ===== Expanded State — 原位轻微放大，不遮挡相邻方格 ===== */
+.monthly-view__cell--expanded {
+  transform: scale(1.15);
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+}
+
+.monthly-view__cell--expanded .monthly-view__cell-inner {
+  opacity: 1;
+  border-radius: 4px;
+}
+
+.monthly-view__cell--expanded .monthly-view__cell-label {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Stats */
+.monthly-view__stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--md-outline) 12%, transparent);
+}
+
+.monthly-view__stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--md-on-surface-variant);
+  font-weight: 500;
+}
+
+.monthly-view__stat-item .material-symbols {
+  font-size: 13px;
+  color: var(--md-primary);
+}
+
+.monthly-view__stat-divider {
+  color: var(--md-on-surface-variant);
+  opacity: 0.5;
+}
+
+/* 断点：列数随宽度自动增减 */
+@media (min-width: 900px) {
+  .monthly-view__grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+  }
+}
+
+@media (max-width: 680px) {
+  .monthly-view {
+    margin-top: 42px;
+    padding: 10px 12px;
+    width: calc(100vw - 24px);
+  }
+  .monthly-view__grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+  }
+  .monthly-view__cell {
+    border-radius: 2px;
+  }
+  .monthly-view__cell-inner {
+    border-radius: 2px;
+  }
+  .monthly-view__stats {
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+}

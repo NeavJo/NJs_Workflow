@@ -57,6 +57,11 @@
             <span class="material-symbols" aria-hidden="true">psychology</span>
             <span class="nav-item__label" data-i18n="common.nav.anki">Anki 处理机</span>
           </button>
+          <button class="nav-item" data-view="monthly" type="button">
+            <span class="nav-indicator"></span>
+            <span class="material-symbols" aria-hidden="true">calendar_month</span>
+            <span class="nav-item__label" data-i18n="common.nav.monthly">月览</span>
+          </button>
           <button class="nav-item" data-view="settings" type="button">
             <span class="nav-indicator"></span>
             <span class="material-symbols" aria-hidden="true">settings</span>
@@ -113,9 +118,7 @@
                 <h1 id="memo-title" data-i18n-html="memo.title">生词，<span>随手一记。</span></h1>
                 <p class="hero-copy" data-i18n="memo.heroCopy">把今天遇到的新词扔进卡片流，下次打开 Anki 再批量整理。</p>
               </div>
-              <button class="icon-button" type="button" aria-label="刷新列表" data-i18n-aria="common.refreshListAria">
-                <span class="material-symbols" aria-hidden="true">refresh</span>
-              </button>
+
             </section>
 
             <section class="memo-input-card" aria-label="新建生词笔记" data-i18n-aria="memo.inputAria">
@@ -187,7 +190,19 @@
             </section>
           </section>
 
-          <!-- View 3: Settings & Data -->
+          <!-- View 4: Monthly View -->
+          <section class="view view--monthly" data-view="monthly" aria-labelledby="monthly-page-title" hidden>
+            <section class="hero-section">
+              <div>
+                <p class="eyebrow" data-i18n="monthly.eyebrow">RETROSPECT · PAST 30 DAYS</p>
+                <h1 id="monthly-page-title" data-i18n-html="monthly.title">月览<span>·热力图</span></h1>
+                <p class="hero-copy" data-i18n="monthly.heroCopy">查看过去30天的任务完成情况，保持连续打卡习惯。</p>
+              </div>
+            </section>
+            <div id="monthly-view-container"></div>
+          </section>
+
+          <!-- View 5: Settings & Data -->
           <section class="view view--settings" data-view="settings" aria-labelledby="settings-page-title" hidden>
             <section class="hero-section settings-page__hero">
               <div>

@@ -60,7 +60,6 @@ export const I18N = {
     backHomeAria: '返回首页',
     globalProgressAria: '全局进度',
     carouselAria: '切换任务卡片',
-    refreshListAria: '刷新列表',
     selectTagAria: '选择标签',
     tagSelectorAria: '标签选择器',
     tagListAria: '标签列表',
@@ -187,6 +186,15 @@ export const I18N = {
     deletePresetTitle: '删除轮换预设？',
     deletePresetMsg: '「{name}」将从预设库移除，使用此预设的任务将回到静态标题。',
     deletePresetBtn: '删除预设'
+  },
+
+  /* ========================================================================
+   * monthly · 月览
+   * ====================================================================== */
+  monthly: {
+    eyebrow: 'RETROSPECT · PAST 30 DAYS',
+    title: '月览<span>·热力图</span>',
+    heroCopy: '查看过去30天的任务完成情况，保持连续打卡习惯。'
   },
 
   /* ========================================================================
@@ -419,7 +427,6 @@ export const I18N = {
       inputEmpty: '先在输入框里写下一个单词吧～',
       appendedTo: '已追加到今日 {tag} · {category}。',
       createdToday: '已新建今日 {tag} · {category} 卡片。',
-      reloaded: '已重载笔记列表。',
       deleteNoteConfirm: '确认删除这条笔记？',
       tagNameEmpty: '标签名称不能为空。',
       tagExists: '该标签已存在，请勿重复添加。',

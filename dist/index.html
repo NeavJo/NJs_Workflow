@@ -23,8 +23,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" />
-    <script type="module" crossorigin src="./assets/index-DYEnE908.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DTA_dIon.css">
+    <script type="module" crossorigin src="./assets/index-BgZd7ZAy.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Cca1zNlv.css">
   </head>
   <body class="app-loading">
     <div id="app-loading" role="status" aria-live="polite" data-i18n="loading">正在加载工作流</div>
@@ -57,6 +57,11 @@
             <span class="nav-indicator"></span>
             <span class="material-symbols" aria-hidden="true">psychology</span>
             <span class="nav-item__label" data-i18n="common.nav.anki">Anki 处理机</span>
+          </button>
+          <button class="nav-item" data-view="monthly" type="button">
+            <span class="nav-indicator"></span>
+            <span class="material-symbols" aria-hidden="true">calendar_month</span>
+            <span class="nav-item__label" data-i18n="common.nav.monthly">月览</span>
           </button>
           <button class="nav-item" data-view="settings" type="button">
             <span class="nav-indicator"></span>
@@ -114,9 +119,7 @@
                 <h1 id="memo-title" data-i18n-html="memo.title">生词，<span>随手一记。</span></h1>
                 <p class="hero-copy" data-i18n="memo.heroCopy">把今天遇到的新词扔进卡片流，下次打开 Anki 再批量整理。</p>
               </div>
-              <button class="icon-button" type="button" aria-label="刷新列表" data-i18n-aria="common.refreshListAria">
-                <span class="material-symbols" aria-hidden="true">refresh</span>
-              </button>
+
             </section>
 
             <section class="memo-input-card" aria-label="新建生词笔记" data-i18n-aria="memo.inputAria">
@@ -188,7 +191,19 @@
             </section>
           </section>
 
-          <!-- View 3: Settings & Data -->
+          <!-- View 4: Monthly View -->
+          <section class="view view--monthly" data-view="monthly" aria-labelledby="monthly-page-title" hidden>
+            <section class="hero-section">
+              <div>
+                <p class="eyebrow" data-i18n="monthly.eyebrow">RETROSPECT · PAST 30 DAYS</p>
+                <h1 id="monthly-page-title" data-i18n-html="monthly.title">月览<span>·热力图</span></h1>
+                <p class="hero-copy" data-i18n="monthly.heroCopy">查看过去30天的任务完成情况，保持连续打卡习惯。</p>
+              </div>
+            </section>
+            <div id="monthly-view-container"></div>
+          </section>
+
+          <!-- View 5: Settings & Data -->
           <section class="view view--settings" data-view="settings" aria-labelledby="settings-page-title" hidden>
             <section class="hero-section settings-page__hero">
               <div>

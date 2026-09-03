@@ -26,6 +26,7 @@ import {
 import { setMemoCountCheckDependencies } from './workflow/workflow-runtime.js'
 import { renderWorkflow } from './workflow/workflow-renderer.js'
 import { bindWorkflowListEvents } from './workflow/workflow-events.js'
+import { MonthlyView } from './workflow/monthly-view.js'
 
 import {
   loadMemos,
@@ -45,7 +46,7 @@ import {
 } from './memo/memo-renderer.js'
 import { bindMemoEvents } from './memo/memo-events.js'
 
-import { bindNavigationEvents, switchView } from './settings/navigation.js'
+import { bindNavigationEvents, switchView, registerViewHook } from './settings/navigation.js'
 import {
   bindSettingsEvents,
   bindEditorEvents,
@@ -132,7 +133,17 @@ try {
   cleanExpiredMemos(getMemos())
   renderMemos()
   renderAnkiSettingsInputs()
-  
+
+  const monthlyViewContainer = document.getElementById('monthly-view-container')
+  if (monthlyViewContainer) {
+    registerViewHook('monthly', ({ isFirstEntry }) => {
+      if (!monthlyViewContainer.querySelector('.monthly-view')) {
+        const monthlyView = new MonthlyView(monthlyViewContainer)
+        monthlyView.render()
+      }
+    })
+  }
+
   DBG('init:ui', 'Initial UI rendered successfully')
 } catch (error) {
   errorHandler.handleError(error, {
