@@ -1,5 +1,6 @@
 import { DBG } from '../core/debug.js'
 import { I18N, t } from '../locales.js'
+import { fetchWithTimeout } from '../utils/fetch-utils.js'
 
 /**
  * Anki LLM API 薄包装：
@@ -38,7 +39,7 @@ export function requestGemini({ baseUrl, modelId, apiKey, systemPrompt, userMess
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
-  }).then((res) => {
+  }, ANKI_API_TIMEOUT, I18N.toast.system.timeout).then((res) => {
     if (!res.ok || !res.data) {
       return { ok: false, status: res.status, text: '', error: geminiErrorMessage(res) }
     }
