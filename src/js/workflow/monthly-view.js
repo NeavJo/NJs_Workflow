@@ -2,6 +2,7 @@ import { getCompletionHistory } from './history-store.js'
 import { getWorkflows, onWorkflowsChange } from './workflow-store.js'
 import { onHistoryChange } from './history-store.js'
 import { onCompletedChange, getCompletedIds } from './completion-store.js'
+import { getTrackableTasks } from './workflow-runtime.js'
 import { getTodayDateString } from '../core/date.js'
 
 export class MonthlyView {
@@ -58,7 +59,8 @@ export class MonthlyView {
   getData() {
     const history = getCompletionHistory()
     const workflows = getWorkflows()
-    const totalTasks = workflows.length
+    const trackableTasks = getTrackableTasks()
+    const totalTasks = trackableTasks.length
     const todayCompletedIds = getCompletedIds()
 
     const data = []

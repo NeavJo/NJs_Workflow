@@ -38,11 +38,25 @@
   .app-body { grid-template-columns: 1fr; gap: 0; padding: 0 12px; }
   .nav-rail {
     position: sticky; top: 8px; z-index: 3;
-    flex-direction: row; justify-content: stretch;
-    gap: 4px; width: 100%; padding: 6px;
-    border-radius: 18px; margin-top: 10px;
+    flex-direction: row; justify-content: flex-start; gap: 4px;
+    width: 100%; padding: 6px; margin-top: 10px;
+    border-radius: 18px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
-  .nav-item { grid-template-rows: 24px auto; width: auto; min-height: 58px; flex: 1; padding: 8px 4px; border-radius: 13px; isolation: isolate; overflow: hidden; transition: background var(--md-motion-standard), color var(--md-motion-standard), transform var(--md-motion-standard); }
+  .nav-rail::-webkit-scrollbar { display: none; }
+  .nav-item {
+    grid-template-rows: 24px auto;
+    width: 25%; flex: 0 0 25%;
+    min-height: 58px; padding: 8px 4px;
+    border-radius: 13px; isolation: isolate; overflow: hidden;
+    scroll-snap-align: start;
+    transition: background var(--md-motion-standard), color var(--md-motion-standard), transform var(--md-motion-standard);
+  }
   .nav-item .material-symbols { font-size: 21px; }
   .nav-item__label { font-size: 10px; }
   .nav-indicator { inset: 0; width: auto; height: auto; border-radius: inherit; transform: scale(.92); }

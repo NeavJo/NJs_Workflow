@@ -59,6 +59,9 @@ export function switchView(target) {
   document.querySelectorAll('.nav-item').forEach((item) => {
     const active = item.dataset.view === target
     item.classList.toggle('is-active', active)
+    if (active) {
+      item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
   })
 
   window.scrollTo({ top: 0, behavior: 'smooth' })

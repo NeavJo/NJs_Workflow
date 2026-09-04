@@ -209,7 +209,7 @@
 .memo-card__body {
   position: relative;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
   min-height: 119px; /* 5行文本（14px × 1.7 line-height × 5） */
