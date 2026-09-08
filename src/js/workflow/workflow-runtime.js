@@ -43,12 +43,16 @@ export function setMemoCountCheckDependencies({ getMemos, parseMemoContentToMap,
  *  2. 否则回退到任务内置的 dynamicTag 函数（兼容老数据）
  *  3. 返回 { tagInfo, disabled }
  */
-export function evaluateTaskRuntime(task) {
+export function evaluateTaskRuntime(task, date = null) {
   if (!task) return { tagInfo: null, disabled: false }
   if (task.rotationRuleId) {
     const rule = findRotationRule(task.rotationRuleId)
     if (rule) {
-      const info = evaluateRotationTag(rule)
+      const d = date || new Date()
+      // JS getDay(): Sun=0 Mon=1 ... Sat=6
+      // Rule dayIndex: Mon=0 Tue=1 ... Sat=5 Sun=6
+      const dayIndex = (d.getDay() + 6) % 7
+      const info = evaluateRotationTag(rule, dayIndex)
       if (info) return { tagInfo: info, disabled: Boolean(info.disabled) }
     }
   }
@@ -62,15 +66,15 @@ export function evaluateTaskRuntime(task) {
   return { tagInfo: null, disabled: false }
 }
 
-export function isTaskTrackable(task) {
+export function isTaskTrackable(task, date = null) {
   if (!task || task.isPlaceholder) return false
-  const { disabled } = evaluateTaskRuntime(task)
+  const { disabled } = evaluateTaskRuntime(task, date)
   if (disabled) return false
   return true
 }
 
-export function getTrackableTasks() {
-  return getWorkflows().filter(isTaskTrackable)
+export function getTrackableTasks(date = null) {
+  return getWorkflows().filter(t => isTaskTrackable(t, date))
 }
 
 /**

@@ -59,8 +59,6 @@ export class MonthlyView {
   getData() {
     const history = getCompletionHistory()
     const workflows = getWorkflows()
-    const trackableTasks = getTrackableTasks()
-    const totalTasks = trackableTasks.length
     const todayCompletedIds = getCompletedIds()
 
     const data = []
@@ -70,6 +68,8 @@ export class MonthlyView {
       const date = new Date(today)
       date.setDate(date.getDate() - i)
       const dateStr = this.formatDate(date)
+
+      const dailyTotalTasks = getTrackableTasks(date).length
 
       // 今日使用实时完成状态，历史日期读取历史记录
       let completedCount
@@ -81,15 +81,15 @@ export class MonthlyView {
         completedCount = (history[dateStr] || []).length
       }
 
-      const rate = totalTasks > 0
-        ? Math.round((completedCount / totalTasks) * 100)
+      const rate = dailyTotalTasks > 0
+        ? Math.round((completedCount / dailyTotalTasks) * 100)
         : 0
 
       data.push({
         date: date,
         dateStr: dateStr,
         completed: completedCount,
-        total: totalTasks,
+        total: dailyTotalTasks,
         rate: rate,
         isToday: dateStr === this.today
       })
