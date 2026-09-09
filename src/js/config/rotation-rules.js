@@ -64,6 +64,8 @@ export function normalizeRotationRuleList(rawList) {
 }
 
 export function evaluateRotationTag(rule, dayIndex = new Date().getDay()) {
+  // dayIndex 使用 JS getDay() 格式：0=Sun, 1=Mon, ..., 6=Sat
+  // 与 rotation-editor.js 的 currentRule.days[dayIdx] 写入索引保持一致
   if (!rule || !Array.isArray(rule.days) || rule.days.length < 7) return null
   const entry = normalizeDayEntry(rule.days[dayIndex])
   // 只要 label 为空就隐藏标签（即使有图标）

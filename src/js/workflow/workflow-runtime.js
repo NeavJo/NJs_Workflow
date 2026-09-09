@@ -49,9 +49,8 @@ export function evaluateTaskRuntime(task, date = null) {
     const rule = findRotationRule(task.rotationRuleId)
     if (rule) {
       const d = date || new Date()
-      // JS getDay(): Sun=0 Mon=1 ... Sat=6
-      // Rule dayIndex: Mon=0 Tue=1 ... Sat=5 Sun=6
-      const dayIndex = (d.getDay() + 6) % 7
+      // 与编辑器保持一致：使用 JS getDay() 格式 (0=Sun, 1=Mon... 6=Sat)
+      const dayIndex = d.getDay()
       const info = evaluateRotationTag(rule, dayIndex)
       if (info) return { tagInfo: info, disabled: Boolean(info.disabled) }
     }
