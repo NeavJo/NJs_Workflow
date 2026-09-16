@@ -1,6 +1,7 @@
 import { DBG } from '../core/debug.js'
 import { updateProgress } from '../ui.js'
 import { I18N, t } from '../locales.js'
+import { escapeHtml } from '../utils/dom-utils.js'
 import { getWorkflows } from './workflow-store.js'
 import { getCompletedIds } from './completion-store.js'
 import { evaluateTaskRuntime, isTaskTrackable, getTrackableTasks, checkPrerequisites } from './workflow-runtime.js'
@@ -16,6 +17,15 @@ const BG_ICON_POOL = ['task_alt', 'menu_book', 'translate', 'headphones', 'edit_
 // 会话内缓存：item.id -> iconName
 const BG_ICON_CACHE = new Map()
 let lastUsedIcon = null
+
+// URL 协议白名单：阻断 javascript:/data:/vbscript: 等可执行协议注入
+function safeHref(raw) {
+  const url = String(raw || '').trim()
+  if (!url) return null
+  const lower = url.toLowerCase()
+  if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('//')) return url
+  return null
+}
 
 function getCardBgIcon(itemId) {
   if (!itemId) return BG_ICON_POOL[0]
@@ -70,7 +80,7 @@ function createCard(rawItem, order, completedIds, workflows) {
         <p class="workflow-card__description"></p>
       </div>
       <label class="checkbox-wrapper">
-        <input type="checkbox" disabled aria-label="${rawItem.title}" />
+        <input type="checkbox" disabled aria-label="${escapeHtml(rawItem.title)}" />
         <span class="checkbox-mark"><span class="material-symbols" aria-hidden="true">lock</span></span>
       </label>`
     card.querySelector('.order-badge').textContent = String(order).padStart(2, '0')
@@ -96,8 +106,8 @@ function createCard(rawItem, order, completedIds, workflows) {
 
   const checkboxLocked = disabled || checkEnabled || prereqLocked
   const checkboxAttrs = checkboxLocked
-    ? `disabled aria-label="${rawItem.title}" ${isComplete ? 'checked' : ''}`
-    : `data-item-id="${rawItem.id}" ${isComplete ? 'checked' : ''} aria-label="${rawItem.title}"`
+    ? `disabled aria-label="${escapeHtml(rawItem.title)}" ${isComplete ? 'checked' : ''}`
+    : `data-item-id="${escapeHtml(rawItem.id)}" ${isComplete ? 'checked' : ''} aria-label="${escapeHtml(rawItem.title)}"`
 
   let checkIcon = ''
   if (isComplete) {
@@ -110,11 +120,12 @@ function createCard(rawItem, order, completedIds, workflows) {
   if (checkEnabled) cardClasses.push('has-check-lock')
   card.className = cardClasses.join(' ')
 
-  const jumpButtonHtml = rawItem.url
-    ? `<a class="workflow-card__action" href="${rawItem.url}" target="_blank" rel="noopener noreferrer" aria-label="跳转：${rawItem.title}"><span class="material-symbols" aria-hidden="true">open_in_new</span></a>`
+  const safeUrl = safeHref(rawItem.url)
+  const jumpButtonHtml = safeUrl
+    ? `<a class="workflow-card__action" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" aria-label="跳转：${escapeHtml(rawItem.title)}"><span class="material-symbols" aria-hidden="true">open_in_new</span></a>`
     : ''
   const checkButtonHtml = checkEnabled && !disabled && !prereqLocked
-    ? `<button class="workflow-card__check-btn" type="button" data-check-action="memo-count" data-item-id="${rawItem.id}" aria-label="检查并打卡：${rawItem.title}"><span class="material-symbols" aria-hidden="true">fact_check</span><span class="workflow-card__check-btn__label">检查</span></button>`
+    ? `<button class="workflow-card__check-btn" type="button" data-check-action="memo-count" data-item-id="${escapeHtml(rawItem.id)}" aria-label="检查并打卡：${escapeHtml(rawItem.title)}"><span class="material-symbols" aria-hidden="true">fact_check</span><span class="workflow-card__check-btn__label">检查</span></button>`
     : ''
   const actionAreaHtml = jumpButtonHtml || checkButtonHtml
     ? `<div class="workflow-card__action-area">${jumpButtonHtml}${checkButtonHtml}</div>`

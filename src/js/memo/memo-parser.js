@@ -17,7 +17,8 @@ const DEFAULT_CAT = () => I18N.memo.defaultCategory
  */
 
 export function parseMemoContentToMap(content) {
-  const map = {}
+  // 用 null 原型对象，避免分类名为 __proto__/constructor 时污染原型或读取到继承属性
+  const map = Object.create(null)
   const trimmed = (content || '').trim()
   if (!trimmed) return map
 

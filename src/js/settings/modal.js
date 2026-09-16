@@ -133,12 +133,20 @@ function finalizeClose(name) {
       if (focusable[0]) setTimeout(() => focusable[0].focus({ preventScroll: true }), 60)
     }
   }
+  settleModal(name, false)
+  DBG('modal:close', name)
+}
+
+function settleModal(name, value) {
+  // 普通 modal 由 closeModalAsync 注册 resolver（resolve() 无参）；
+  // confirm 弹窗把 resolve 也放进 pendingResolvers（resolve(true/false)），
+  // 其它途径（遮罩/Esc/按钮）统一 settle，保证无论以哪种方式关闭，Promise 都能收尾，
+  // 调用方不会永久挂起，也不会因二次打开泄漏上一个 Promise。
   const resolver = pendingResolvers.get(name)
   if (resolver) {
     pendingResolvers.delete(name)
-    resolver()
+    resolver(value)
   }
-  DBG('modal:close', name)
 }
 
 function onTransitionEnd(e) {
@@ -151,11 +159,7 @@ function onTransitionEnd(e) {
 export function closeModal(name) {
   const root = getModalRoot(name)
   if (!root || root.hidden) {
-    const resolver = pendingResolvers.get(name)
-    if (resolver) {
-      pendingResolvers.delete(name)
-      resolver()
-    }
+    settleModal(name, false)
     return
   }
   root.dataset.modalName = name
@@ -192,8 +196,6 @@ export function getOpenModalStack() {
   return [...openModalStack]
 }
 
-let confirmHandler = null
-
 function ensureConfirmDialog() {
   const root = getModalRoot('confirm')
   if (!root) return null
@@ -201,20 +203,16 @@ function ensureConfirmDialog() {
   if (okBtn && !okBtn.dataset.bound) {
     okBtn.dataset.bound = '1'
     okBtn.addEventListener('click', () => {
-      const fn = confirmHandler
-      confirmHandler = null
       closeModal('confirm')
-      if (typeof fn === 'function') fn(true)
+      settleModal('confirm', true)
     })
   }
   const cancelBtn = root.querySelector('#confirm-cancel')
   if (cancelBtn && !cancelBtn.dataset.bound) {
     cancelBtn.dataset.bound = '1'
     cancelBtn.addEventListener('click', () => {
-      const fn = confirmHandler
-      confirmHandler = null
       closeModal('confirm')
-      if (typeof fn === 'function') fn(false)
+      settleModal('confirm', false)
     })
   }
   return root
@@ -245,7 +243,9 @@ export function openConfirmDialog({
     }
     const cancelBtn = root.querySelector('#confirm-cancel')
     if (cancelBtn) cancelBtn.textContent = cancelText
-    confirmHandler = resolve
+    // 把 resolve 统一放进 pendingResolvers，任意关闭途径（确认/取消/遮罩/Esc）
+    // 都会走 settleModal 收尾，Promise 永不悬挂，且不会因二次打开泄漏上一个 Promise。
+    pendingResolvers.set('confirm', resolve)
     openModal('confirm')
   })
 }

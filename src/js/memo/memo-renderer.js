@@ -70,12 +70,13 @@ function createMemoCard(memo, memoTags) {
   `;
 
   const timeEl = card.querySelector('.memo-card__time')
-  timeEl.dateTime = new Date(memo.id).toISOString()
+  const memoDate = new Date(memo.id)
+  timeEl.dateTime = Number.isNaN(memoDate.getTime()) ? '' : memoDate.toISOString()
   timeEl.textContent = memo.timestamp
 
   const tagChip = card.querySelector('.memo-tag-chip--display')
   const tagInfo = memoTags.find((t) => t.id === memo.tag)
-  tagChip.textContent = tagInfo ? tagInfo.name : memo.tag.replace(/^#/, '')
+  tagChip.textContent = tagInfo ? tagInfo.name : String(memo.tag ?? '').replace(/^#/, '')
 
   const contentEl = card.querySelector('.memo-card__content')
   contentEl.textContent = memo.content

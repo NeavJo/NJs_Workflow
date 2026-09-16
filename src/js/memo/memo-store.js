@@ -90,7 +90,9 @@ export function persistMemoTags() {
 }
 
 export function replaceMemos(next) {
-  memos = Array.isArray(next) ? next : []
+  memos = Array.isArray(next)
+    ? next.filter((m) => m && typeof m === 'object' && m.id !== undefined && m.id !== null)
+    : []
   memosPubsub.emit(memos)
   return memos
 }

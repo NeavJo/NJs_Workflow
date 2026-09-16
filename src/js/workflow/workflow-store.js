@@ -68,7 +68,7 @@ export function getWorkflows() {
 }
 
 export function setWorkflows(next) {
-  workflows = Array.isArray(next) ? next : []
+  workflows = Array.isArray(next) ? next.map(normalizeTask).filter(Boolean) : []
   pubsub.emit(workflows)
   return workflows
 }
@@ -144,7 +144,7 @@ export function resetToDefaults() {
 }
 
 export function replaceAll(next) {
-  workflows = Array.isArray(next) ? next : []
+  workflows = Array.isArray(next) ? next.map(normalizeTask).filter(Boolean) : []
   pubsub.emit(workflows)
   return workflows
 }
