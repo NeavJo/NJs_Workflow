@@ -96,7 +96,7 @@ function createCard(rawItem, order, completedIds, workflows) {
 
   const checkboxLocked = disabled || checkEnabled || prereqLocked
   const checkboxAttrs = checkboxLocked
-    ? `disabled aria-label="${rawItem.title}" ${checkEnabled && isComplete ? 'checked' : ''}`
+    ? `disabled aria-label="${rawItem.title}" ${isComplete ? 'checked' : ''}`
     : `data-item-id="${rawItem.id}" ${isComplete ? 'checked' : ''} aria-label="${rawItem.title}"`
 
   let checkIcon = ''
@@ -113,7 +113,7 @@ function createCard(rawItem, order, completedIds, workflows) {
   const jumpButtonHtml = rawItem.url
     ? `<a class="workflow-card__action" href="${rawItem.url}" target="_blank" rel="noopener noreferrer" aria-label="跳转：${rawItem.title}"><span class="material-symbols" aria-hidden="true">open_in_new</span></a>`
     : ''
-  const checkButtonHtml = checkEnabled
+  const checkButtonHtml = checkEnabled && !disabled && !prereqLocked
     ? `<button class="workflow-card__check-btn" type="button" data-check-action="memo-count" data-item-id="${rawItem.id}" aria-label="检查并打卡：${rawItem.title}"><span class="material-symbols" aria-hidden="true">fact_check</span><span class="workflow-card__check-btn__label">检查</span></button>`
     : ''
   const actionAreaHtml = jumpButtonHtml || checkButtonHtml

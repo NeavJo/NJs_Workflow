@@ -88,6 +88,20 @@ export function runMemoCountCheck(taskId) {
     return { ok: false, reason: 'disabled' }
   }
 
+  // 前置任务检查：未满足前置时阻断自动打卡
+  const { ready: prereqReady, missingIds } = checkPrerequisites(task)
+  if (!prereqReady && missingIds.length > 0) {
+    DBG('check:memo-count:prereq-locked', { taskId, missingIds })
+    return { ok: false, reason: 'prereq-locked', missingIds }
+  }
+
+  // 轮换禁用日：当日被轮换规则关闭时阻断自动打卡
+  const { disabled: rotationDisabled } = evaluateTaskRuntime(task)
+  if (rotationDisabled) {
+    DBG('check:memo-count:rotation-disabled', { taskId })
+    return { ok: false, reason: 'rotation-disabled' }
+  }
+
   const cfg = task.checkConfig
   const defaultCategory = I18N.workflow.defaultCategory
   const targetCategory = (cfg.category || defaultCategory).trim().toLowerCase()

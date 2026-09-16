@@ -211,14 +211,6 @@ export function openTaskForm(mode = 'add', taskId = null, fromEditor = false) {
     fCheck.checked = Boolean(cfg?.enabled)
     fCheckCategory.value = cfg?.category || ''
     fCheckCount.value = cfg?.targetCount || 7
-
-    // 加载前置任务选中状态
-    const fPrereq = $('taskform-prereq-list')
-    if (fPrereq && Array.isArray(task.prerequisites)) {
-      fPrereq.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
-        cb.checked = task.prerequisites.includes(cb.value)
-      })
-    }
   } else {
     if (titleEl) titleEl.textContent = I18N.workflow.taskFormAddTitle
     if (subtitleEl) subtitleEl.textContent = I18N.workflow.taskFormAddSubtitle
@@ -237,6 +229,7 @@ export function openTaskForm(mode = 'add', taskId = null, fromEditor = false) {
   applyRotationEnabledUI()
   renderRotationSummary(rotationRuleId)
   populatePrerequisitesSelect(taskId)
+  applyPrerequisitesSelection(taskId)
   openModal('taskform')
 
   setTimeout(() => {
@@ -266,8 +259,8 @@ export function populatePrerequisitesSelect(excludeId = null) {
   const allWorkflows = getWorkflows()
   const filtered = allWorkflows.filter((t) => t.id !== excludeId)
 
+  container.innerHTML = ''
   if (filtered.length === 0) {
-    container.innerHTML = ''
     const empty = document.createElement('p')
     empty.className = 'prereq-empty'
     empty.textContent = I18N.workflow.prerequisiteEditorEmpty
@@ -275,41 +268,48 @@ export function populatePrerequisitesSelect(excludeId = null) {
     return
   }
 
-  const needsRebuild = filtered.length !== prereqLastCount || prereqCache.size === 0
+  const fragment = document.createDocumentFragment()
+  filtered.forEach((t) => {
+    const displayNum = String(allWorkflows.indexOf(t) + 1).padStart(2, '0')
+    const label = document.createElement('label')
+    label.className = 'prereq-item'
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    checkbox.value = t.id
+    label.appendChild(checkbox)
+    const text = document.createElement('span')
+    text.className = 'prereq-item__text'
+    text.textContent = `#${displayNum} · ${t.title}`
+    label.appendChild(text)
+    fragment.appendChild(label)
+  })
+  container.appendChild(fragment)
+}
 
-  if (needsRebuild) {
-    prereqCache.clear()
-    container.innerHTML = ''
-    filtered.forEach((t) => {
-      const displayNum = String(allWorkflows.indexOf(t) + 1).padStart(2, '0')
-      const label = document.createElement('label')
-      label.className = 'prereq-item'
-      label.innerHTML = `<input type="checkbox" value="${t.id}"><span class="prereq-item__text">#${displayNum} · ${t.title}</span>`
-      container.appendChild(label)
-      prereqCache.set(t.id, label)
-    })
-    prereqLastCount = filtered.length
-  } else {
-    const currentIds = new Set(filtered.map((t) => t.id))
-    prereqCache.forEach((label, id) => {
-      label.hidden = !currentIds.has(id)
-    })
-    for (const [id, label] of prereqCache) {
-      if (!currentIds.has(id)) prereqCache.delete(id)
-    }
-    const fragment = document.createDocumentFragment()
-    filtered.forEach((t) => {
-      if (!prereqCache.has(t.id)) {
-        const displayNum = String(allWorkflows.indexOf(t) + 1).padStart(2, '0')
-        const label = document.createElement('label')
-        label.className = 'prereq-item'
-        label.innerHTML = `<input type="checkbox" value="${t.id}"><span class="prereq-item__text">#${displayNum} · ${t.title}</span>`
-        fragment.appendChild(label)
-        prereqCache.set(t.id, label)
-      }
-    })
-    if (fragment.firstChild) container.appendChild(fragment)
+export function collectPrerequisitesFromForm(fallbackPrerequisites = []) {
+  const container = $('taskform-prereq-list')
+  if (container && container.querySelector('input[type="checkbox"]')) {
+    return Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
+      .map((cb) => cb.value)
+      .filter(Boolean)
   }
+  return Array.from(fallbackPrerequisites).filter(Boolean).filter((id) => id !== currentEditingId)
+}
+
+function applyPrerequisitesSelection(taskId = null) {
+  const container = $('taskform-prereq-list')
+  if (!container) return
+  if (currentMode === 'edit' && taskId) {
+    const task = getWorkflows().find((t) => t.id === taskId)
+    const selected = new Set(Array.isArray(task?.prerequisites) ? task.prerequisites : [])
+    container.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+      cb.checked = selected.has(cb.value)
+    })
+    return
+  }
+  container.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.checked = false
+  })
 }
 
 /* ============================================================
@@ -386,9 +386,7 @@ export function handleTaskFormSubmit(event) {
       hasDynamicTag,
       rotationRuleId: validRotationId,
       checkConfig,
-      prerequisites: Array.from(($('taskform-prereq-list') || {}).querySelectorAll('input[type="checkbox"]:checked'))
-        .map((cb) => cb.value)
-        .filter(Boolean)
+      prerequisites: collectPrerequisitesFromForm(workflows[idx].prerequisites)
     }
     replaceTaskStore(currentEditingId, updated)
     showToast(I18N.toast.workflow.taskUpdated)
@@ -402,9 +400,7 @@ export function handleTaskFormSubmit(event) {
       hasDynamicTag,
       rotationRuleId: validRotationId,
       checkConfig,
-      prerequisites: Array.from(($('taskform-prereq-list') || {}).querySelectorAll('input[type="checkbox"]:checked'))
-        .map((cb) => cb.value)
-        .filter(Boolean)
+      prerequisites: collectPrerequisitesFromForm([])
     })
     addTaskStore(task)
     showToast(I18N.toast.workflow.taskAdded)
