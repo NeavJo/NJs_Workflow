@@ -17,6 +17,7 @@ const mobileMq = typeof window !== 'undefined' ? window.matchMedia(MOBILE_QUERY)
 
 let activeItemId = null
 let listenersBound = false
+let paginationBound = false
 
 function getList() {
   return document.querySelector('#workflow-list')
@@ -116,6 +117,23 @@ function renderCarouselStatus() {
   statusEl.textContent = `${safeIndex} / ${cards.length}`
 }
 
+/** 分页圆点点击（事件委托，仅绑定一次；重建分页 DOM 后委托仍有效）。 */
+function handlePaginationClick(event) {
+  const dot = event.target.closest('.workflow-carousel-pagination__dot')
+  if (!dot) return
+  const itemId = dot.dataset.itemId
+  if (!itemId) return
+  const card = getList()?.querySelector(`.workflow-card[data-item-id="${CSS.escape(itemId)}"]`)
+  if (card) setActiveCard(card, { scroll: true })
+}
+
+function ensurePaginationListener() {
+  const paginationEl = getPaginationEl()
+  if (!paginationEl || paginationBound) return
+  paginationBound = true
+  paginationEl.addEventListener('click', handlePaginationClick)
+}
+
 /** 重建分页小圆点。 */
 function renderCarouselPagination() {
   const paginationEl = getPaginationEl()
@@ -141,15 +159,8 @@ function renderCarouselPagination() {
     fragment.appendChild(dot)
   })
   paginationEl.appendChild(fragment)
+  ensurePaginationListener()
   syncPaginationActive()
-  paginationEl.addEventListener('click', (event) => {
-    const dot = event.target.closest('.workflow-carousel-pagination__dot')
-    if (!dot) return
-    const itemId = dot.dataset.itemId
-    if (!itemId) return
-    const card = getList()?.querySelector(`.workflow-card[data-item-id="${itemId}"]`)
-    if (card) setActiveCard(card, { scroll: true })
-  })
 }
 
 function syncPaginationActive() {
@@ -268,8 +279,11 @@ function handleCarouselKeydown(event) {
 
 function handleMqChange() {
   if (!isMobileCarouselMode()) {
-    // 回到桌面模式：清理激活态、隐藏分页点
+    // 回到桌面模式：清理激活态、隐藏分页点，并复位 wheel/列表样式
     activeItemId = null
+    wheelTarget = null
+    const list = getList()
+    if (list) list.classList.remove('workflow-list--carousel')
     const cards = getCards()
     cards.forEach((card) => card.classList.remove('is-carousel-active'))
     const paginationEl = getPaginationEl()
@@ -318,6 +332,12 @@ function bindCarouselEvents() {
         DBG('carousel:cleanup:error', String(e))
       }
     }
+    // 分页圆点委托也需清理：移除监听器并复位守卫，下次渲染可重新绑定
+    const paginationEl = getPaginationEl()
+    if (paginationEl && paginationBound) {
+      paginationEl.removeEventListener('click', handlePaginationClick)
+    }
+    paginationBound = false
     listenersBound = false
   }
 }
@@ -346,6 +366,8 @@ export function refreshWorkflowCarousel() {
 
   if (!isMobileCarouselMode()) {
     activeItemId = null
+    wheelTarget = null
+    list.classList.remove('workflow-list--carousel')
     const cards = getCards()
     cards.forEach((card) => card.classList.remove('is-carousel-active'))
     const paginationEl = getPaginationEl()

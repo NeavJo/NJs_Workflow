@@ -9,6 +9,15 @@
  * - 统一错误处理
  * - 请求超时控制
  * - 离线模式支持
+ *
+ * 接入范围说明（不重试决策）：
+ * 本工具供“可安全重试”的 GET/幂等请求使用。当前 Gist 与 Anki 两条关键链路**故意不接入**：
+ *  - Gist（backup/gist-sync.js 的 gistApiRequest）：写操作走 PATCH 覆盖写 + 冲突检测，
+ *    自动重试可能在冲突被静默拉取后立即二次写同一份数据，产生多余 revision / 版本冲突；
+ *    自动上传已有 debounce + 互斥 + skip-unchanged，失败一次不影响本地数据，下次编辑会重新触发。
+ *  - Anki（anki/anki-api.js 的 fetchWithTimeout）：LLM 生成类请求响应慢（30s 超时基线），
+ *    盲重试代价高且语义不幂等（会重复计费 / 重复生成），故保留“单次 + 超时 + 永不 reject”。
+ * 详见各模块内的“网络重试决策”注释。
  */
 
 import { handleError, ErrorTypes, ErrorSeverity } from '../core/error-handler.js'

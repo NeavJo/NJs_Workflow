@@ -198,6 +198,9 @@ export function switchSettingsView(target, { skipIntro = false } = {}) {
 
 export function bindNavigationEvents() {
   document.querySelectorAll('.nav-item').forEach((item) => {
+    // 幂等守卫：防止重复绑定 nav-item click 监听（如多次进入设置页 / 多次调用本函数）
+    if (item.dataset.bound === '1') return
+    item.dataset.bound = '1'
     item.addEventListener('click', () => switchView(item.dataset.view))
   })
 }

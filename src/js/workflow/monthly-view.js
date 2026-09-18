@@ -14,6 +14,8 @@ export class MonthlyView {
     this.rows = 6
     this.lockedCell = null
     this._unsubscribeFns = []
+    // 文档级监听的具名 handler 与清理闭包，destroy 时统一移除，避免泄漏
+    this._docHandlers = []
     this._initSubscriptions()
   }
 
@@ -23,19 +25,24 @@ export class MonthlyView {
     this._subscribe(onCompletedChange, () => this.refresh())
 
     // 文档级键盘：Escape 关闭选中方格
-    document.addEventListener('keydown', (e) => {
+    const onKeydown = (e) => {
       if (e.key === 'Escape' && this.lockedCell) {
         this.hideCellInfo(this.lockedCell)
         this.lockedCell = null
       }
-    })
-
+    }
     // 文档级点击空白区域收起
-    document.addEventListener('click', (e) => {
+    const onDocClick = (e) => {
       if (this.lockedCell && !e.target.closest('.monthly-view__cell')) {
         this.hideCellInfo(this.lockedCell)
         this.lockedCell = null
       }
+    }
+    document.addEventListener('keydown', onKeydown)
+    document.addEventListener('click', onDocClick)
+    this._docHandlers.push(() => {
+      document.removeEventListener('keydown', onKeydown)
+      document.removeEventListener('click', onDocClick)
     })
   }
 
@@ -53,7 +60,12 @@ export class MonthlyView {
       try { unsub() } catch (_) {}
     }
     this._unsubscribeFns = []
-    this.container.innerHTML = ''
+    // 移除文档级 keydown / click 监听，避免组件销毁后仍占用全局事件
+    for (const off of this._docHandlers) {
+      try { off() } catch (_) {}
+    }
+    this._docHandlers = []
+    if (this.container) this.container.innerHTML = ''
   }
 
   getData() {
@@ -62,7 +74,10 @@ export class MonthlyView {
     const todayCompletedIds = getCompletedIds()
 
     const data = []
-    const today = new Date(this.today)
+    // 从 YYYY-MM-DD 本地分量构造今天，避免 new Date('YYYY-MM-DD') 按 UTC 解析
+    // 在 UTC-x 时区产生"差一天"的 off-by-one。
+    const [ty, tm, td] = this.today.split('-').map(Number)
+    const today = new Date(ty, tm - 1, td)
 
     for (let i = 0; i < this.gridSize; i++) {
       const date = new Date(today)
@@ -78,7 +93,8 @@ export class MonthlyView {
           workflows.some(w => w.id === id)
         ).length
       } else {
-        completedCount = (history[dateStr] || []).length
+        const dayHistory = history[dateStr]
+        completedCount = Array.isArray(dayHistory) ? dayHistory.length : 0
       }
 
       const rate = dailyTotalTasks > 0

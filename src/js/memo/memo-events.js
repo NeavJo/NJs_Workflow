@@ -49,22 +49,22 @@ function handleCardAction(card, action) {
     if (editor && tagSelect) {
       const next = (editor.value || '').trim()
       if (!next) {
-        showToast('内容不能为空，如需删除请用删除按钮。')
+        showToast(I18N.toast.memo.contentEmpty)
         return
       }
       const contentOk = updateMemoContent(id, next)
       const tagOk = updateMemoTag(id, tagSelect.value)
       if (contentOk && tagOk) {
         exitEditMode(card)
-        showToast('笔记已更新。')
+        showToast(I18N.toast.memo.updated)
       }
     }
   } else if (action === 'delete') {
-    if (!confirm('确认删除这条笔记？')) return
+    if (!confirm(I18N.toast.memo.deleteNoteConfirm)) return
     if (deleteMemo(id)) {
-      showToast('笔记已删除。')
-      // 添加Gist上传触发
-      uploadToGist()
+      showToast(I18N.toast.memo.deleted)
+      // 添加Gist上传触发：异步上传失败不能影响本地删除结果，吞掉 rejection。
+      uploadToGist().catch((err) => DBG('memo:delete:gist', String(err)))
     }
   } else if (action === 'copy') {
     copyMemoContent(card)
@@ -88,7 +88,7 @@ function updateExpandButton(btn, isCollapsed) {
     btn.setAttribute('aria-expanded', 'true')
     btn.setAttribute('aria-label', I18N.memo.collapseAria)
     if (icon) icon.textContent = 'expand_less'
-    if (label) label.textContent = '收起'
+    if (label) label.textContent = I18N.memo.collapseBtn
   }
 }
 
@@ -235,21 +235,26 @@ async function copyMemoContent(card) {
 }
 
 async function processInAnki(card) {
-  const editor = card.querySelector('.memo-card__editor')
-  const contentEl = card.querySelector('.memo-card__content')
-  const isEditing = editor && !editor.hidden
-  const text = isEditing ? editor.value : (contentEl ? contentEl.textContent : '')
-  
-  const inputEl = document.getElementById('anki-input')
-  if (!inputEl) {
-    showToast('未找到Anki处理机输入框')
-    return
+  try {
+    const editor = card.querySelector('.memo-card__editor')
+    const contentEl = card.querySelector('.memo-card__content')
+    const isEditing = editor && !editor.hidden
+    const text = isEditing ? editor.value : (contentEl ? contentEl.textContent : '')
+
+    const inputEl = document.getElementById('anki-input')
+    if (!inputEl) {
+      showToast(I18N.toast.anki.ankiInputNotFound)
+      return
+    }
+
+    inputEl.value = text
+    showToast(I18N.toast.anki.ankiCopied)
+
+    switchView('anki')
+  } catch (e) {
+    DBG('memo:anki:error', String(e))
+    showToast(I18N.toast.anki.ankiCopyFailed)
   }
-  
-  inputEl.value = text
-  showToast('已复制到Anki处理机')
-  
-  switchView('anki')
 }
 
 export function bindMemoEvents() {
@@ -258,7 +263,6 @@ export function bindMemoEvents() {
   const appendBtn = document.getElementById('memo-btn-append')
   const stream = document.getElementById('memo-stream')
   const tagSelector = document.querySelector('.tag-selector')
-
   const submitAppend = () => {
     const word = (wordInput?.value || '').trim()
     if (!word) {
@@ -322,28 +326,31 @@ export function bindMemoEvents() {
     }
   ]
 
+  // 收集各 bindBatch 返回的清理函数，组件销毁时统一调用
+  const cleanups = []
+
   // 绑定表单事件
   formEvents.forEach(({ element, event, handler }) => {
     if (element) {
-      bindBatch(element, [{ event, handler }])
+      cleanups.push(bindBatch(element, [{ event, handler }]))
     }
   })
 
   /* 移动端：标签触发器 -> 底部弹窗选择 */
   const tagPickerTrigger = document.getElementById('memo-tag-picker-trigger')
   if (tagPickerTrigger) {
-    bindBatch(tagPickerTrigger, [{
+    cleanups.push(bindBatch(tagPickerTrigger, [{
       event: 'click',
       handler: () => {
         if (isModalOpen('memo-tag-picker')) return
         openMemoTagPicker()
       }
-    }])
+    }]))
   }
 
   const tagPickerList = document.getElementById('memo-tag-picker-list')
   if (tagPickerList) {
-    bindBatch(tagPickerList, [{
+    cleanups.push(bindBatch(tagPickerList, [{
       event: 'click',
       handler: (event) => {
         const btn = event.target.closest('[data-action="select-memo-tag-from-sheet"]')
@@ -356,20 +363,20 @@ export function bindMemoEvents() {
           closeMemoTagPicker()
         }
       }
-    }])
+    }]))
   }
 
   /* 弹窗外的关闭按钮（防御：若 sheet 内 click 被消费，回退到通用 data-close-modal） */
   const tagPickerModal = document.getElementById('memo-tag-picker-modal')
   if (tagPickerModal) {
-    bindBatch(tagPickerModal, [{
+    cleanups.push(bindBatch(tagPickerModal, [{
       event: 'click',
       handler: (event) => {
         if (event.target.closest('[data-close-modal="memo-tag-picker"]')) {
           setTagPickerExpanded(false)
         }
       }
-    }])
+    }]))
   }
 
   // 批量绑定流区域事件
@@ -404,25 +411,13 @@ export function bindMemoEvents() {
       }
     ]
 
-    bindBatch(stream, streamEvents)
+    cleanups.push(bindBatch(stream, streamEvents))
   }
 
   // 返回清理函数，用于组件销毁时清理事件
   return () => {
-    // 清理所有绑定的事件
-    formEvents.forEach(({ element }) => {
-      if (element) {
-        // 清理事件监听器
-        element.replaceWith(element.cloneNode(true))
-      }
-    })
-    
-    if (stream) {
-      stream.replaceWith(stream.cloneNode(true))
-    }
-    
-    if (tagSelector) {
-      tagSelector.replaceWith(tagSelector.cloneNode(true))
+    for (const cleanup of cleanups) {
+      if (typeof cleanup === 'function') cleanup()
     }
   }
 }

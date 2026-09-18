@@ -6,6 +6,7 @@ import { getCompletedIds, persistCompleted, hasCompleted, toggleCompleted } from
 import { renderWorkflow } from './workflow-renderer.js'
 import { runMemoCountCheck, checkPrerequisites } from './workflow-runtime.js'
 import { bindBatch } from '../utils/event-manager.js'
+import { throttle } from '../utils/throttle.js'
 
 /**
  * 工作流事件层：把 DOM 事件桥接到 store 写入 + 渲染。
@@ -41,6 +42,11 @@ function toggleItem(id, { forced = false } = {}) {
   showToast(after ? I18N.toast.workflow.completed : I18N.toast.workflow.reopened)
 }
 
+// 幂等写操作 300ms 节流：连点「切换/完成」时只放行一次，
+// 避免短时间内放大写放大与全量重渲染；leading 保留首次即时反馈，
+// trailing 在窗口结束后再补一次以保证最终状态一致。
+const toggleItemThrottled = throttle(toggleItem, 300)
+
 export function bindWorkflowListEvents() {
   const list = document.querySelector('#workflow-list')
   if (!list) return
@@ -51,7 +57,7 @@ export function bindWorkflowListEvents() {
       event: 'change',
       handler: (event) => {
         const checkbox = event.target.closest('[data-item-id]')
-        if (checkbox) toggleItem(checkbox.dataset.itemId)
+        if (checkbox) toggleItemThrottled(checkbox.dataset.itemId)
       }
     },
     {

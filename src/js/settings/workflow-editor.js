@@ -111,26 +111,31 @@ function openTaskActionSheet(taskId) {
 }
 
 async function performDelete(taskId) {
-  const workflows = getWorkflows()
-  const task = workflows.find((w) => w.id === taskId)
-  if (!task) return
-  const title = task.title || I18N.workflow.untitledTask
-  const ok = await openConfirmDialog({
-    title: I18N.workflow.deleteConfirmTitle,
-    message: t(I18N.workflow.deleteConfirmMsg, { title }),
-    confirmText: I18N.common.delete,
-    cancelText: I18N.common.cancel,
-    danger: true
-  })
-  if (!ok) return
-  removeTask(taskId)
-  renderEditorList()
-  renderWorkflow()
-  showToast(I18N.toast.workflow.taskDeleted)
-  DBG('editor:delete', taskId)
-  
-  // 添加Gist上传触发
-  await uploadToGist()
+  try {
+    const workflows = getWorkflows()
+    const task = workflows.find((w) => w.id === taskId)
+    if (!task) return
+    const title = task.title || I18N.workflow.untitledTask
+    const ok = await openConfirmDialog({
+      title: I18N.workflow.deleteConfirmTitle,
+      message: t(I18N.workflow.deleteConfirmMsg, { title }),
+      confirmText: I18N.common.delete,
+      cancelText: I18N.common.cancel,
+      danger: true
+    })
+    if (!ok) return
+    removeTask(taskId)
+    renderEditorList()
+    renderWorkflow()
+    showToast(I18N.toast.workflow.taskDeleted)
+    DBG('editor:delete', taskId)
+
+    // 添加Gist上传触发：失败不影响本地删除结果，吞掉 rejection
+    await uploadToGist().catch((err) => DBG('editor:delete:gist', String(err)))
+  } catch (e) {
+    DBG('editor:delete:error', String(e))
+    showToast('删除任务失败')
+  }
 }
 
 function handleEditorAction(event) {
@@ -147,7 +152,7 @@ function handleEditorAction(event) {
     return
   }
   if (action === 'edit') {
-    replaceModal('editor', 'taskform', { opener: btn }).then(() => openTaskForm('edit', id, true))
+    replaceModal('editor', 'taskform', { opener: btn }).then(() => openTaskForm('edit', id, true)).catch((e) => DBG('editor:edit:action', String(e)))
     return
   }
 
@@ -172,35 +177,40 @@ function handleEditorAction(event) {
 }
 
 async function handleSheetAction(event) {
-  const btn = event.target.closest('button[data-sheet-action]')
-  if (!btn) return
-  const action = btn.dataset.sheetAction
-  const root = document.getElementById('editor-action-modal')
-  const taskId = root?.dataset?.taskId
-  if (!taskId) return
+  try {
+    const btn = event.target.closest('button[data-sheet-action]')
+    if (!btn) return
+    const action = btn.dataset.sheetAction
+    const root = document.getElementById('editor-action-modal')
+    const taskId = root?.dataset?.taskId
+    if (!taskId) return
 
-  closeModal('editor-action')
+    closeModal('editor-action')
 
-  if (action === 'edit') {
-    await replaceModal('editor', 'taskform', { opener: btn })
-    openTaskForm('edit', taskId, true)
-    return
+    if (action === 'edit') {
+      await replaceModal('editor', 'taskform', { opener: btn }).catch((e) => DBG('editor:edit:sheet', String(e)))
+      openTaskForm('edit', taskId, true)
+      return
+    }
+
+    const workflows = getWorkflows()
+    const i = workflows.findIndex((t) => t.id === taskId)
+    if (i === -1) return
+
+    if (action === 'up' || action === 'down') {
+      const target = action === 'up' ? i - 1 : i + 1
+      if (target < 0 || target >= workflows.length) return
+      moveTask(taskId, action)
+      renderEditorList()
+      renderWorkflow()
+    } else if (action === 'delete') {
+      await performDelete(taskId)
+    }
+    DBG('editor:sheet:action', { action, id: taskId })
+  } catch (e) {
+    DBG('editor:sheet:error', String(e))
+    showToast('操作任务失败')
   }
-
-  const workflows = getWorkflows()
-  const i = workflows.findIndex((t) => t.id === taskId)
-  if (i === -1) return
-
-  if (action === 'up' || action === 'down') {
-    const target = action === 'up' ? i - 1 : i + 1
-    if (target < 0 || target >= workflows.length) return
-    moveTask(taskId, action)
-    renderEditorList()
-    renderWorkflow()
-  } else if (action === 'delete') {
-    await performDelete(taskId)
-  }
-  DBG('editor:sheet:action', { action, id: taskId })
 }
 
 export function renderEditorList() {

@@ -200,28 +200,28 @@ export function openTaskForm(mode = 'add', taskId = null, fromEditor = false) {
     if (titleEl) titleEl.textContent = I18N.workflow.taskFormEditTitle
     if (subtitleEl) subtitleEl.textContent = I18N.workflow.taskFormEditSubtitle
 
-    fTitle.value = task.title || ''
-    fDesc.value = task.desc || ''
-    fUrl.value = task.url || ''
-    fPlaceholder.checked = Boolean(task.isPlaceholder)
+    if (fTitle) fTitle.value = task.title || ''
+    if (fDesc) fDesc.value = task.desc || ''
+    if (fUrl) fUrl.value = task.url || ''
+    if (fPlaceholder) fPlaceholder.checked = Boolean(task.isPlaceholder)
     rotationRuleId = task.rotationRuleId || null
     if (fRotEnabled) fRotEnabled.checked = Boolean(rotationRuleId)
 
     const cfg = task.checkConfig
-    fCheck.checked = Boolean(cfg?.enabled)
-    fCheckCategory.value = cfg?.category || ''
-    fCheckCount.value = cfg?.targetCount || 7
+    if (fCheck) fCheck.checked = Boolean(cfg?.enabled)
+    if (fCheckCategory) fCheckCategory.value = cfg?.category || ''
+    if (fCheckCount) fCheckCount.value = cfg?.targetCount || 7
   } else {
     if (titleEl) titleEl.textContent = I18N.workflow.taskFormAddTitle
     if (subtitleEl) subtitleEl.textContent = I18N.workflow.taskFormAddSubtitle
 
-    fTitle.value = ''
-    fDesc.value = ''
-    fUrl.value = ''
-    fPlaceholder.checked = false
-    fCheck.checked = false
-    fCheckCategory.value = ''
-    fCheckCount.value = 7
+    if (fTitle) fTitle.value = ''
+    if (fDesc) fDesc.value = ''
+    if (fUrl) fUrl.value = ''
+    if (fPlaceholder) fPlaceholder.checked = false
+    if (fCheck) fCheck.checked = false
+    if (fCheckCategory) fCheckCategory.value = ''
+    if (fCheckCount) fCheckCount.value = 7
     if (fRotEnabled) fRotEnabled.checked = false
   }
 

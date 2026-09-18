@@ -71,7 +71,11 @@ export function bindDailyResetEvents() {
   const btn = document.getElementById('btn-daily-reset')
   if (btn) btn.addEventListener('click', manualResetToday)
 
+  // 幂等守卫：bindDailyResetEvents 可能被多次调用（见 settings/index.js 与 backup/events.js 的重复绑定），
+  // 用 dataset.bound 防止同一 item 累积多个 click 监听器。
   document.querySelectorAll('.view--settings [data-settings-page]').forEach((item) => {
+    if (item.dataset.bound === '1') return
+    item.dataset.bound = '1'
     item.addEventListener('click', () => {
       if (item.dataset.settingsPage === 'backup') renderDailyResetStatus()
     })

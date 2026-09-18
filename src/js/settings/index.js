@@ -1,5 +1,5 @@
 import { DBG } from '../core/debug.js'
-import { closeModal, replaceModal } from './modal.js'
+import { closeModal, replaceModal, isModalOpen } from './modal.js'
 import { switchSettingsView, registerViewHook } from './navigation.js'
 import {
   renderSettingsTagList,
@@ -121,12 +121,19 @@ export function bindSettingsEvents() {
     return
   }
 
-  root.addEventListener('click', handleSettingsSubNavigation)
-  root.addEventListener('click', handleSettingsWorkflowButtons)
+  if (root.dataset.bound !== '1') {
+    root.dataset.bound = '1'
+    root.addEventListener('click', handleSettingsSubNavigation)
+    root.addEventListener('click', handleSettingsWorkflowButtons)
+  }
 
   bindSettingsTagCrud(root)
 
   root.querySelectorAll('[data-settings-page]').forEach((item) => {
+    // 幂等守卫：只有此处统一刷新 Gist + daily-reset 状态。
+    // backup/events.js 与 daily-reset.js 的两处重复监听仅处理自身状态，见各自 dataset.bound。
+    if (item.dataset.bound === '1') return
+    item.dataset.bound = '1'
     item.addEventListener('click', () => {
       if (item.dataset.settingsPage === 'backup') {
         renderGistSettingsInputs()
@@ -157,10 +164,17 @@ export function bindEditorEvents() {
   const emptyAddBtn = document.getElementById('editor-empty-add')
   const taskFormBack = document.getElementById('taskform-back')
 
-  if (closeBtn) closeBtn.addEventListener('click', () => closeModal('editor'))
-  if (scrim) scrim.addEventListener('click', () => closeModal('editor'))
+  const closeEditor = () => closeModal('editor')
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.dataset.bound = '1'
+    closeBtn.addEventListener('click', closeEditor)
+  }
+  if (scrim && !scrim.dataset.bound) {
+    scrim.dataset.bound = '1'
+    scrim.addEventListener('click', closeEditor)
+  }
 
-  const openAddForm = (opener) => replaceModal('editor', 'taskform', { opener }).then(() => openTaskForm('add', null, true))
+  const openAddForm = (opener) => replaceModal('editor', 'taskform', { opener }).then(() => openTaskForm('add', null, true)).catch((e) => DBG('settings:open-add-form', String(e)))
 
   if (addBtn) addBtn.addEventListener('click', () => openAddForm(addBtn))
   if (emptyAddBtn) emptyAddBtn.addEventListener('click', () => openAddForm(emptyAddBtn))
@@ -181,6 +195,12 @@ export function bindEditorEvents() {
 export function bindGlobalEscapeHandler() {
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return
+    // confirm 弹窗叠在最上层（含 settings 子页面 / 抽屉场景），Esc 优先取消它，
+    // 避免穿透到下面的 switchSettingsView('main') 把确认静默关掉。
+    if (isModalOpen('confirm')) {
+      closeModal('confirm')
+      return
+    }
     const rot = document.getElementById('taskform-rotation-modal')
     if (rot && !rot.hidden) {
       replaceModal('rotation', 'taskform')

@@ -160,33 +160,54 @@ try {
  *      会自动把导出 / Gist / Drop Zone / 每日重置 等按钮一并绑定。
  *    - 设置页钩子由 settings/index.js 在模块加载时通过 registerViewHook('settings', enterSettingsView)
  *      注册；首次进入或重新进入设置页时会重置子页面 + 刷新动态内容。
+ *
+ *    【绑定顺序契约 - 回归防线】
+ *      本块采用"逐语句 try/catch 隔离"：每个 bindXxx / 订阅单独包一层。
+ *      设计动机：历史上曾出现"某处幂等守卫读 document.dataset 抛 TypeError，
+ *      中断整个 try 块，导致其后所有绑定（Anki、生词订阅）全部未执行"的回归。
+ *      隔离后，任一绑定失败只降级该模块（控制台可见、有 toast），
+ *      不会把同块其它绑定一起拖死。
+ *      约束：将来新增绑定函数，必须沿用同一模式（单独 try/catch +
+ *      stage 标识），禁止把多个绑定合并进同一 try。
  * ========================================================================= */
-try {
-  bindNavigationEvents()
-  bindWorkflowListEvents()
-  bindMemoEvents()
-  bindSettingsEvents()
-  bindEditorEvents()
-  bindTaskFormEvents()
-  bindGlobalEscapeHandler()
-  bindGlobalModalEvents()
-  bindAnkiSettingsEvents()
-  bindAnkiProcessorEvents()
+const EVENT_BINDS = [
+  { name: 'navigation', fn: bindNavigationEvents },
+  { name: 'workflow-list', fn: bindWorkflowListEvents },
+  { name: 'memo', fn: bindMemoEvents },
+  { name: 'settings', fn: bindSettingsEvents },
+  { name: 'editor', fn: bindEditorEvents },
+  { name: 'task-form', fn: bindTaskFormEvents },
+  { name: 'escape', fn: bindGlobalEscapeHandler },
+  { name: 'modal', fn: bindGlobalModalEvents },
+  { name: 'anki-settings', fn: bindAnkiSettingsEvents },
+  { name: 'anki-processor', fn: bindAnkiProcessorEvents },
+  { name: 'memo-subscribe', fn: subscribeMemoChanges },
+  { name: 'memo-tag-subscribe', fn: subscribeMemoTagChanges },
+  {
+    name: 'rotation-subscribe',
+    fn: () => {
+      onRotationRulesChange(() => {
+        renderWorkflow()
+      })
+    }
+  }
+]
 
-  subscribeMemoChanges()
-  subscribeMemoTagChanges()
-  onRotationRulesChange(() => {
-    renderWorkflow()
-  })
-  
-  DBG('init:events', 'All event listeners bound successfully')
-} catch (error) {
-  errorHandler.handleError(error, {
-    type: ErrorTypes.SYSTEM,
-    severity: ErrorSeverity.HIGH,
-    context: { stage: 'event_binding' }
-  })
+for (const { name, fn } of EVENT_BINDS) {
+  try {
+    fn()
+    DBG('init:bind:' + name, 'ok')
+  } catch (error) {
+    // 逐语句隔离：失败只降级该绑定，不中断后续绑定。
+    errorHandler.handleError(error, {
+      type: ErrorTypes.SYSTEM,
+      severity: ErrorSeverity.HIGH,
+      source: 'event_binding',
+      context: { stage: 'bind_' + name }
+    })
+  }
 }
+DBG('init:events', 'All event listeners processed (per-binding isolated)')
 
 // 进入首页，确保状态与视图一致（不强制重置设置子页）
 enterSettingsView({ resetSubpage: false })

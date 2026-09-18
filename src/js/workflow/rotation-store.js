@@ -33,7 +33,7 @@ export function getRotationRules() {
 }
 
 export function setRotationRules(next) {
-  rotationRules = Array.isArray(next) ? next : []
+  rotationRules = normalizeRotationRuleList(next)
   pubsub.emit(rotationRules)
   return rotationRules
 }

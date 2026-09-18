@@ -19,7 +19,8 @@ import {
   openModal,
   closeModal,
   replaceModal,
-  openConfirmDialog
+  openConfirmDialog,
+  registerModalCloseCleanup
 } from './modal.js'
 import { syncRotationRuleId } from './task-form.js'
 
@@ -37,6 +38,7 @@ import { syncRotationRuleId } from './task-form.js'
  */
 
 let currentRule = null
+let unregisterCloseCleanup = null
 
 function loadRule(ruleId) {
   if (ruleId) {
@@ -252,47 +254,57 @@ function bindHeaderInputs() {
  * 保存 / 删除
  * ============================================================ */
 async function handleRotationSave() {
-  if (!currentRule) {
+  try {
+    if (!currentRule) {
+      await replaceModal('rotation', 'taskform', { opener: $('rotation-save') })
+      return
+    }
+    writeBack()
+    const name = (currentRule.name || '').trim() || I18N.workflow.rotationUntitled
+    currentRule.name = name
+    const id = upsertRotationRule(currentRule)
+    syncRotationRuleId(id)
+    showToast(t(I18N.toast.workflow.presetSaved, { name }))
+    DBG('rotation:save', { id, name })
     await replaceModal('rotation', 'taskform', { opener: $('rotation-save') })
-    return
+  } catch (e) {
+    DBG('rotation:save:error', String(e))
+    showToast('保存预设失败')
   }
-  writeBack()
-  const name = (currentRule.name || '').trim() || I18N.workflow.rotationUntitled
-  currentRule.name = name
-  const id = upsertRotationRule(currentRule)
-  syncRotationRuleId(id)
-  showToast(t(I18N.toast.workflow.presetSaved, { name }))
-  DBG('rotation:save', { id, name })
-  await replaceModal('rotation', 'taskform', { opener: $('rotation-save') })
 }
 
 async function handleRotationDelete() {
-  if (!currentRule || !currentRule.id) {
-    await replaceModal('rotation', 'taskform', { opener: $('rotation-save') })
-    return
-  }
-  const ok = await openConfirmDialog({
-    title: I18N.workflow.deletePresetTitle,
-    message: t(I18N.workflow.deletePresetMsg, { name: currentRule.name || I18N.common.untitled }),
-    confirmText: I18N.common.delete,
-    cancelText: I18N.common.cancel,
-    danger: true
-  })
-  if (!ok) return
-  const removedId = currentRule.id
-  deleteRotationRule(removedId)
-  syncRotationRuleId(null)
-  showToast(I18N.toast.workflow.presetDeleted)
-  DBG('rotation:delete', removedId)
-  const next = getRotationRules()
-  await replaceModal('rotation', 'taskform', { opener: $('rotation-save') })
-  if (!next.find((r) => r.id === removedId) && next.length === 0) {
-    // 全部删除：清理任务表单的选择
+  try {
+    if (!currentRule || !currentRule.id) {
+      await replaceModal('rotation', 'taskform', { opener: $('rotation-save') })
+      return
+    }
+    const ok = await openConfirmDialog({
+      title: I18N.workflow.deletePresetTitle,
+      message: t(I18N.workflow.deletePresetMsg, { name: currentRule.name || I18N.common.untitled }),
+      confirmText: I18N.common.delete,
+      cancelText: I18N.common.cancel,
+      danger: true
+    })
+    if (!ok) return
+    const removedId = currentRule.id
+    deleteRotationRule(removedId)
     syncRotationRuleId(null)
+    showToast(I18N.toast.workflow.presetDeleted)
+    DBG('rotation:delete', removedId)
+    const next = getRotationRules()
+    await replaceModal('rotation', 'taskform', { opener: $('rotation-save') })
+    if (!next.find((r) => r.id === removedId) && next.length === 0) {
+      // 全部删除：清理任务表单的选择
+      syncRotationRuleId(null)
+    }
+
+    // 添加Gist上传触发：失败不影响本地删除结果，吞掉 rejection
+    await uploadToGist().catch((err) => DBG('rotation:delete:gist', String(err)))
+  } catch (e) {
+    DBG('rotation:delete:error', String(e))
+    showToast('删除预设失败')
   }
-  
-  // 添加Gist上传触发
-  await uploadToGist()
 }
 
 function bindActionButtons() {
@@ -308,7 +320,7 @@ function bindActionButtons() {
     delBtn.type = 'button'
     delBtn.id = 'rotation-delete'
     delBtn.className = 'btn btn--text btn--danger'
-    delBtn.innerHTML = `<span class="material-symbols" aria-hidden="true">delete</span>${I18N.workflow.deletePresetBtn}`
+    delBtn.innerHTML = `<span class="material-symbols" aria-hidden="true">delete</span>${escapeHtml(I18N.workflow.deletePresetBtn)}`
     const footer = root.querySelector('.modal__footer--mobile')
     if (footer) {
       delBtn.style.marginRight = 'auto'
@@ -328,6 +340,11 @@ export function bindRotationModalEvents() {
 
 export function openRotationModal(ruleId) {
   currentRule = null
+  // 注册关闭清理：无论以哪种途径关闭 rotation（Esc / 遮罩 / replaceModal / closeBtn），
+  // finalizeClose 都会触发一次，避免 currentRule 残留导致下次打开时状态错乱。
+  unregisterCloseCleanup = registerModalCloseCleanup('rotation', () => {
+    currentRule = null
+  })
   if (ruleId) {
     const found = findRotationRule(ruleId)
     if (found) currentRule = JSON.parse(JSON.stringify(found))

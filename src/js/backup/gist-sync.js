@@ -13,6 +13,7 @@ import { normalizeGistSettings } from '../config/storage-config.js'
 import { gistApiRequest, gistErrorMessage, GIST_FILENAME } from './gist-api.js'
 import { buildExportPayload, keyOmitReasonText } from './snapshot.js'
 import { validateBackupPayload } from './json.js'
+import { errorHandler, ErrorTypes, ErrorSeverity } from '../core/error-handler.js'
 import { renderWorkflow } from '../workflow/workflow-renderer.js'
 import { renderMemos, updateMemoCounters, renderTagSelector } from '../memo/memo-renderer.js'
 import {
@@ -112,51 +113,77 @@ export async function checkForGistConflict() {
  *  - API Key 以对称加密密文形式进入 Gist；未设置口令 / 加密不可用时仅省略 API Key，其余数据照常上传，绝不阻断。
  *  - notifyKeyOmitted=true（手动上传）：当 API Key 被省略时弹一条非阻断提示；自动上传传 false 以免反复弹窗。
  *  - 调用方负责先写入 input（saveGistSettingsFromInputs）
+ *
+ * 网络重试决策：本模块故意**不**将 Gist 请求接入 utils/network-utils 的 fetchWithRetry。
+ * 理由：
+ *  1. Gist 上传走 PATCH 覆盖写，且带「冲突检测」（checkForGistConflict）——自动重试可能在冲突被静默拉取后
+ *     立即二次写同一份数据，造成版本冲突 / 多余 Gist revision；
+ *  2. 自动上传路径已有 debounce + 互斥（gistAutoUploadRunning）+ skip-unchanged，数据未变不会重复发起；
+ *  3. Gist 写操作天然幂等（同内容覆盖），失败一次不影响本地数据，下次 persist* 会重新触发自动上传；
+ *  4. 手动上传/拉取由用户操作触发，重试意义有限且会反复弹 toast。
+ * 因此网络错误直接吞掉并上报 errorHandler，由上层数据流在合适时机（用户编辑 / 手动点同步）重新上传。
  */
 export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
-  if (!hasGistCredentials()) {
-    showToast(I18N.toast.gist.needCredentials)
-    return { ok: false, reason: 'no-credentials' }
-  }
-  const built = await buildExportPayload()
-  if (!built.ok) {
-    showToast(I18N.toast.backup.exportFailed)
-    DBG('gist:upload:blocked', { reason: built.reason })
-    return { ok: false, reason: built.reason }
-  }
-  const payload = built.payload
-  const body = {
-    description: 'NJW daily backup',
-    files: { [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) } }
-  }
-  const conflict = await checkForGistConflict()
-  if (conflict.conflict) {
-    DBG('gist:upload:blocked:conflict')
-    showToast(t(I18N.toast.gist.conflictResolved))
-    return { ok: false, reason: 'conflict-resolved' }
-  }
-  showGistUploading()
-  const settings = getGistSettings()
-  const res = await gistApiRequest(`gists/${settings.gistId}`, {
-    method: 'PATCH',
-    body
-  })
-  if (res.ok) {
-    if (built.keyOmitted && notifyKeyOmitted) {
-      hideGistIndicator()
-      showToast(t(I18N.toast.anki.keyOmittedUpload, { reason: keyOmitReasonText(built.keyOmitReason) }))
-    } else {
-      showGistUploaded()
+  let indicatorShown = false
+  try {
+    if (!hasGistCredentials()) {
+      showToast(I18N.toast.gist.needCredentials)
+      return { ok: false, reason: 'no-credentials' }
     }
-    markGistSyncSuccess('upload')
-    DBG('gist:upload:ok', { status: res.status, keyOmitted: built.keyOmitted, omitReason: built.keyOmitReason })
-    return { ok: true, keyOmitted: built.keyOmitted }
+    const built = await buildExportPayload()
+    if (!built.ok) {
+      showToast(I18N.toast.backup.exportFailed)
+      DBG('gist:upload:blocked', { reason: built.reason })
+      return { ok: false, reason: built.reason }
+    }
+    const payload = built.payload
+    const body = {
+      description: 'NJW daily backup',
+      files: { [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) } }
+    }
+    const conflict = await checkForGistConflict()
+    if (conflict.conflict) {
+      DBG('gist:upload:blocked:conflict')
+      showToast(t(I18N.toast.gist.conflictResolved))
+      return { ok: false, reason: 'conflict-resolved' }
+    }
+    showGistUploading()
+    indicatorShown = true
+    const settings = getGistSettings()
+    const res = await gistApiRequest(`gists/${settings.gistId}`, {
+      method: 'PATCH',
+      body
+    })
+    if (res.ok) {
+      if (built.keyOmitted && notifyKeyOmitted) {
+        hideGistIndicator()
+        showToast(t(I18N.toast.anki.keyOmittedUpload, { reason: keyOmitReasonText(built.keyOmitReason) }))
+      } else {
+        showGistUploaded()
+      }
+      markGistSyncSuccess('upload')
+      DBG('gist:upload:ok', { status: res.status, keyOmitted: built.keyOmitted, omitReason: built.keyOmitReason })
+      return { ok: true, keyOmitted: built.keyOmitted }
+    }
+    hideGistIndicator()
+    const msg = gistErrorMessage(res, { kind: 'upload' })
+    showToast(msg)
+    DBG('gist:upload:fail', { status: res.status, body: res.rawText?.slice(0, 200) })
+    return { ok: false, reason: 'http-error', status: res.status }
+  } catch (err) {
+    // 兜底：buildExportPayload / checkForGistConflict / 网络请求等任何同步/异步异常，
+    // 保证指示器始终收起，避免卡在「上传中」，并让调用方感知失败。
+    DBG('gist:upload:exception', String(err))
+    errorHandler.handleError(err, {
+      type: ErrorTypes.NETWORK,
+      severity: ErrorSeverity.MEDIUM,
+      source: 'gist.uploadToGist'
+    })
+    if (notifyKeyOmitted) showToast(I18N.toast.gist.uploadFailed)
+    return { ok: false, reason: 'exception' }
+  } finally {
+    if (indicatorShown) hideGistIndicator()
   }
-  hideGistIndicator()
-  const msg = gistErrorMessage(res, { kind: 'upload' })
-  showToast(msg)
-  DBG('gist:upload:fail', { status: res.status, body: res.rawText?.slice(0, 200) })
-  return { ok: false, reason: 'http-error', status: res.status }
 }
 
 /**
@@ -270,16 +297,42 @@ export async function pullFromGist({ silent = false } = {}) {
  *  - 凭证缺失时直接跳过
  *  - 存在明文 API Key 但会话无加密口令时静默跳过，防止自动上传反复弹窗（手动上传仍会提示）
  *  - 同一时刻只允许一个上传任务运行
+ *  - 内容未变（与上次成功上传一致）时直接跳过，避免冗余网络请求与多余 Gist revision
  */
 let gistAutoUploadPending = null
 let gistAutoUploadRunning = false
+// 记录上一次成功自动上传的 Gist 文件内容（PATCH body 的 GIST_FILENAME content）。
+// 自动上传前若当前内容与此完全一致则直接跳过，避免数据未变时的冗余网络请求与 Gist 版本变更。
+let lastAutoUploadedContent = null
 
 // 使用防抖优化的自动上传
 const debouncedAutoUpload = debounce(async () => {
   if (gistAutoUploadRunning) return
   gistAutoUploadRunning = true
   try {
-    await uploadToGist({ notifyKeyOmitted: false })
+    const built = await buildExportPayload()
+    if (built.ok) {
+      // 注意：payload.exportTime 每次构建都会变化，参与比较会导致 skip 永远不命中，
+      // 因此指纹只取稳定业务数据 + 版本，排除时间戳字段。
+      const fingerprint = JSON.stringify({
+        version: built.payload.version,
+        data: built.payload.data
+      })
+      if (lastAutoUploadedContent !== null && fingerprint === lastAutoUploadedContent) {
+        DBG('gist:auto-upload:skip-unchanged')
+        return
+      }
+      const result = await uploadToGist({ notifyKeyOmitted: false })
+      if (result && result.ok) lastAutoUploadedContent = fingerprint
+    }
+  } catch (err) {
+    // uploadToGist 内部已 try/catch 兜底；此处为极端异常的二次保险，避免未捕获 rejection。
+    DBG('gist:auto-upload:exception', String(err))
+    errorHandler.handleError(err, {
+      type: ErrorTypes.NETWORK,
+      severity: ErrorSeverity.LOW,
+      source: 'gist.debouncedAutoUpload'
+    })
   } finally {
     gistAutoUploadRunning = false
   }

@@ -1,5 +1,6 @@
 import { DBG } from '../core/debug.js'
 import { I18N } from '../locales.js'
+import { createGuard } from '../utils/guard.js'
 
 /**
  * 通用 Modal 控制器：openModal/closeModal/closeModalAsync/replaceModal/openConfirmDialog
@@ -134,6 +135,7 @@ function finalizeClose(name) {
     }
   }
   settleModal(name, false)
+  runCloseCleanups(name)
   DBG('modal:close', name)
 }
 
@@ -149,6 +151,37 @@ function settleModal(name, value) {
   }
 }
 
+const closeCleanups = new Map()
+export function registerModalCloseCleanup(name, fn) {
+  if (!name || typeof fn !== 'function') return () => {}
+  let list = closeCleanups.get(name)
+  if (!list) {
+    list = []
+    closeCleanups.set(name, list)
+  }
+  list.push(fn)
+  return () => {
+    const arr = closeCleanups.get(name)
+    if (arr) {
+      const i = arr.indexOf(fn)
+      if (i >= 0) arr.splice(i, 1)
+    }
+  }
+}
+
+function runCloseCleanups(name) {
+  const list = closeCleanups.get(name)
+  if (!list || list.length === 0) return
+  closeCleanups.delete(name)
+  for (const fn of list) {
+    try {
+      fn()
+    } catch (e) {
+      console.error(`[modal cleanup] ${name}`, e)
+    }
+  }
+}
+
 function onTransitionEnd(e) {
   const dialog = e.currentTarget?.querySelector?.('.modal__dialog')
   if (e.target === dialog || e.propertyName === 'opacity') {
@@ -160,6 +193,7 @@ export function closeModal(name) {
   const root = getModalRoot(name)
   if (!root || root.hidden) {
     settleModal(name, false)
+    runCloseCleanups(name)
     return
   }
   root.dataset.modalName = name
@@ -251,6 +285,14 @@ export function openConfirmDialog({
 }
 
 export function bindGlobalModalEvents() {
+  // 幂等守卫：全局 document 监听只绑定一次，防止重复调用导致多个监听叠加。
+  // 走 utils/guard.js 的统一助手（模块级 Map，不依赖 document.dataset），
+  // 避免历史上 document.dataset 在 body 解析前为 undefined 时抛 TypeError
+  // 进而中断 app.js 第4块其余绑定的回归。详见 utils/guard.js 头部注释。
+  const modalEventsGuard = createGuard('modalEventsBound')
+  if (modalEventsGuard.is(document)) return
+  modalEventsGuard.set(document)
+
   document.addEventListener('keydown', trapModalFocus)
 
   document.addEventListener('click', (e) => {

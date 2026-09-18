@@ -1,5 +1,6 @@
 import { DBG } from '../core/debug.js'
 import { I18N, t as translate } from '../locales.js'
+import { escapeHtml } from '../utils/dom-utils.js'
 import { getMemos, getMemoTags, getSelectedMemoTag, onMemosChange, onMemoTagsChange } from './memo-store.js'
 
 /**
@@ -23,7 +24,7 @@ function createMemoCard(memo, memoTags) {
   const isLong = lineCount > 7
   card.classList.toggle("memo-card--long", isLong)
   const tagOptions = memoTags
-    .map((t) => `<option value="${t.id}" ${t.id === memo.tag ? 'selected' : ''}>${t.name}</option>`)
+    .map((t) => `<option value="${escapeHtml(t.id)}" ${t.id === memo.tag ? 'selected' : ''}>${escapeHtml(t.name)}</option>`)
     .join('')
 
   card.innerHTML = `
@@ -32,7 +33,7 @@ function createMemoCard(memo, memoTags) {
         <time class="memo-card__time" datetime=""></time>
         <span class="memo-tag-chip memo-tag-chip--display"></span>
         <span class="chip chip--outline" style="margin-left:4px;">${translate(I18N.memo.wordCount, { count: lineCount })}</span>
-        <select class="memo-tag-select" hidden aria-label="${I18N.memo.selectTagAria}">${tagOptions}</select>
+        <select class="memo-tag-select" hidden aria-label="${escapeHtml(I18N.common.selectTagAria)}">${tagOptions}</select>
       </div>
       <div class="memo-card__actions">
         <button class="memo-card__edit" type="button" data-memo-action="edit" aria-label="${I18N.memo.editAria}">
@@ -113,7 +114,7 @@ export function renderTagSelector() {
       btn.type = 'button'
       btn.className = 'tag-btn' + (t.id === selectedId ? ' is-selected' : '')
       btn.dataset.value = t.id
-      btn.innerHTML = `<span class="material-symbols" aria-hidden="true">${t.icon}</span><span></span>`
+      btn.innerHTML = `<span class="material-symbols" aria-hidden="true">${escapeHtml(t.icon)}</span><span></span>`
       btn.querySelector('span:last-child').textContent = t.name
       btn.dataset.action = 'select-tag'
       return btn

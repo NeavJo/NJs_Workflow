@@ -229,7 +229,8 @@ export const I18N = {
     pickerListAria: '可用标签',
     expandAria: '展开全部内容',
     collapseAria: '收起全部内容',
-    expandBtn: '展开全部'
+    expandBtn: '展开全部',
+    collapseBtn: '收起'
   },
 
   /* ========================================================================
@@ -441,6 +442,9 @@ export const I18N = {
       wordsLoaded: '已读取今日笔记全文，共 {length} 字符。',
       noWordsInput: '请先输入或读取需要处理的单词。',
       noApiConfig: '请先在设置中配置 API Key 与模型。',
+      ankiInputNotFound: '未找到 Anki 处理机输入框。',
+      ankiCopied: '已复制到 Anki 处理机。',
+      ankiCopyFailed: '复制到 Anki 处理机失败。',
       promptLoadFailed: 'Prompt 模板加载失败，已中止处理。',
       aiFailed: 'AI 处理失败，请稍后重试。',
       aiDone: 'AI 处理完成。',

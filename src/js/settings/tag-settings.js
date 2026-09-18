@@ -1,3 +1,4 @@
+import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
 import { I18N, t } from '../locales.js'
 import { getMemoTags, addMemoTag as addMemoTagStore, deleteMemoTag as deleteMemoTagStore, renameMemoTag, persistMemoTags } from '../memo/memo-store.js'
@@ -76,7 +77,8 @@ export function addMemoTagFromInput() {
   input.value = ''
   input.focus()
   showToast(t(I18N.toast.memo.tagAdded, { name }))
-  uploadToGist()
+  // 触发 Gist 上传；失败不影响本地操作，吞掉 rejection 防止未捕获异常
+  uploadToGist().catch((err) => DBG('tag:settings:add:gist', String(err)))
 }
 
 export function startEditMemoTag(id) {
@@ -127,5 +129,5 @@ export function deleteMemoTagFromSettings(id) {
   showToast(t(I18N.toast.memo.tagDeleted, { name: tag.name }))
   
   // 添加Gist上传触发
-  uploadToGist()
+  uploadToGist().catch((err) => DBG('tag:settings:delete:gist', String(err)))
 }

@@ -61,6 +61,9 @@ export function bindBackupEvents() {
   bindDropZone()
 
   document.querySelectorAll('.view--settings [data-settings-page]').forEach((item) => {
+    // 幂等守卫：防止与 settings/index.js / daily-reset.js 的重复绑定累积多个监听器。
+    if (item.dataset.bound === '1') return
+    item.dataset.bound = '1'
     item.addEventListener('click', () => {
       if (item.dataset.settingsPage === 'backup') {
         renderGistSettingsInputs()

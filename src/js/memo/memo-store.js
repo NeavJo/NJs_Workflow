@@ -146,10 +146,10 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
 
   let mode
   if (targetMemo) {
+    const prevContent = targetMemo.content
+    const prevTimestamp = targetMemo.timestamp
     targetMemo.content = appendToCategory(targetMemo.content, cat, word)
     targetMemo.timestamp = getFullTimestamp()
-    const newId = Date.now()
-    if (newId !== targetMemo.id) targetMemo.id = newId
     mode = 'append'
   } else {
     const now = new Date()
@@ -165,7 +165,20 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
 
   cleanExpiredMemosInPlace()
   const persisted = persistMemosImpl()
-  if (!persisted) return null
+  if (!persisted) {
+    // 持久化失败：回滚本次内存变更，避免"假成功"（数据写进内存却未落盘）。
+    if (mode === 'create') {
+      const removed = memos.findIndex((m) => m.id === memos[0].id)
+      if (removed === 0) memos.shift()
+    } else if (targetMemo) {
+      targetMemo.content = prevContent
+      targetMemo.timestamp = prevTimestamp
+    }
+    // 回滚 cleanExpiredMemosInPlace 可能删除的条目无法精确恢复，
+    // 但过期清理属于幂等收敛，丢失可下次重建，故仅回滚本次主变更。
+    DBG('memo:append:persist-fail', { mode })
+    return null
+  }
   memosPubsub.emit(memos)
   return { mode, memo: targetMemo || memos[0], word, category: cat }
 }
@@ -185,7 +198,13 @@ export function addMemo(content, tag, category = I18N.memo.defaultCategory) {
   memos.unshift(memo)
   cleanExpiredMemosInPlace()
   const persisted = persistMemosImpl()
-  if (!persisted) return null
+  if (!persisted) {
+    // 持久化失败：回滚本次新建，避免内存态与落盘态不一致（"假成功"）。
+    const idx = memos.findIndex((m) => m.id === memo.id)
+    if (idx === 0) memos.shift()
+    DBG('memo:add:persist-fail', { id: memo.id })
+    return null
+  }
   memosPubsub.emit(memos)
   return memo
 }
@@ -202,11 +221,18 @@ export function deleteMemo(id) {
 export function updateMemoContent(id, nextContent) {
   const memo = memos.find((m) => m.id === id)
   if (!memo) return false
+  const prevContent = memo.content
+  const prevTimestamp = memo.timestamp
   memo.content = (nextContent || '').replace(/\r\n/g, '\n')
   memo.timestamp = getFullTimestamp()
-  const newId = Date.now()
-  if (newId !== memo.id) memo.id = newId
   const ok = persistMemosImpl()
+  if (!ok) {
+    // 持久化失败：回滚本次内容/时间戳变更，避免内存态与落盘态不一致。
+    memo.content = prevContent
+    memo.timestamp = prevTimestamp
+    DBG('memo:update-content:persist-fail', { id })
+    return ok
+  }
   memosPubsub.emit(memos)
   return ok
 }
