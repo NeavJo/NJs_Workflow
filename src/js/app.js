@@ -74,6 +74,12 @@ import {
   hasRememberedPassphrase
 } from './anki/anki-passphrase.js'
 
+import { bindGermanAssistantEvents } from './german/german-events.js'
+import { onGermanStateChange } from './german/german-store.js'
+import { renderGermanAssistant } from './german/german-renderer.js'
+import { initGermanFontScale } from './german/german-font-size.js'
+import { bindGermanSettingsEvents, subscribeGermanFontSizeForReflow, bindTtsKeyEvents, bindAnkiJumpButton } from './german/german-settings.js'
+
 /* ============================================================================
  * 1. 装载持久化状态
  *    注意：loadWorkflows() 必须在 loadCompleted() 之前，
@@ -184,6 +190,34 @@ const EVENT_BINDS = [
   { name: 'memo-subscribe', fn: subscribeMemoChanges },
   { name: 'memo-tag-subscribe', fn: subscribeMemoTagChanges },
   {
+    name: 'german',
+    fn: bindGermanAssistantEvents
+  },
+  {
+    name: 'german-subscribe',
+    fn: () => {
+      onGermanStateChange((state) => {
+        renderGermanAssistant(state)
+      })
+    }
+  },
+  {
+    name: 'german-font-settings',
+    fn: bindGermanSettingsEvents
+  },
+  {
+    name: 'german-tts-key-settings',
+    fn: bindTtsKeyEvents
+  },
+  {
+    name: 'german-anki-jump',
+    fn: bindAnkiJumpButton
+  },
+  {
+    name: 'german-font-subscribe',
+    fn: subscribeGermanFontSizeForReflow
+  },
+  {
     name: 'rotation-subscribe',
     fn: () => {
       onRotationRulesChange(() => {
@@ -212,6 +246,19 @@ DBG('init:events', 'All event listeners processed (per-binding isolated)')
 // 进入首页，确保状态与视图一致（不强制重置设置子页）
 enterSettingsView({ resetSubpage: false })
 switchView('flow')
+
+// 应用已保存的德语助手字号档位（刷新后字号档位仍生效）
+try {
+  initGermanFontScale()
+  DBG('init:german-font-scale', 'ok')
+} catch (error) {
+  errorHandler.handleError(error, {
+    type: ErrorTypes.SYSTEM,
+    severity: ErrorSeverity.LOW,
+    source: 'init',
+    context: { stage: 'init_german_font_scale' }
+  })
+}
 
 /* ============================================================================
  * 5. 启动时跨天检查

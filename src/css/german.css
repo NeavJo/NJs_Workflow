@@ -1,0 +1,419 @@
+/* =====================================================================
+ * german.css — 德语助手：搜索卡 / 候选词 / 状态行 / 详情卡 / 词典折叠卡
+ *   .german-panel / .german-search-card / .german-search-field /
+ *   .german-suggestions / .german-suggestion / .german-status /
+ *   .german-detail-card / .german-dict / .german-entry / .german-pos
+ * ===================================================================== */
+
+.german-panel {
+  margin-top: 56px;
+  display: grid;
+  gap: 20px;
+}
+
+/* ===== 搜索卡：放大镜图标 + 输入框 + 清空按钮，下方挂候选词下拉 ===== */
+.german-search-card {
+  position: relative;
+  padding: 20px;
+  border-radius: var(--md-radius-large);
+  background: var(--md-surface-container);
+  box-shadow: var(--md-elevation-1);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 14%, transparent);
+}
+.german-search-field {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 0 16px;
+  border-radius: var(--md-radius-medium);
+  background: var(--md-surface);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 24%, transparent);
+  transition: border-color var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard);
+}
+.german-search-field:focus-within {
+  border-color: var(--md-primary);
+  background: var(--md-surface-container-high);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
+}
+.german-search-icon {
+  font-size: 22px;
+  color: var(--md-on-surface-variant);
+  transition: color var(--md-motion-standard);
+}
+.german-search-field:focus-within .german-search-icon { color: var(--md-primary); }
+.german-search-input {
+  width: 100%;
+  min-width: 0;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 15px;
+}
+.german-search-input::placeholder { color: var(--md-on-surface-variant); opacity: 0.72; }
+.german-search-input::-webkit-search-cancel-button { display: none; }
+.german-clear-button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  cursor: pointer;
+  transition: background var(--md-motion-standard), color var(--md-motion-standard);
+}
+.german-clear-button .material-symbols { font-size: 19px; }
+.german-clear-button:hover { background: color-mix(in srgb, var(--md-outline) 18%, transparent); color: var(--md-on-surface); }
+
+/* ===== 候选词下拉：挂在搜索卡内，绝对定位避免影响布局 ===== */
+.german-suggestions {
+  position: absolute;
+  top: 100%;
+  right: 16px;
+  left: 16px;
+  z-index: 20;
+  margin-top: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: var(--md-radius-medium);
+  background: var(--md-surface-container-high);
+  box-shadow: var(--md-elevation-2);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 16%, transparent);
+  display: grid;
+  gap: 2px;
+}
+.german-suggestion {
+  display: grid;
+  /* word 弹性；pos 固定内容宽；zh 弹性列，min-width:0 让长释义在列内省略号截断而非撑爆容器 */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--md-radius-small, 10px);
+  background: transparent;
+  color: var(--md-on-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--md-motion-standard), color var(--md-motion-standard);
+}
+.german-suggestion:hover,
+.german-suggestion:focus-visible { background: color-mix(in srgb, var(--md-secondary-container) 55%, transparent); outline: 0; }
+.german-suggestion__word { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.german-suggestion__pos {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--md-primary);
+  background: color-mix(in srgb, var(--md-primary) 14%, transparent);
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+/* min-width: 0 让 grid 子项可被收缩，text-overflow 才生效，避免释义被挤到边框外 */
+.german-suggestion__zh { font-size: 12px; color: var(--md-on-surface-variant); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 加载中提示行（无按钮语义，仅占位） */
+.german-suggestion--hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: default;
+}
+.german-suggestion--hint .material-symbols { font-size: 19px; color: var(--md-primary); }
+.german-suggestion--hint span:last-child { font-size: 13px; color: var(--md-on-surface-variant); }
+.german-suggestion--hint:hover { background: transparent; }
+
+/* ===== 状态行：加载中 / 失败 / 空态 ===== */
+.german-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: var(--md-radius-medium);
+  background: color-mix(in srgb, var(--md-secondary-container) 30%, var(--md-surface-container));
+  border: 1px solid color-mix(in srgb, var(--md-outline) 16%, transparent);
+}
+.german-status__text { font-size: 13px; font-weight: 600; color: var(--md-on-surface-variant); }
+.german-retry { flex: 0 0 auto; }
+.german-retry .material-symbols { font-size: 19px; }
+
+/* ===== 详情卡 ===== */
+.german-detail-card {
+  padding: 22px 24px 18px;
+  border-radius: var(--md-radius-large);
+  background: var(--md-surface-container);
+  box-shadow: var(--md-elevation-1);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 14%, transparent);
+}
+.german-detail-card__header { margin-bottom: 4px; }
+.german-detail-card__word-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.german-detail-card__word {
+  font-size: calc(var(--german-font-scale, 1) * 36px);
+  line-height: 1.05;
+  letter-spacing: -.02em;
+  color: var(--md-on-surface);
+  word-break: break-word;
+}
+.german-speak {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--md-primary);
+  background: color-mix(in srgb, var(--md-primary) 12%, transparent);
+}
+.german-speak .material-symbols { font-size: 24px; }
+.german-speak:hover { background: var(--md-primary); color: var(--md-on-primary); transform: rotate(-8deg); }
+.german-detail-card__phonetic {
+  margin: 8px 0 0;
+  font-size: calc(var(--german-font-scale, 1) * 15px);
+  color: var(--md-on-surface-variant);
+}
+.german-detail-card__phonetic--empty {
+  color: color-mix(in srgb, var(--md-error) 80%, var(--md-on-surface-variant));
+  font-style: italic;
+}
+.german-detail-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 14px 0 18px;
+}
+.german-add-memo { padding: 11px 18px; }
+
+/* ===== 词典折叠卡：词性 / 变格 / 释义 / 例句 ===== */
+.german-dict {
+  border-radius: var(--md-radius-medium);
+  background: var(--md-surface);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 16%, transparent);
+  overflow: hidden;
+}
+.german-dict__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  font-size: calc(var(--german-font-scale, 1) * 14px);
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: var(--md-on-surface-variant);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.german-dict__summary::-webkit-details-marker { display: none; }
+.german-dict__summary::before { content: '▸'; transition: transform var(--md-motion-standard); color: var(--md-primary); }
+.german-dict[open] .german-dict__summary::before { transform: rotate(90deg); }
+.german-dict__body { padding: 4px 18px 18px; display: grid; gap: 16px; }
+
+.german-entry { display: grid; gap: 8px; }
+.german-entry__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+/* ===== 设置页字号档位滑块（德语助手设置子页） ===== */
+.german-font-size { display: grid; gap: 14px; }
+.german-font-size__control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+.german-font-size__range {
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  accent-color: var(--md-primary);
+  cursor: pointer;
+}
+.german-font-size__output {
+  min-width: 132px;
+  padding: 6px 12px;
+  text-align: center;
+  border-radius: var(--md-radius-small, 10px);
+  background: color-mix(in srgb, var(--md-primary) 12%, transparent);
+  color: var(--md-primary);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.german-font-size__scale {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+  color: var(--md-on-surface-variant);
+  font-size: 11px;
+  opacity: .8;
+}
+.german-font-size__scale span { flex: 1; text-align: center; }
+
+/* ===== 字号缩放变量 =====
+ * --german-font-scale 由 german-font-size.js 应用到 .view--german 根节点。
+ * 结果页文本用 calc(变量 * 基准值) 让 5 档缩放即时生效；默认 1（第 3 档基准）。
+ * 注：第 2 档 0.95 ≈ 上线时初始字号，故基准值取上线字号的 ~1.05 倍以贴合视觉。 */
+.german-pos {
+  font-size: calc(var(--german-font-scale, 1) * 15px);
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: var(--md-on-primary);
+  background: var(--md-primary);
+  padding: 5px 14px;
+  border-radius: 999px;
+}
+.german-inflection {
+  font-size: calc(var(--german-font-scale, 1) * 15px);
+  font-weight: 600;
+  color: var(--md-on-secondary-container);
+  background: var(--md-secondary-container);
+  padding: 5px 14px;
+  border-radius: 999px;
+}
+
+.german-definitions { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 12px; counter-reset: deffn; }
+.german-definition { counter-increment: deffn; position: relative; padding-left: 30px; }
+.german-definition::before {
+  content: counter(deffn);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--md-on-surface-variant);
+  background: color-mix(in srgb, var(--md-outline) 20%, transparent);
+}
+.german-definition__main { font-size: calc(var(--german-font-scale, 1) * 17px); line-height: 1.5; color: var(--md-on-surface); font-weight: 600; }
+.german-definition__trans { font-size: calc(var(--german-font-scale, 1) * 15px); line-height: 1.5; color: var(--md-on-surface-variant); margin-top: 2px; }
+
+.german-examples { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.german-example {
+  font-size: calc(var(--german-font-scale, 1) * 15px);
+  line-height: 1.5;
+  color: var(--md-on-surface-variant);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.german-example i { font-style: italic; color: var(--md-on-surface); }
+.german-example span { color: var(--md-on-surface-variant); }
+.german-example span:empty { display: none; }
+
+/* 缺失数据提示 */
+.german-missing {
+  margin: 0;
+  padding: 14px;
+  border-radius: var(--md-radius-small, 10px);
+  font-size: 13px;
+  color: var(--md-on-surface-variant);
+  font-style: italic;
+  text-align: center;
+  background: color-mix(in srgb, var(--md-surface-container-high) 60%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--md-outline) 30%, transparent);
+}
+
+/* ===== 骨架屏（LLM 加载中微光动画） ===== */
+.german-skeleton {
+  pointer-events: none;
+}
+.german-skeleton__word-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.german-skeleton__bar {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--md-outline) 18%, transparent) 25%,
+    color-mix(in srgb, var(--md-outline) 30%, transparent) 50%,
+    color-mix(in srgb, var(--md-outline) 18%, transparent) 75%
+  );
+  background-size: 200% 100%;
+  animation: german-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.german-skeleton__bar--word { height: 34px; width: 200px; border-radius: 8px; }
+.german-skeleton__bar--phonetic { height: 14px; width: 120px; margin-bottom: 20px; }
+.german-skeleton__bar--title { height: 16px; width: 100px; margin-bottom: 14px; }
+.german-skeleton__bar--line { height: 13px; width: 100%; margin-bottom: 10px; }
+.german-skeleton__bar--short { width: 60%; }
+.german-skeleton__circle { width: 44px; height: 44px; border-radius: 50%; flex: 0 0 auto; }
+.german-skeleton__circle,
+.german-skeleton__bar {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--md-outline) 18%, transparent) 25%,
+    color-mix(in srgb, var(--md-outline) 30%, transparent) 50%,
+    color-mix(in srgb, var(--md-outline) 18%, transparent) 75%
+  );
+  background-size: 200% 100%;
+  animation: german-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.german-skeleton__dict {
+  padding: 18px;
+  border-radius: var(--md-radius-medium);
+  background: var(--md-surface);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 12%, transparent);
+}
+@keyframes german-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ===== 来源 + godic 外链 ===== */
+.german-detail-card__source {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--md-outline) 16%, transparent);
+}
+.german-detail-card__source-label { font-size: 11px; font-weight: 600; color: var(--md-on-surface-variant); }
+.german-godic-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--md-primary);
+  text-decoration: none;
+}
+.german-godic-link:hover { text-decoration: underline; }
+
+/* ===== 响应式：移动端布局收敛 ===== */
+@media (max-width: 680px) {
+  .german-panel { margin-top: 40px; gap: 16px; }
+  .german-search-card { padding: 16px; }
+  .german-search-input { height: 48px; font-size: 14px; }
+  .german-suggestions { left: 12px; right: 12px; }
+  .german-detail-card { padding: 18px 16px 14px; }
+  .german-detail-card__word { font-size: 28px; }
+  .german-detail-card__actions { justify-content: stretch; }
+  .german-add-memo { flex: 1 1 100%; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .german-search-field,
+  .german-suggestion,
+  .german-dict__summary::before,
+  .german-speak { transition: none; }
+  .german-skeleton__bar,
+  .german-skeleton__circle { animation-duration: 0s; }
+}

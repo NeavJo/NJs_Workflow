@@ -26,6 +26,7 @@
 @import "./memo.css";
 @import "./anki.css";
 @import "./rotation.css";
+@import "./german.css";
 
 /* 设置子模块 */
 @import "./settings.css";

@@ -40,7 +40,7 @@
 }
 
 /* 主网格：侧栏 + 主内容 */
-.app-body { display: grid; grid-template-columns: 88px 1fr; align-items: flex-start; max-width: 1280px; margin: 0 auto; gap: 24px; padding: 0 clamp(20px, 4vw, 64px); }
+.app-body { display: grid; grid-template-columns: 88px 1fr; align-items: flex-start; min-height: 100vh; max-width: 1280px; margin: 0 auto; gap: 24px; padding: 0 clamp(20px, 4vw, 64px); }
 .main-content { width: 100%; margin: 0; padding: clamp(56px, 10vw, 120px) 0 80px; }
 
 /* Navigation Rail */

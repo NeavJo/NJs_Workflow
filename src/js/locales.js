@@ -54,6 +54,8 @@ export const I18N = {
       flow: '每日工作流',
       memo: '生词记事本',
       anki: 'Anki 处理机',
+      monthly: '月览',
+      german: '德语助手',
       settings: '设置与数据'
     },
 
@@ -198,6 +200,47 @@ export const I18N = {
   },
 
   /* ========================================================================
+   * german · 德语助手（词典查询）
+   * ====================================================================== */
+  german: {
+    eyebrow: 'GERMAN · DICTIONARY',
+    title: '德语助手<span>·查词即记</span>',
+    heroCopy: '输入德语单词，查询释义、音标、例句，并快速加入生词本。',
+    searchAria: '德语单词搜索',
+    searchPlaceholder: '输入德语单词，例如 Apfel',
+    clearAria: '清空搜索',
+    suggestionsAria: '搜索候选词',
+    loadingSuggestions: '正在匹配候选词…',
+    noSuggestions: '没有匹配到候选词',
+    resultsTitle: '词典结果',
+    loadingResult: '正在查询单词…',
+    noResult: '未找到该词或公开词典源暂无数据。',
+    retry: '重试',
+    missingData: '暂无公开数据',
+    partOfSpeechLabel: '词性',
+    inflectionLabel: '变格',
+    examplesLabel: '双语例句',
+    addMemo: '添加到生词本',
+    speakAria: '朗读德语单词',
+    sourceLabel: '数据源',
+    godicLabel: '德语助手',
+    sourceLabels: {
+      godic: 'godic 代理',
+      freeDictionary: 'Free Dictionary API',
+      wiktionary: 'Wiktionary API',
+      input: '当前输入'
+    },
+    toasts: {
+      searchEmpty: '请先输入一个德语单词。',
+      searchFailed: '词典查询失败，请稍后重试。',
+      noData: '公开数据源未返回该词信息。',
+      memoAdded: '「{word}」已加入生词本。',
+      memoFailed: '添加生词本失败，请检查本地存储。',
+      speakNetworkFailed: '网络发音加载失败'
+    }
+  },
+
+  /* ========================================================================
    * memo · 生词记事本
    * ====================================================================== */
   memo: {
@@ -278,6 +321,27 @@ export const I18N = {
     workflowMenuSub: '添加任务，编辑现有工作流及其排序。',
     tagsMenu: '生词本标签管理',
     tagsMenuSub: '维护生词本分类标签，管理自定义标签。',
+    germanMenu: '德语助手设置',
+    germanMenuSub: '调节查词结果页的字号显示。',
+
+    germanTitle: '德语助手设置',
+    germanSub: '调节德语助手查词结果页的字号，保存后下次打开自动生效。',
+    germanFontSizeLabel: '结果页字号',
+    germanFontSizeHint: '拖动滑块切换 5 档字号，第 3 档为默认基准；实时作用于结果页所有文本。',
+    germanFontSizeLevel: '第 {level} 档（{label}）',
+    germanFontLabels: '最小,较小,正常,较大,最大',
+    ankiLlmReminderTitle: '使用 Anki 处理机的 LLM 配置',
+    ankiLlmReminderSub: '德语助手的词典生成复用 Anki 处理机的 LLM 配置（Base URL / 模型 / API Key）',
+    ankiLlmReminderGo: '去配置',
+
+    ttsKeyTitle: '德语发音（TTS）',
+    ttsKeyLabel: 'TTS API Key',
+    ttsKeyHint: '填写 tts.ai 的 Key 启用 Kokoro 高音质德语；留空则用匿名 Piper 免费引擎兜底。仅存本地，不写入日志、不随 Gist 同步。',
+    ttsKeyPlaceholder: 'sk-tts-***',
+    ttsKeyClear: '清空',
+    ttsKeySaveSuccess: 'TTS API Key 已保存',
+    ttsKeySaveFailed: 'TTS API Key 保存失败，请重试',
+    ttsKeyCleared: 'TTS API Key 已清空',
 
     exportTitle: '导出备份',
     exportSub: '打包当前的配置数据，下载为 JSON 文件。',

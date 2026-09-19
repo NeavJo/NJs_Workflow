@@ -8,8 +8,8 @@
  * 因此子视图查询范围由原来的 #settings-modal 改为新的设置根节点。
  */
 
-export const TOP_LEVEL_VIEWS = ['flow', 'memo', 'anki', 'monthly', 'settings']
-export const SETTINGS_VIEWS = ['main', 'backup', 'anki-api', 'workflow', 'tags']
+export const TOP_LEVEL_VIEWS = ['flow', 'memo', 'anki', 'monthly', 'german', 'settings']
+export const SETTINGS_VIEWS = ['main', 'backup', 'anki-api', 'workflow', 'tags', 'german']
 
 let currentView = 'flow'
 let currentSettingsView = 'main'

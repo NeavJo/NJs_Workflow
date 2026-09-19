@@ -23,8 +23,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" />
-    <script type="module" crossorigin src="./assets/index-DdGxfpof.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CQ-KFHap.css">
+    <script type="module" crossorigin src="./assets/index-DSIQuyAL.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-8JzBBa8r.css">
   </head>
   <body class="app-loading">
     <div id="app-loading" role="status" aria-live="polite" data-i18n="loading">正在加载工作流</div>
@@ -47,6 +47,11 @@
             <span class="nav-indicator"></span>
             <span class="material-symbols" aria-hidden="true">push_pin</span>
             <span class="nav-item__label" data-i18n="common.nav.flow">每日工作流</span>
+          </button>
+          <button class="nav-item" data-view="german" type="button">
+            <span class="nav-indicator"></span>
+            <span class="material-symbols" aria-hidden="true">translate</span>
+            <span class="nav-item__label" data-i18n="common.nav.german">德语助手</span>
           </button>
           <button class="nav-item" data-view="memo" type="button">
             <span class="nav-indicator"></span>
@@ -204,6 +209,40 @@
             <div id="monthly-view-container"></div>
           </section>
 
+          <!-- View: German Assistant -->
+          <section class="view view--german" data-view="german" aria-labelledby="german-page-title" hidden>
+            <section class="hero-section">
+              <div>
+                <p class="eyebrow" data-i18n="german.eyebrow">GERMAN · DICTIONARY</p>
+                <h1 id="german-page-title" data-i18n-html="german.title">德语助手<span>·查词即记</span></h1>
+                <p class="hero-copy" data-i18n="german.heroCopy">输入德语单词，查询释义、音标、例句，并快速加入生词本。</p>
+              </div>
+            </section>
+
+            <section class="german-panel" aria-label="德语助手">
+              <div class="german-search-card">
+                <div class="german-search-field" data-i18n-aria="german.searchAria">
+                  <span class="material-symbols german-search-icon" aria-hidden="true">search</span>
+                  <input id="german-search-input" class="german-search-input" type="search" autocomplete="off" spellcheck="false" placeholder="输入德语单词，例如 Apfel" data-i18n-placeholder="german.searchPlaceholder" />
+                  <button id="german-clear-input" class="german-clear-button" type="button" aria-label="清空搜索" data-i18n-aria="german.clearAria" hidden>
+                    <span class="material-symbols" aria-hidden="true">close</span>
+                  </button>
+                </div>
+                <div id="german-suggestions" class="german-suggestions" role="listbox" aria-label="搜索候选词" data-i18n-aria="german.suggestionsAria" aria-live="polite" hidden></div>
+              </div>
+
+              <div id="german-result-status" class="german-status" aria-live="polite" hidden>
+                <span id="german-status-text" class="german-status__text"></span>
+                <button id="german-retry" class="btn btn--tonal german-retry" type="button" hidden>
+                  <span class="material-symbols" aria-hidden="true">replay</span>
+                  <span data-i18n="german.retry">重试</span>
+                </button>
+              </div>
+
+              <div id="german-detail" class="german-detail" aria-live="polite"></div>
+            </section>
+          </section>
+
           <!-- View 5: Settings & Data -->
           <section class="view view--settings" data-view="settings" aria-labelledby="settings-page-title" hidden>
             <section class="hero-section settings-page__hero">
@@ -222,6 +261,14 @@
                     <span class="settings-menu-item__copy">
                       <strong data-i18n="settings.backupMenu">数据备份与恢复</strong>
                       <span data-i18n="settings.backupMenuSub">导出当前数据，或从 JSON 备份还原。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button class="settings-menu-item" type="button" data-settings-page="german">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--german" aria-hidden="true">text_fields</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.germanMenu">德语助手设置</strong>
+                      <span data-i18n="settings.germanMenuSub">调节查词结果页的字号显示。</span>
                     </span>
                     <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
                   </button>
@@ -625,6 +672,106 @@
                             <span class="material-symbols" aria-hidden="true">add</span>
                             <span data-i18n="settings.addTagBtn">添加标签</span>
                           </button>
+                        </div>
+                      </footer>
+                    </section>
+                  </div>
+                </section>
+
+                <section class="settings-view settings-view--sub" data-settings-view="german" hidden>
+                  <div class="settings-subpage__header">
+                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
+                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
+                      <span data-i18n="common.back">返回</span>
+                    </button>
+                    <h3 data-i18n="settings.germanTitle">德语助手设置</h3>
+                  </div>
+                  <div class="settings-subpage__content">
+                    <!-- Anki LLM 提醒卡片：告知德语助手发音使用 Anki 处理机的 LLM 配置 -->
+                    <section class="backup-card backup-card--german">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--anki" aria-hidden="true">psychology</span>
+                          <div>
+                            <h3 data-i18n="settings.ankiLlmReminderTitle">使用 Anki 处理机的 LLM 配置</h3>
+                            <p data-i18n="settings.ankiLlmReminderSub">德语助手的发音功能复用 Anki 处理机的 LLM 配置（Base URL / 模型 / API Key）。如未配置，将使用匿名 Piper 免费引擎兜底。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <div class="gist-actions">
+                          <button id="btn-german-anki-jump" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">arrow_forward</span>
+                            <span data-i18n="settings.ankiLlmReminderGo">去配置</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+
+                    <section class="backup-card backup-card--german">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--german" aria-hidden="true">text_fields</span>
+                          <div>
+                            <h3 data-i18n="settings.germanSub">调节查词结果页的字号显示。</h3>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <div class="german-font-size" id="german-font-size-field">
+                          <label class="gist-field__label" for="german-font-size-level">
+                            <span data-i18n="settings.germanFontSizeLabel">结果页字号</span>
+                            <small data-i18n="settings.germanFontSizeHint">拖动滑块切换 5 档字号，第 3 档为默认基准；实时作用于结果页所有文本。</small>
+                          </label>
+                          <div class="german-font-size__control">
+                            <input
+                              id="german-font-size-level"
+                              class="german-font-size__range"
+                              type="range"
+                              min="1"
+                              max="5"
+                              step="1"
+                              value="3"
+                              aria-label="德语助手结果页字号档位"
+                            />
+                            <output id="german-font-size-output" class="german-font-size__output" for="german-font-size-level"></output>
+                          </div>
+                          <div class="german-font-size__scale" aria-hidden="true">
+                            <span>最小</span><span>较小</span><span>正常</span><span>较大</span><span>最大</span>
+                          </div>
+                        </div>
+                      </footer>
+                    </section>
+
+                    <!-- TTS API Key 卡片：高音质 Kokoro 模型用 Key，留空则走匿名 Piper 兜底 -->
+                    <section class="backup-card backup-card--german">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--german" aria-hidden="true">record_voice_over</span>
+                          <div>
+                            <h3 data-i18n="settings.ttsKeyTitle">德语发音（TTS）</h3>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <div class="german-tts-key" id="german-tts-key-field">
+                          <label class="gist-field__label" for="german-tts-api-key">
+                            <span data-i18n="settings.ttsKeyLabel">TTS API Key</span>
+                            <small data-i18n="settings.ttsKeyHint">填写 tts.ai 的 Key 启用 Kokoro 高音质德语；留空则用匿名 Piper 免费引擎兜底。仅存本地，不写入日志、不随 Gist 同步。</small>
+                          </label>
+                          <div class="gist-field__control">
+                            <input id="german-tts-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-tts-***" data-i18n-placeholder="settings.ttsKeyPlaceholder" />
+                          </div>
+                          <div class="gist-actions">
+                            <button id="btn-german-tts-key-save" type="button" class="btn btn--filled gist-actions__btn">
+                              <span class="material-symbols" aria-hidden="true">save</span>
+                              <span data-i18n="settings.saveConfig">保存配置</span>
+                            </button>
+                            <button id="btn-german-tts-key-clear" type="button" class="btn gist-actions__btn">
+                              <span class="material-symbols" aria-hidden="true">delete</span>
+                              <span data-i18n="settings.ttsKeyClear">清空</span>
+                            </button>
+                          </div>
                         </div>
                       </footer>
                     </section>

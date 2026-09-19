@@ -25,6 +25,12 @@
 input, textarea {
   -webkit-touch-callout: default;
 }
+/* 始终预留滚动条槽位：文档滚动容器在内容高度不足（如德语助手空态）时
+   浏览器会隐藏纵向滚动条，导致 body 内容宽度瞬变 → 导航栏/布局水平跳动。
+   固定槽位保证不同页面间布局宽度一致，彻底消除滚动条引起的重排位移。
+   不支持 scrollbar-gutter 的旧浏览器自动降级，回退到默认行为（无回归）。 */
+html { scrollbar-gutter: stable; }
+
 body { margin: 0; background: var(--md-surface); color: var(--md-on-surface); }
 body.modal-open {
   position: fixed;

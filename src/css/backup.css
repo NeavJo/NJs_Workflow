@@ -33,6 +33,7 @@
 .backup-icon--anki { background: color-mix(in srgb, #4285f4 18%, transparent); color: #1b62c9; }
 .backup-icon--prompt { background: color-mix(in srgb, #9c27b0 16%, transparent); color: #7b1fa2; }
 .backup-icon--passphrase { background: color-mix(in srgb, #14a37f 16%, transparent); color: #0c7b60; }
+.backup-icon--german { background: color-mix(in srgb, #188058 16%, transparent); color: #1a6a4a; }
 
 .backup-card__footer { display: grid; gap: 12px; }
 .scope-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }

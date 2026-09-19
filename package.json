@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "guard-audit": "node scripts/guard-audit.mjs",
     "lint": "npm run guard-audit",
-    "check": "npm run lint && npm run build"
+    "check": "npm run lint && npm run build",
+    "build:german-dictionary": "node scripts/build-german-dictionary.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-basic-ssl": "^2.3.0",

@@ -12,6 +12,7 @@ import { openTaskForm, closeTaskForm, bindTaskFormEvents } from './task-form.js'
 export { bindTaskFormEvents }
 import { renderGistSettingsInputs } from '../backup/gist-sync.js'
 import { renderDailyResetStatus } from '../backup/daily-reset.js'
+import { renderGermanFontSizeSettings, renderTtsKeyInput } from '../german/german-settings.js'
 /**
  * 设置域事件绑定集合 + 顶级页面进入钩子。
  *  - bindNavigationEvents()：顶部主导航（flow / memo / settings）
@@ -130,7 +131,7 @@ export function bindSettingsEvents() {
   bindSettingsTagCrud(root)
 
   root.querySelectorAll('[data-settings-page]').forEach((item) => {
-    // 幂等守卫：只有此处统一刷新 Gist + daily-reset 状态。
+    // 幂等守卫：只有此处统一刷新各子页动态内容。
     // backup/events.js 与 daily-reset.js 的两处重复监听仅处理自身状态，见各自 dataset.bound。
     if (item.dataset.bound === '1') return
     item.dataset.bound = '1'
@@ -138,6 +139,9 @@ export function bindSettingsEvents() {
       if (item.dataset.settingsPage === 'backup') {
         renderGistSettingsInputs()
         renderDailyResetStatus()
+      } else if (item.dataset.settingsPage === 'german') {
+        renderGermanFontSizeSettings()
+        renderTtsKeyInput()
       }
     })
   })

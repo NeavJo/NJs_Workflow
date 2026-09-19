@@ -58,6 +58,7 @@
 .settings-menu-item__icon--workflow { background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); }
 .settings-menu-item__icon--tag { background: color-mix(in srgb, #e8a317 18%, transparent); color: #8a6300; }
 .settings-menu-item__icon--anki { background: color-mix(in srgb, #4285f4 18%, transparent); color: #1b62c9; }
+.settings-menu-item__icon--german { background: color-mix(in srgb, #188058 16%, transparent); color: #1a6a4a; }
 .settings-menu-item__copy { display: grid; gap: 4px; min-width: 0; }
 .settings-menu-item__copy strong { font-size: 15px; font-weight: 700; }
 .settings-menu-item__copy span { color: var(--md-on-surface-variant); font-size: 12px; line-height: 1.5; }
