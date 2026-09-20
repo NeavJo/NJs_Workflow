@@ -44,6 +44,17 @@ const CACHE_KEY = 'njs-german-cache'
 const LLM_TIMEOUT_MS = 45000
 
 /**
+ * LLM 缓存容量上限（条数）。
+ * 设计约束：
+ * - LocalStorage 单 key 有 ~5MB 限制；每条 detail 含 2~5 条释义（中德双语例句），
+ *   按平均 ~1KB/条估算，500 条 ≈ 0.5MB，留有充足余量。
+ * - 超限时按 last-access 淘汰最旧条目（LRU 近似）：写入新条目时更新 ts，
+ *   读取命中时也刷新 ts；淘汰时取 ts 最小的一条删除。
+ * - 这是软上限：不阻断新写入，仅在 setCachedDetail 后若超出则裁剪。
+ */
+const CACHE_MAX_ENTRIES = 500
+
+/**
  * 系统提示词：指令大模型以严格 JSON 返回德语词典数据。
  * 不包含用户输入的单词，userMessage 会单独传。
  */
@@ -75,7 +86,8 @@ const SYSTEM_PROMPT = `你是一个专业的德语词典助手。请为用户提
 7. 如果单词不存在或无法识别，返回 {"word":"","ipa":"","grammar":"","definitions":[]}`
 
 /**
- * 读取缓存中的词条详情。
+ * 读取缓存中的词条详情（命中时刷新 ts，作为 LRU 触点的近似实现）。
+ * 命中后写回 ts 不触发"超上限裁剪"——只更新单条时间戳，开销可忽略。
  * @param {string} word — 德语单词（原始大小写）
  * @returns {object|null} — 缓存命中返回 detail 对象，未命中返回 null
  */
@@ -84,6 +96,9 @@ export function getCachedDetail(word) {
   const cache = safeStorageGet(CACHE_KEY, {})
   const entry = cache && cache[word]
   if (entry && entry.detail) {
+    // LRU 触点：刷新时间戳使该条目成为"最近访问"，避免下次裁剪时被误淘汰
+    entry.ts = Date.now()
+    safeStorageSet(CACHE_KEY, cache)
     DBG('german:cache:hit', { word, ts: entry.ts })
     return entry.detail
   }
@@ -91,7 +106,8 @@ export function getCachedDetail(word) {
 }
 
 /**
- * 写入缓存。
+ * 写入缓存，并在超过 CACHE_MAX_ENTRIES 时按 ts 升序裁剪最旧条目（LRU 近似）。
+ * 软上限：写入永远成功（除非 safeStorageSet 本身失败），仅多余条目被裁掉。
  * @param {string} word — 德语单词
  * @param {object} detail — 结构化词典数据
  */
@@ -99,8 +115,38 @@ export function setCachedDetail(word, detail) {
   if (!word || !detail) return
   const cache = safeStorageGet(CACHE_KEY, {})
   cache[word] = { detail, ts: Date.now() }
+
+  // 裁剪超上限的旧条目（ts 最小的优先淘汰；新写入的 word 自身被保留）
+  const keys = Object.keys(cache)
+  if (keys.length > CACHE_MAX_ENTRIES) {
+    const excess = keys.length - CACHE_MAX_ENTRIES
+    const sorted = keys
+      .filter((k) => k !== word) // 刚写入的条目不参与淘汰
+      .sort((a, b) => (cache[a]?.ts || 0) - (cache[b]?.ts || 0))
+    for (let i = 0; i < Math.min(excess, sorted.length); i++) {
+      delete cache[sorted[i]]
+    }
+    DBG('german:cache:trim', { word, trimmed: sorted.length, kept: Object.keys(cache).length })
+  }
+
   const ok = safeStorageSet(CACHE_KEY, cache)
   DBG('german:cache:set', { word, ok })
+}
+
+/**
+ * 删除单个词条的缓存（供"重新蒸馏"或用户手动清理使用）。
+ * 不存在的 key 返回 false（无副作用）。
+ * @param {string} word — 德语单词
+ * @returns {boolean} 是否实际删除了条目
+ */
+export function removeCachedDetail(word) {
+  if (!word) return false
+  const cache = safeStorageGet(CACHE_KEY, {})
+  if (!(word in cache)) return false
+  delete cache[word]
+  const ok = safeStorageSet(CACHE_KEY, cache)
+  DBG('german:cache:remove', { word, ok })
+  return ok
 }
 
 /**
@@ -115,20 +161,23 @@ export function clearGermanCache() {
  * 先查缓存，命中直接返回；未命中则调用 LLM 并缓存结果。
  *
  * @param {string} word — 要查询的德语单词
+ * @param {{refetch?:boolean}} [options] — refetch=true 时跳过缓存，强制重新蒸馏（并更新缓存）
  * @returns {Promise<{ok:boolean, detail?:object, cached?:boolean, error?:string, message?:string}>}
  *   - ok:true  → detail 为结构化词典数据；cached:true 表示来自缓存
  *   - ok:false → error 为错误类型标识，message 为可展示文案
  */
-export async function lookupWordViaLLM(word) {
+export async function lookupWordViaLLM(word, options) {
   const w = (word || '').trim()
   if (!w) {
     return { ok: false, error: 'empty', message: '单词为空' }
   }
 
-  // 1. 查缓存
-  const cached = getCachedDetail(w)
-  if (cached) {
-    return { ok: true, detail: cached, cached: true }
+  // 1. 查缓存（refetch=true 时跳过缓存，强制重新蒸馏并刷新缓存）
+  if (!options || !options.refetch) {
+    const cached = getCachedDetail(w)
+    if (cached) {
+      return { ok: true, detail: cached, cached: true }
+    }
   }
 
   // 2. 检查 LLM 凭证
@@ -250,4 +299,4 @@ function normalizeDetail(raw) {
   }
 }
 
-export { CACHE_KEY, LLM_TIMEOUT_MS }
+export { CACHE_KEY, LLM_TIMEOUT_MS, CACHE_MAX_ENTRIES }

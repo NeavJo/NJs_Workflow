@@ -43,6 +43,10 @@ export function resetInput() {
 /**
  * 开始一次详情查询，返回当前序号。
  * 后续 resolveLookup / failLookup 须传入同一序号做竞态校验。
+ *
+ * 同时清空 suggestions：LLM 加载/结果阶段不应保留旧候选下拉，
+ * 与事件层"选中即 setSuggestions([])"保持一致，避免渲染层在
+ * 详情加载期间仍显示旧候选（store 与 events 状态同步）。
  * @param {string} word — 要查询的单词
  * @returns {number} 本轮序号
  */
@@ -53,7 +57,8 @@ export function startLookup(word) {
     detail: null,
     detailLoading: true,
     detailError: '',
-    query: word
+    query: word,
+    suggestions: []
   }
   pubsub.emit(state)
   DBG('german:store:lookup-start', { word, seq: state.detailSeq })

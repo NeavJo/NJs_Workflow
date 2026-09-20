@@ -8,7 +8,9 @@
  * 因此子视图查询范围由原来的 #settings-modal 改为新的设置根节点。
  */
 
-export const TOP_LEVEL_VIEWS = ['flow', 'memo', 'anki', 'monthly', 'german', 'settings']
+// 顺序必须与 index.html 中 nav-item 的 DOM 顺序一致（flow/german/memo/anki/monthly/settings），
+// 否则 switchView 用 indexOf 计算滑动方向时，德语助手等页的进出方向会与导航栏视觉位置相反。
+export const TOP_LEVEL_VIEWS = ['flow', 'german', 'memo', 'anki', 'monthly', 'settings']
 export const SETTINGS_VIEWS = ['main', 'backup', 'anki-api', 'workflow', 'tags', 'german']
 
 let currentView = 'flow'

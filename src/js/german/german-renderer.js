@@ -11,6 +11,7 @@
 import { escapeHtml } from '../utils/dom-utils.js'
 import { I18N } from '../locales.js'
 import { DBG } from '../core/debug.js'
+import { getAnkiSettings } from '../anki/anki-store.js'
 
 /** 视图根选择器 */
 function root() {
@@ -109,7 +110,32 @@ export function renderSkeleton() {
 }
 
 /**
+ * 创建带 class + 文本的 <span> 或 <p> 节点。
+ * @param {string} tag 元素标签
+ * @param {string} className 类名（空格分隔）
+ * @param {string} text 文本内容（已在外层 escapeHtml 过，textContent 无需再转义）
+ */
+function textEl(tag, className, text) {
+  const el = document.createElement(tag)
+  if (className) el.className = className
+  if (text !== undefined && text !== '') el.textContent = text
+  return el
+}
+
+/** 创建材质图标 span（.material-symbols，含 aria-hidden）。 */
+function iconEl(symbol) {
+  const el = document.createElement('span')
+  el.className = 'material-symbols'
+  el.setAttribute('aria-hidden', 'true')
+  el.textContent = symbol
+  return el
+}
+
+/**
  * 渲染完整详情卡（LLM 返回数据后）。
+ * 用 createElement + replaceChildren 构建（与候选词渲染一致），避免 innerHTML 解析开销；
+ * 全部文案经 escapeHtml 后写入 textContent（textContent 本身不解析 HTML，双重保险防注入）。
+ * 保留全部 class 与 DOM 结构不变。
  * @param {object} detail — { word, ipa, grammar, definitions, source }
  */
 export function renderDetail(detail) {
@@ -125,72 +151,130 @@ export function renderDetail(detail) {
   const word = escapeHtml(detail.word || '')
   const ipa = escapeHtml(detail.ipa || '')
   const grammar = escapeHtml(detail.grammar || '')
+  // 数据源展示：优先显示 Anki 处理机设置里配置的 LLM 模型名（用户可见其实际由哪个模型生成），
+  // 未配置模型时回退到 detail.source 对应的原始标签（godic 代理 / Free Dictionary 等）。
+  const configuredModel = (getAnkiSettings().modelId || '').trim()
+  const sourceFallback = escapeHtml(
+    g.sourceLabels?.[detail.source] || detail.source || 'AI'
+  )
+  const source = configuredModel ? escapeHtml(configuredModel) : sourceFallback
+  const speakAria = escapeHtml(g.speakAria || '朗读')
+  const refetchAria = escapeHtml(g.refetchAria || '重新获取')
   const definitions = Array.isArray(detail.definitions) ? detail.definitions : []
-  const source = escapeHtml(detail.source || 'AI')
 
-  // 音标行
-  const phoneticHtml = ipa
-    ? `<p class="german-detail-card__phonetic">${ipa}</p>`
-    : `<p class="german-detail-card__phonetic german-detail-card__phonetic--empty">${escapeHtml(g.missingData || '暂无')}</p>`
+  // 卡片根
+  const card = document.createElement('div')
+  card.className = 'german-detail-card'
 
-  // 释义列表
-  let defsHtml = ''
+  // 头部：单词行 + 音标行
+  const header = document.createElement('div')
+  header.className = 'german-detail-card__header'
+
+  const wordRow = document.createElement('div')
+  wordRow.className = 'german-detail-card__word-row'
+  wordRow.appendChild(textEl('span', 'german-detail-card__word', word))
+
+  const speakBtn = document.createElement('button')
+  speakBtn.type = 'button'
+  speakBtn.className = 'german-speak btn btn--icon'
+  speakBtn.setAttribute('aria-label', speakAria)
+  speakBtn.setAttribute('title', speakAria)
+  speakBtn.appendChild(iconEl('volume_up'))
+
+  const refetchBtn = document.createElement('button')
+  refetchBtn.type = 'button'
+  refetchBtn.className = 'german-refetch btn btn--icon'
+  refetchBtn.setAttribute('aria-label', refetchAria)
+  refetchBtn.setAttribute('title', refetchAria)
+  refetchBtn.appendChild(iconEl('refresh'))
+
+  wordRow.appendChild(speakBtn)
+  wordRow.appendChild(refetchBtn)
+
+  // 音标行（无音标时显示"暂无"）
+  const phonetic = ipa
+    ? textEl('p', 'german-detail-card__phonetic', ipa)
+    : textEl('p', 'german-detail-card__phonetic german-detail-card__phonetic--empty', escapeHtml(g.missingData || '暂无'))
+
+  header.appendChild(wordRow)
+  header.appendChild(phonetic)
+
+  // 操作区：加生词本
+  const actions = document.createElement('div')
+  actions.className = 'german-detail-card__actions'
+  const addBtn = document.createElement('button')
+  addBtn.type = 'button'
+  addBtn.className = 'german-add-memo btn btn--tonal'
+  addBtn.appendChild(iconEl('add_circle'))
+  addBtn.appendChild(textEl('span', '', escapeHtml(g.addMemo || '添加到生词本')))
+  actions.appendChild(addBtn)
+
+  // 词典结果（<details open>）：语法 + 释义列表
+  const dict = document.createElement('details')
+  dict.className = 'german-dict'
+  dict.open = true
+  dict.appendChild(textEl('summary', 'german-dict__summary', escapeHtml(g.resultsTitle || '词典结果')))
+
+  const dictBody = document.createElement('div')
+  dictBody.className = 'german-dict__body'
+
+  if (grammar) {
+    const meta = document.createElement('div')
+    meta.className = 'german-entry__meta'
+    const inf = document.createElement('div')
+    inf.className = 'german-inflection'
+    inf.textContent = grammar
+    meta.appendChild(inf)
+    dictBody.appendChild(meta)
+  }
+
   if (definitions.length === 0) {
-    defsHtml = `<p class="german-missing">${escapeHtml(g.missingData || '暂无数据')}</p>`
+    dictBody.appendChild(textEl('p', 'german-missing', escapeHtml(g.missingData || '暂无数据')))
   } else {
-    defsHtml = '<ol class="german-definitions">'
+    const ol = document.createElement('ol')
+    ol.className = 'german-definitions'
     for (const d of definitions) {
       const meaning = escapeHtml(d.meaning || '')
       const tag = escapeHtml(d.tag || '')
       const exDe = escapeHtml(d.example_de || '')
       const exCn = escapeHtml(d.example_cn || '')
-      const examplesHtml = (exDe || exCn)
-        ? `<ul class="german-examples"><li class="german-example"><i>${exDe}</i><span>(${exCn})</span></li></ul>`
-        : ''
-      defsHtml +=
-        `<li class="german-definition">` +
-          (tag ? `<div class="german-definition__trans">${tag}</div>` : '') +
-          `<div class="german-definition__main">${meaning}</div>` +
-          examplesHtml +
-        `</li>`
-    }
-    defsHtml += '</ol>'
-  }
 
-  // 语法信息
-  const grammarHtml = grammar
-    ? `<div class="german-inflection">${grammar}</div>`
-    : ''
+      const li = document.createElement('li')
+      li.className = 'german-definition'
+      if (tag) li.appendChild(textEl('div', 'german-definition__trans', tag))
+      li.appendChild(textEl('div', 'german-definition__main', meaning))
+
+      if (exDe || exCn) {
+        const ul = document.createElement('ul')
+        ul.className = 'german-examples'
+        const exLi = document.createElement('li')
+        exLi.className = 'german-example'
+        const em = document.createElement('i')
+        em.textContent = exDe
+        exLi.appendChild(em)
+        exLi.appendChild(textEl('span', '', '(' + exCn + ')'))
+        ul.appendChild(exLi)
+        li.appendChild(ul)
+      }
+      ol.appendChild(li)
+    }
+    dictBody.appendChild(ol)
+  }
+  dict.appendChild(dictBody)
+
+  // 数据源行
+  const sourceRow = document.createElement('div')
+  sourceRow.className = 'german-detail-card__source'
+  sourceRow.appendChild(textEl('span', 'german-detail-card__source-label',
+    escapeHtml(g.sourceLabel || '数据源') + ': ' + source))
+
+  card.appendChild(header)
+  card.appendChild(actions)
+  card.appendChild(dict)
+  card.appendChild(sourceRow)
 
   el.hidden = false
-  el.innerHTML =
-    '<div class="german-detail-card">' +
-      `<div class="german-detail-card__header">` +
-        `<div class="german-detail-card__word-row">` +
-          `<span class="german-detail-card__word">${word}</span>` +
-          `<button class="german-speak btn btn--icon" type="button" aria-label="${escapeHtml(g.speakAria || '朗读')}" title="${escapeHtml(g.speakAria || '朗读')}">` +
-            `<span class="material-symbols" aria-hidden="true">volume_up</span>` +
-          `</button>` +
-        `</div>` +
-        phoneticHtml +
-      `</div>` +
-      `<div class="german-detail-card__actions">` +
-        `<button class="german-add-memo btn btn--tonal" type="button">` +
-          `<span class="material-symbols" aria-hidden="true">add_circle</span>` +
-          `<span>${escapeHtml(g.addMemo || '添加到生词本')}</span>` +
-        `</button>` +
-      `</div>` +
-      `<details class="german-dict" open>` +
-        `<summary class="german-dict__summary">${escapeHtml(g.resultsTitle || '词典结果')}</summary>` +
-        `<div class="german-dict__body">` +
-          (grammarHtml ? `<div class="german-entry__meta">${grammarHtml}</div>` : '') +
-          defsHtml +
-        `</div>` +
-      `</details>` +
-      `<div class="german-detail-card__source">` +
-        `<span class="german-detail-card__source-label">${escapeHtml(g.sourceLabel || '数据源')}: ${source}</span>` +
-      `</div>` +
-    '</div>'
+  el.replaceChildren(card)
 
   DBG('german:render:detail', { word: detail.word, defs: definitions.length })
 }
@@ -198,9 +282,38 @@ export function renderDetail(detail) {
 /**
  * 主渲染入口：根据 store 快照决定渲染什么。
  * 由 onGermanStateChange 订阅回调调用。
+ *
+ * 脏检查：渲染是幂等的（相同 state 产生相同 DOM），因此仅当
+ * 关键字段（suggestions / detailLoading / detailError / detail）真正变化
+ * 或子页不可见（需强制渲染）时才重渲染，避免每次 PubSub emit 都全量重渲染。
  */
+let _lastRendered = null
+
+/** 判断两次快照是否等效（关键渲染字段逐一比较）。 */
+function isSameRenderSnapshot(prev, next) {
+  if (!prev) return false
+  if (prev.detailLoading !== next.detailLoading) return false
+  if (prev.detailError !== next.detailError) return false
+  // 详情对象：按引用比较（store 每次写都是新对象；未变时为同一引用）
+  if (prev.detail !== next.detail) return false
+  // 候选词：按长度 + 首尾项引用比较，避免每次全量 diff
+  const ps = prev.suggestions || []
+  const ns = next.suggestions || []
+  if (ps.length !== ns.length) return false
+  if (ps.length > 0) {
+    if (ps[0].word !== ns[0].word) return false
+    if (ps[ps.length - 1].word !== ns[ns.length - 1].word) return false
+  }
+  return true
+}
+
 export function renderGermanAssistant(state) {
   if (!root()) return
+  // 子页不可见（如字号订阅回调在其它视图触发）时强制渲染，绕过脏检查
+  const visible = document.querySelector('.view--german') !== null
+
+  if (visible && isSameRenderSnapshot(_lastRendered, state)) return
+  _lastRendered = state
 
   // 候选词（本地即时）
   renderSuggestions(state.suggestions || [])

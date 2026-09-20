@@ -61,13 +61,25 @@ export function renderGermanFontSizeSettings() {
   DBG('german-settings:render', { level })
 }
 
+/** 按档位实时刷新右侧"第 X 档"标签（与滑块值同步；子页不可见时安全返回）。 */
+function refreshFontSizeOutput(level) {
+  const output = getFontOutput()
+  if (!output) return
+  const labels = getFontLevelLabels()
+  const label = labels[level - 1] || ''
+  output.textContent = t(I18N.settings.germanFontSizeLevel, { level, label })
+}
+
 /** 滑块输入时实时更新档位（含持久化 + 应用 + 发布；失败不前进）。 */
 function handleFontSizeInput() {
   const input = getFontInput()
   if (!input) return
   const level = Number(input.value)
   if (!Number.isInteger(level)) return
-  setGermanFontSizeLevel(level)
+  // setGermanFontSizeLevel 内部已做持久化 + 应用 DOM + 发布 PubSub（结果页即时重渲染）
+  const ok = setGermanFontSizeLevel(level)
+  // 持久化成功才刷新右侧标签，避免与内存档位不同步（失败时档位回滚为旧值，标签不应前进）
+  if (ok) refreshFontSizeOutput(level)
 }
 
 /** 绑定滑块事件；幂等，重复调用直接返回。 */

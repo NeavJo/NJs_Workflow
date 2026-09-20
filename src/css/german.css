@@ -178,6 +178,18 @@
 }
 .german-speak .material-symbols { font-size: 24px; }
 .german-speak:hover { background: var(--md-primary); color: var(--md-on-primary); transform: rotate(-8deg); }
+.german-refetch {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--md-secondary);
+  background: color-mix(in srgb, var(--md-secondary) 12%, transparent);
+}
+.german-refetch .material-symbols { font-size: 22px; }
+.german-refetch:hover { background: var(--md-secondary); color: var(--md-on-secondary); transform: rotate(360deg); transition: transform .4s ease; }
 .german-detail-card__phonetic {
   margin: 8px 0 0;
   font-size: calc(var(--german-font-scale, 1) * 15px);
@@ -247,15 +259,15 @@
   font-weight: 700;
   white-space: nowrap;
 }
-.german-font-size__scale {
+/* ===== 设置页 TTS API Key 卡片（德语助手设置子页） =====
+ * .german-tts-key 复用 .gist-field__label / .gist-field__control 子元素，但无专属间距：
+ * label 内的说明文字（small）会紧贴下方输入框。这里加内部 flex 列 + gap 撑开，
+ * 同时保留 label 与 control 各自 margin:0，间距完全由 gap 控制，避免二次叠加。 */
+.german-tts-key {
   display: flex;
-  justify-content: space-between;
-  padding: 0 2px;
-  color: var(--md-on-surface-variant);
-  font-size: 11px;
-  opacity: .8;
+  flex-direction: column;
+  gap: 14px;
 }
-.german-font-size__scale span { flex: 1; text-align: center; }
 
 /* ===== 字号缩放变量 =====
  * --german-font-scale 由 german-font-size.js 应用到 .view--german 根节点。
@@ -413,7 +425,8 @@
   .german-search-field,
   .german-suggestion,
   .german-dict__summary::before,
-  .german-speak { transition: none; }
+  .german-speak,
+  .german-refetch { transition: none; }
   .german-skeleton__bar,
   .german-skeleton__circle { animation-duration: 0s; }
 }

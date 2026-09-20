@@ -100,40 +100,92 @@ const POS_LABELS = {
 /**
  * 解析静态数据 URL：自动适配部署路径。
  *
- * 实现策略（按优先级）：
- * 1. 当前页面 URL 是二级路径（如 https://user.github.io/NJs_Workflow/）：
- *    取 origin + 第一段路径作 base → /NJs_Workflow/data/german/...
- * 2. 当前页面 URL 是根路径（如 https://user.github.io/ 或 http://localhost:5173/）：
- *    base = '/' → /data/german/...
- * 3. 兜底：当前页面 URL 形如 /NJs_Workflow/german/（带子路由）：
- *    仍取第一段路径作 base
+ * 核心策略（按优先级）：
+ * 1. 优先使用 Vite 的 BASE_URL（import.meta.env.BASE_URL）。
+ *    Vite 在 dev 与 build 阶段都会将其静态替换为 vite.config.js 里 base 的实际值：
+ *      - dev（base: '/NJs_Workflow/'）→ '/NJs_Workflow/'
+ *      - build（GitHub Pages）        → 同样的绝对前缀
+ *    这是与"资源 URL 前缀"唯一权威、永远一致的来源。
+ *
+ * 2. 仅当 BASE_URL 为 undefined（手动全量复制 dist 后用浏览器原生打开、
+ *    或非 Vite 环境下运行打包后的 JS 模块）才回退到 window.location 推导：
+ *    - 二级路径（如 https://user.github.io/NJs_Workflow/）→ 取第一段路径作 base
+ *    - 根路径（如 http://localhost:5173/）                → base = '/'
+ *
+ * 3. dev server 下的兜底校验：BASE_URL 拼接出的 URL 在 dev server 下不总是
+ *    可命中（vite dev 对 base 前缀的处理在不同版本/配置下可能不一致）。
+ *    因此 resolveDataUrl 仅作为"首选 URL"返回，loadGermanDictionary /
+ *    loadFullIndex 会先用该 URL fetch；若 4xx/5xx 失败，再尝试
+ *    window.location 推导出的备选 URL 重试一次（见 loadWithRetry）。
  *
  * 说明：
- * - 不依赖 import.meta.env，因为 Vite 构建会对 `import.meta.env` 做静态优化，
- *   在某些部署场景下（手动全量复制 dist、或浏览器直接访问 JS 模块）会导致
- *   `import.meta.env` 为 undefined 而报错。用 window.location 推导 base
- *   在任何浏览器环境下都可用。
- * - 与 vite.config.js 的 base 配置保持一致：构建产物里的资源 URL 也带同样的前缀。
+ * - 之所以用 BASE_URL 而非纯 window.location：window.location 的 hostname 判断
+ *   无法感知 vite.config.js 的 base 前缀。当 dev server 也配置了
+ *   base: '/NJs_Workflow/' 时，整个应用被挂载在 /NJs_Workflow/ 下，
+ *   旧逻辑按 isLocalhost 直接拼出 /data/german/... 会丢掉前缀导致 404。
+ *
+ * 性能：URL 在同一会话中固定不变，缓存计算结果（relPath → url）。
+ * loadGermanDictionary 与 loadFullIndex 各调用一次，避免重复推导。
+ */
+const _urlCache = new Map()
+
+/** 计算基于 window.location 推导的 URL（手动打开 dist / 浏览器直连 场景的兜底） */
+function resolveUrlViaLocation(clean) {
+  if (typeof window === 'undefined' || !window.location) return '/' + clean
+  const firstSeg = window.location.pathname.split('/').filter(Boolean)[0] || ''
+  return firstSeg ? `/${firstSeg}/${clean}` : `/${clean}`
+}
+
+/** 读取 Vite 注入的 base 前缀；非 Vite 环境（原生浏览器打开 dist）时为 undefined */
+function getViteBase() {
+  try {
+    return typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * 返回 { primary, alternate }：
+ * - primary: 首选 URL（优先 Vite BASE_URL；BASE_URL 缺失时用 window.location 推导）
+ * - alternate: 另一个候选 URL（BASE_URL 缺失时为 null）
+ * 同一 relPath 在同一会话中 URL 固定，缓存结果避免重复推导。
  */
 function resolveDataUrl(relPath) {
+  if (_urlCache.has(relPath)) return _urlCache.get(relPath)
   const clean = relPath.replace(/^\/+/, '')
-  if (typeof window === 'undefined' || !window.location) {
-    // SSR / 测试环境兜底
-    return '/' + clean
+
+  const base = getViteBase()
+  if (base) {
+    // BASE_URL 形如 '/NJs_Workflow/' 或 '/'，保证以 / 结尾再拼接相对路径
+    const prefix = base.endsWith('/') ? base : base + '/'
+    const primary = prefix + clean
+    const alternate = resolveUrlViaLocation(clean)
+    const result = { primary, alternate: alternate === primary ? null : alternate }
+    _urlCache.set(relPath, result)
+    DBG('german:dict:url', { relPath, primary, alternate: result.alternate, via: 'BASE_URL' })
+    return result
   }
-  const { hostname, pathname } = window.location
-  // 二级路径检测：hostname 不是 localhost / IP 且 pathname 第一段非空
-  const firstSeg = pathname.split('/').filter(Boolean)[0] || ''
-  const isLocalhost =
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '[::1]' ||
-    /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)
-  if (!isLocalhost && firstSeg) {
-    // GitHub Pages 二级路径：https://user.github.io/<firstSeg>/...
-    return `/${firstSeg}/${clean}`
+
+  // BASE_URL 缺失（手动打开 dist / 非 Vite 环境）：仅 window.location 推导
+  const primary = resolveUrlViaLocation(clean)
+  _urlCache.set(relPath, { primary, alternate: null })
+  DBG('german:dict:url', { relPath, primary, via: 'window.location' })
+  return { primary, alternate: null }
+}
+
+/**
+ * 带兜底重试的 fetch：先用 primary URL；若 4xx/5xx 且存在 alternate，再用 alternate 重试一次。
+ * 返回 res（由调用方判断 ok / 解析 json），永不 reject 4xx（交给调用方按 HTTP 状态码处理）。
+ * 说明：仅针对 4xx/5xx 响应做重试（避免网络错误被吞掉后误判为"成功"）。
+ */
+async function fetchDataWithFallback(primary, alternate, relPath) {
+  let res = await fetch(primary)
+  if (res.status >= 400 && alternate) {
+    DBG('german:dict:fetch-fallback', { relPath, primary, alternate, from: res.status })
+    res = await fetch(alternate)
   }
-  return `/${clean}`
+  return res
 }
 
 /** 将文本中的德语变音字母降级为纯字母（ä→a, ö→o, ü→u），用于非变音 query 的模糊匹配 */
@@ -146,6 +198,31 @@ let activeEntries = FALLBACK_DICTIONARY.map((e) => {
   const st = e.word.toLowerCase()
   return { search_term: st, fuzzy_term: toFuzzyTerm(st), word: e.word, pos: e.pos, brief: e.zh }
 })
+
+/**
+ * 前缀分桶索引：首字母 → 条目数组。
+ * 搜索时只需遍历与 query 首字母匹配的桶（通常是几百~几千条），而非全量 125k 条。
+ * 当 query 为空或首字母未知时回退到全量扫描（极少发生）。
+ * 由 applyEntries 在词库加载时重建。
+ */
+let prefixBuckets = new Map()
+
+/**
+ * 重建前缀分桶索引（在 activeEntries 被替换后调用）。
+ * 设计约束：桶按 search_term 首字符分组；fuzzy_term 共享同一桶（同一词形）。
+ * 空首字符或首字符为 '\0'（NUL）的条目归入 '' 桶（极少，兜底）。
+ */
+function rebuildPrefixBuckets(entries) {
+  prefixBuckets = new Map()
+  for (const entry of entries) {
+    const ch = entry.search_term.charAt(0) || ''
+    if (!prefixBuckets.has(ch)) prefixBuckets.set(ch, [])
+    prefixBuckets.get(ch).push(entry)
+  }
+}
+
+/** 初始化时构建兜底词库的索引 */
+rebuildPrefixBuckets(activeEntries)
 
 /** 是否已完成首层索引加载 */
 let coreLoaded = false
@@ -221,15 +298,31 @@ function buildSuggestion(entry) {
 }
 
 /**
+ * 确定性次级排序比较器：search_term → pos → word。
+ * 保留 localeCompare（Unicode 感知排序）以保证与优化前结果顺序完全一致。
+ * 说明：排序仅作用于"匹配后"的少量候选（精确/前缀/包含三组合计通常 < 100 条），
+ * 非全量 125k 条，localeCompare 开销可忽略。性能瓶颈在"匹配扫描"而非"排序"，
+ * 已由前缀分桶索引解决。
+ */
+const secondarySort = (a, b) =>
+  a.search_term.localeCompare(b.search_term) ||
+  a.pos.localeCompare(b.pos) ||
+  a.word.localeCompare(b.word)
+
+/**
  * 本地模糊匹配：精确匹配优先 → 前缀匹配 → 包含匹配。
- * 搜索全量 activeEntries，不因提前收集到足够候选而退出。
+ * 性能优化（2026-09 重构）：
+ *   - 精确/前缀匹配走前缀分桶索引（只遍历 query 首字母桶，通常几百~几千条），
+ *     避免对 125k 条做全量精确/前缀扫描（核心瓶颈）
+ *   - 包含匹配仍全量扫描（includes 可能命中 query 不在词首的条目，分桶不安全）
+ *   - 排序保留 localeCompare（Unicode 感知），作用于匹配后少量候选，保证结果顺序与优化前一致
  *
  * 非对称变音模糊匹配（Umlaut fuzzy matching）：
- *   - 无变音 query（如 "haus"）：同时比较原始 search_term 和降级 fuzzy_term（ä→a, ö→o, ü→u），
+ *   - 无变音 query（如 "haus"）：先比较原始 search_term，未命中再比较降级 fuzzy_term（ä→a, ö→o, ü→u），
  *     使得输入 "haus" 可以命中 "Haus"（精确）和 "Häuschen"（fuzzy 前缀）。
  *   - 有变音 query（如 "häus"）：只比较原始 search_term（含变音），
  *     使得输入 "häus" 只能命中 "Häuschen"，不能命中 "Haus"。
- * 同级结果按确定性的次级排序（search_term 字母序 + pos + word）保持稳定。
+ * 同级结果按确定性的次级排序（search_term 码点序 + pos + word）保持稳定。
  * 去重展示词，保持大小写不敏感和 ß/ss 兼容。
  * @param {string} query — 用户输入
  * @param {number} limit — 最大返回条数
@@ -245,29 +338,41 @@ export function searchLocalDictionary(query, limit = 8) {
   const prefixMatches = []
   const includesMatches = []
 
-  for (const entry of activeEntries) {
+  // --- 第一遍：精确 + 前缀匹配（走分桶，只遍历 query 首字母桶） ---
+  // 前缀分桶：只遍历与 query 首字母匹配的桶。桶不存在时回退全量（极少发生，兜底安全）。
+  const firstCh = q.charAt(0)
+  const bucketEntries = prefixBuckets.has(firstCh)
+    ? prefixBuckets.get(firstCh)
+    : activeEntries
+
+  // 记录第一遍已匹配的 entry 引用，供第二遍快速跳过（O(1) 查找，避免 O(n·m) 的 includes）
+  const matchedInFirstPass = new Set()
+
+  for (const entry of bucketEntries) {
     const w = entry.search_term
-    // 非变音模式下使用预计算的 fuzzy_term 做匹配；有变音模式只比较原始 search_term
     const fw = umlautMode ? '' : entry.fuzzy_term
 
-    // 精确匹配：非变音模式下，原始 search_term 或 fuzzy_term 等于 q 都算精确
     if (w === q || (!umlautMode && fw === q)) {
       exactMatches.push(entry)
-    // 前缀匹配：非变音模式下，原始 search_term 或 fuzzy_term 以 q 开头
+      matchedInFirstPass.add(entry)
     } else if (w.startsWith(q) || (!umlautMode && fw.startsWith(q))) {
       prefixMatches.push(entry)
-    // 包含匹配：非变音模式下，原始 search_term 或 fuzzy_term 包含 q
-    } else if (w.includes(q) || (!umlautMode && fw.includes(q))) {
+      matchedInFirstPass.add(entry)
+    }
+  }
+
+  // --- 第二遍：包含匹配（全量扫描，includes 可能命中 query 不在词首的条目） ---
+  // 同一 entry 不会既被归入精确/前缀又归入包含（语义与原实现一致），用 Set 快速跳过
+  for (const entry of activeEntries) {
+    if (matchedInFirstPass.has(entry)) continue
+    const w = entry.search_term
+    const fw = umlautMode ? '' : entry.fuzzy_term
+    if (w.includes(q) || (!umlautMode && fw.includes(q))) {
       includesMatches.push(entry)
     }
   }
 
-  // 对每组做确定性次级排序：search_term 字母序 → pos → word
-  const secondarySort = (a, b) =>
-    a.search_term.localeCompare(b.search_term) ||
-    a.pos.localeCompare(b.pos) ||
-    a.word.localeCompare(b.word)
-
+  // 对每组做确定性次级排序：search_term 码点序 → pos → word
   exactMatches.sort(secondarySort)
   prefixMatches.sort(secondarySort)
   includesMatches.sort(secondarySort)
@@ -328,9 +433,9 @@ export function loadGermanDictionary() {
   // 首层加载（幂等）
   if (!coreLoadPromise) {
     coreLoadPromise = (async () => {
-      const url = resolveDataUrl('data/german/index-core.json')
+      const { primary, alternate } = resolveDataUrl('data/german/index-core.json')
       try {
-        const res = await fetch(url)
+        const res = await fetchDataWithFallback(primary, alternate, 'data/german/index-core.json')
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         if (!Array.isArray(data)) throw new Error('索引格式错误：非数组')
@@ -342,6 +447,7 @@ export function loadGermanDictionary() {
           pos: e.pos,
           brief: e.brief
         }))
+        rebuildPrefixBuckets(activeEntries)
         coreLoaded = true
         DBG('german:dict:core-loaded', { count: activeEntries.length })
 
@@ -371,9 +477,9 @@ export function loadGermanDictionary() {
 /** 加载完整索引（约 5 万条） */
 function loadFullIndex() {
   fullLoadPromise = (async () => {
-    const url = resolveDataUrl('data/german/index.json')
+    const { primary, alternate } = resolveDataUrl('data/german/index.json')
     try {
-      const res = await fetch(url)
+      const res = await fetchDataWithFallback(primary, alternate, 'data/german/index.json')
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       if (!Array.isArray(data)) throw new Error('索引格式错误：非数组')
@@ -385,6 +491,7 @@ function loadFullIndex() {
         pos: e.pos,
         brief: e.brief
       }))
+      rebuildPrefixBuckets(activeEntries)
       fullLoaded = true
       DBG('german:dict:full-loaded', { count: activeEntries.length })
 

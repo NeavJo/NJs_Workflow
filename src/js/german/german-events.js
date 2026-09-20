@@ -22,7 +22,7 @@ import {
   onDictionaryLoaded,
   setPendingQuery
 } from './german-dictionary.js'
-import { lookupWordViaLLM } from './german-llm.js'
+import { lookupWordViaLLM, removeCachedDetail } from './german-llm.js'
 import { getGermanTtsApiKey } from './german-font-size.js'
 import {
   setSuggestions,
@@ -65,7 +65,7 @@ function runSuggest(query) {
 }
 
 // ── LLM 详情查询 ──
-async function runLookup(word) {
+async function runLookup(word, options) {
   const w = (word || '').trim()
   if (!w) {
     showToast(t(I18N.german.toasts.searchEmpty))
@@ -74,7 +74,7 @@ async function runLookup(word) {
 
   const seq = startLookup(w)
 
-  const result = await lookupWordViaLLM(w)
+  const result = await lookupWordViaLLM(w, options)
   if (!result.ok) {
     failLookup(result.message || I18N.german.toasts.searchFailed, seq)
     return
@@ -83,9 +83,20 @@ async function runLookup(word) {
   // 缓存命中提示
   if (result.cached) {
     showToast('缓存命中', { status: 'info' })
+  } else if (options && options.refetch) {
+    // 重新获取成功（走了 LLM 刷新缓存）
+    showToast(t(I18N.german.toasts.refetchDone, { word: w }), { status: 'success' })
   }
 
   resolveLookup(result.detail, seq)
+}
+
+/** 重新获取按钮：清除本地缓存并强制重新蒸馏。 */
+function runRefetch() {
+  const w = getDetailWord()
+  if (!w) return
+  removeCachedDetail(w)
+  runLookup(w, { refetch: true })
 }
 
 // ── 发音 ──
@@ -97,12 +108,23 @@ async function runLookup(word) {
 /** 单源请求超时阈值（毫秒） */
 const TTS_TIMEOUT_MS = 8000
 
-/** TTS.ai 轮询间隔（毫秒）与最大轮询次数。 */
-const TTAI_POLL_INTERVAL_MS = 1200
+/** TTS.ai 最大轮询次数。 */
 const TTAI_POLL_MAX = 7
+
+/**
+ * 轮询指数退避基数（毫秒）。
+ * 第 i 次（从 1 开始）未命中时的等待 = min(base * 2^(i-1), 上限)。
+ * 总耗时仍受 TTS_TIMEOUT_MS 约束（for 循环每次开头都检查 deadline），
+ * 故最坏轮询次数不超过 TTAI_POLL_MAX，行为上界不变，只是把请求摊得更稀。
+ */
+const TTAI_POLL_BACKOFF_BASE_MS = 600
+const TTAI_POLL_BACKOFF_MAX_MS = 3000
 
 /** 当前正在播放的 Audio，避免多源叠加。 */
 let activeAudio = null
+
+/** TTS 重入守卫：同一时刻只允许一个 speakViaTtsAi 在跑。 */
+let ttsInFlight = false
 
 /**
  * TTS.ai 神经网络源：POST /v1/tts/ → 轮询结果 → 下载 MP3。
@@ -111,7 +133,7 @@ let activeAudio = null
  *   - 无 Key：直接匿名 Piper（免 Key 免费层），保证离线/未配置也能发音。
  * 流程为异步队列制：
  *   1) POST /v1/tts/ 提交任务（可能带 Key）→ 返回 uuid
- *   2) 轮询 GET /v1/speech/results/?uuid= 直至 status=completed → 返回 result_url
+ *   2) 轮询 GET /v1/speech/results/?uuid= 直至 status=completed（指数退避）→ 返回 result_url
  *   3) 下载 result_url 音频 Blob 并播放
  * 整体受 TTS_TIMEOUT_MS 约束，超时或任一环节失败抛错（由上层 Toast 处理，不回退浏览器语音）。
  */
@@ -161,6 +183,8 @@ function speakViaTtsAi(word) {
     if (!uuid) throw new Error('no uuid')
 
     // 2) 轮询结果直至 completed（受 deadline 约束）
+    // 指数退避：第 i 次未命中等待 base * 2^(i-1)，封顶 TTAI_POLL_BACKOFF_MAX_MS。
+    // 相比固定 1200ms，退避把高频无效轮询摊薄，同时 deadline 兜底保证总时长不变上界。
     let resultUrl = ''
     for (let i = 0; i < TTAI_POLL_MAX; i++) {
       if (Date.now() >= deadline) throw new Error('poll timeout')
@@ -175,7 +199,16 @@ function speakViaTtsAi(word) {
         break
       }
       if (pollData.status === 'failed') throw new Error('ttsai job failed')
-      await sleep(TTAI_POLL_INTERVAL_MS)
+      // 最后一次轮询无需再等待（循环即将结束且会由 deadline / !resultUrl 判定超时）
+      if (i < TTAI_POLL_MAX - 1) {
+        const waitMs = Math.min(
+          TTAI_POLL_BACKOFF_BASE_MS * Math.pow(2, i),
+          TTAI_POLL_BACKOFF_MAX_MS
+        )
+        await sleep(waitMs)
+        // 等待后再次检查 deadline：退避时间可能已耗尽总预算，避免空耗
+        if (Date.now() >= deadline) throw new Error('poll timeout')
+      }
     }
     if (!resultUrl) throw new Error('poll timeout')
 
@@ -213,10 +246,19 @@ function playAudioBlob(blob) {
  * 发音入口：仅使用 TTS.ai 网络音频源（kokoro → 匿名 piper 回退）。
  * 失败（网络/超时/HTTP/autoplay 拦截）时静默捕获并弹一次 Toast，
  * 绝不回退到浏览器默认语音。
+ *
+ * 重入守卫：同一时刻只允许一个发音任务在跑；
+ * 若前一个仍在飞行中，本次直接忽略（避免多任务并发抢 activeAudio、
+ * 多次弹窗、轮询风暴）。用户需等上一次完成后再点。
  */
 function speakWord(word) {
   const w = (word || '').trim()
   if (!w) return
+  if (ttsInFlight) {
+    DBG('german:speak:skip-reentrant', { word: w })
+    return
+  }
+  ttsInFlight = true
   DBG('german:speak', { word: w })
 
   speakViaTtsAi(w)
@@ -227,6 +269,9 @@ function speakWord(word) {
       DBG('german:speak:source-failed', { word: w, err: String(err) })
       // 网络源失败：静默捕获，仅弹一次轻量提示，不播放任何语音
       showToast(I18N.german.toasts.speakNetworkFailed, { status: 'error' })
+    })
+    .finally(() => {
+      ttsInFlight = false
     })
 }
 
@@ -336,6 +381,10 @@ function bindDetailActions() {
   rootEl.addEventListener('click', (event) => {
     if (event.target.closest('.german-speak')) {
       speakWord(getDetailWord())
+      return
+    }
+    if (event.target.closest('.german-refetch')) {
+      runRefetch()
       return
     }
     if (event.target.closest('.german-add-memo')) {

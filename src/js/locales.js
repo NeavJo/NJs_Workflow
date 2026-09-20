@@ -205,9 +205,9 @@ export const I18N = {
   german: {
     eyebrow: 'GERMAN · DICTIONARY',
     title: '德语助手<span>·查词即记</span>',
-    heroCopy: '输入德语单词，查询释义、音标、例句，并快速加入生词本。',
+    heroCopy: '输入德语表达，查询释义、音标、例句，并快速加入生词本。支持中文反查。',
     searchAria: '德语单词搜索',
-    searchPlaceholder: '输入德语单词，例如 Apfel',
+    searchPlaceholder: '例: "Apfel", "香蕉", "fröhlich的反义词是什么"',
     clearAria: '清空搜索',
     suggestionsAria: '搜索候选词',
     loadingSuggestions: '正在匹配候选词…',
@@ -221,6 +221,7 @@ export const I18N = {
     inflectionLabel: '变格',
     examplesLabel: '双语例句',
     addMemo: '添加到生词本',
+    refetchAria: '重新获取该词的最新释义（忽略本地缓存）',
     speakAria: '朗读德语单词',
     sourceLabel: '数据源',
     godicLabel: '德语助手',
@@ -236,7 +237,8 @@ export const I18N = {
       noData: '公开数据源未返回该词信息。',
       memoAdded: '「{word}」已加入生词本。',
       memoFailed: '添加生词本失败，请检查本地存储。',
-      speakNetworkFailed: '网络发音加载失败'
+      speakNetworkFailed: '网络发音加载失败',
+      refetchDone: '「{word}」已重新获取最新释义。'
     }
   },
 
@@ -322,10 +324,10 @@ export const I18N = {
     tagsMenu: '生词本标签管理',
     tagsMenuSub: '维护生词本分类标签，管理自定义标签。',
     germanMenu: '德语助手设置',
-    germanMenuSub: '调节查词结果页的字号显示。',
+    germanMenuSub: '字体大小，TTS配置相关。',
 
     germanTitle: '德语助手设置',
-    germanSub: '调节德语助手查词结果页的字号，保存后下次打开自动生效。',
+    germanSub: '调节德语助手查词结果的字号。',
     germanFontSizeLabel: '结果页字号',
     germanFontSizeHint: '拖动滑块切换 5 档字号，第 3 档为默认基准；实时作用于结果页所有文本。',
     germanFontSizeLevel: '第 {level} 档（{label}）',
