@@ -8,6 +8,8 @@ permissions:
 concurrency:
   group: pages-deploy
   cancel-in-progress: false
+env:
+  NODE_VERSION: 22
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,10 +19,19 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
+      - name: Verify Node & npm
+        run: |
+          node -v
+          npm -v
       - name: Install deps
-        run: npm install
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
       - name: Build
         run: npm run build
       - name: Verify dist
@@ -37,10 +48,19 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
+      - name: Verify Node & npm
+        run: |
+          node -v
+          npm -v
       - name: Install deps
-        run: npm install
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
       - name: Build
         run: npm run build
       - name: Push dist to master
