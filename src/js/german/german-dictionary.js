@@ -98,6 +98,7 @@ const POS_LABELS = {
 }
 
 /**
+<<<<<<< Updated upstream
  * 解析静态数据 URL：用 Vite 构建期的 BASE_URL 前缀拼接路径。
  * - 本地 dev / 根路径部署：BASE_URL = '/'，最终为 '/data/german/...'
  * - GitHub Pages 二级路径（如 /NJs_Workflow/）：最终为 '/NJs_Workflow/data/german/...'
@@ -107,6 +108,44 @@ function resolveDataUrl(relPath) {
   const base = import.meta.env.BASE_URL || '/'
   const prefix = base.endsWith('/') ? base : base + '/'
   return prefix + relPath.replace(/^\/+/, '')
+=======
+ * 解析静态数据 URL：自动适配部署路径。
+ *
+ * 实现策略（按优先级）：
+ * 1. 当前页面 URL 是二级路径（如 https://user.github.io/NJs_Workflow/）：
+ *    取 origin + 第一段路径作 base → /NJs_Workflow/data/german/...
+ * 2. 当前页面 URL 是根路径（如 https://user.github.io/ 或 http://localhost:5173/）：
+ *    base = '/' → /data/german/...
+ * 3. 兜底：当前页面 URL 形如 /NJs_Workflow/german/（带子路由）：
+ *    仍取第一段路径作 base
+ *
+ * 说明：
+ * - 不依赖 import.meta.env，因为 Vite 构建会对 `import.meta.env` 做静态优化，
+ *   在某些部署场景下（手动全量复制 dist、或浏览器直接访问 JS 模块）会导致
+ *   `import.meta.env` 为 undefined 而报错。用 window.location 推导 base
+ *   在任何浏览器环境下都可用。
+ * - 与 vite.config.js 的 base 配置保持一致：构建产物里的资源 URL 也带同样的前缀。
+ */
+function resolveDataUrl(relPath) {
+  const clean = relPath.replace(/^\/+/, '')
+  if (typeof window === 'undefined' || !window.location) {
+    // SSR / 测试环境兜底
+    return '/' + clean
+  }
+  const { hostname, pathname } = window.location
+  // 二级路径检测：hostname 不是 localhost / IP 且 pathname 第一段非空
+  const firstSeg = pathname.split('/').filter(Boolean)[0] || ''
+  const isLocalhost =
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]' ||
+    /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)
+  if (!isLocalhost && firstSeg) {
+    // GitHub Pages 二级路径：https://user.github.io/<firstSeg>/...
+    return `/${firstSeg}/${clean}`
+  }
+  return `/${clean}`
+>>>>>>> Stashed changes
 }
 
 /** 将文本中的德语变音字母降级为纯字母（ä→a, ö→o, ü→u），用于非变音 query 的模糊匹配 */
