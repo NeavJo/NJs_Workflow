@@ -1,0 +1,1133 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#6750a4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#211f26" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="NJ's Workflow 个人工作流聚合站" data-i18n-meta-content="common.metaDescription" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236750a4'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='700' fill='white' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E" />
+    <title data-i18n-title>NJ's Workflow</title>
+    <style>
+      html { background: var(--md-surface, #f7f5ff); }
+      body { margin: 0; background: var(--md-surface, #f7f5ff); }
+      body.app-loading { min-height: 100vh; display: grid; place-items: center; color: var(--md-on-surface-variant, #4b4660); font: 500 14px/1.5 system-ui, sans-serif; }
+      body.app-loading .app-shell { visibility: hidden; }
+      body:not(.app-loading) #app-loading { display: none; }
+      #app-loading { display: grid; justify-items: center; gap: 12px; }
+      #app-loading::before { content: ''; width: 24px; height: 24px; border: 3px solid var(--md-surface-container-high, #ded8f4); border-top-color: var(--md-primary, #6750a4); border-radius: 50%; animation: app-loading-spin .7s linear infinite; }
+      @keyframes app-loading-spin { to { transform: rotate(360deg); } }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" />
+    <script type="module" crossorigin src="/NJs_Workflow/assets/index-DK3pS0oR.js"></script>
+    <link rel="stylesheet" crossorigin href="/NJs_Workflow/assets/index-8JzBBa8r.css">
+  </head>
+  <body class="app-loading">
+    <div id="app-loading" role="status" aria-live="polite" data-i18n="loading">正在加载工作流</div>
+    <div class="app-shell">
+      <header class="top-bar">
+        <div class="top-bar__row">
+          <div class="brand" aria-label="NJ's Workflow" data-i18n-aria="common.backHomeAria">
+            <span class="brand-mark" aria-hidden="true">N</span>
+            <span>
+              <strong>NJ's Workflow</strong>
+              <small data-i18n="tagline">Daily flow, clearly done.</small>
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div class="app-body">
+        <aside class="nav-rail" aria-label="侧边导航" data-i18n-aria="common.navRailAria">
+          <button class="nav-item is-active" data-view="flow" type="button">
+            <span class="nav-indicator"></span>
+            <span class="material-symbols" aria-hidden="true">push_pin</span>
+            <span class="nav-item__label" data-i18n="common.nav.flow">每日工作流</span>
+          </button>
+          <button class="nav-item" data-view="german" type="button">
+            <span class="nav-indicator"></span>
+            <span class="material-symbols" aria-hidden="true">translate</span>
+            <span class="nav-item__label" data-i18n="common.nav.german">德语助手</span>
+          </button>
+          <button class="nav-item" data-view="memo" type="button">
+            <span class="nav-indicator"></span>
+            <span class="material-symbols" aria-hidden="true">edit_note</span>
+            <span class="nav-item__label" data-i18n="common.nav.memo">生词记事本</span>
+          </button>
+          <button class="nav-item" data-view="anki" type="button">
+            <span class="nav-indicator"></span>
+            <span class="material-symbols" aria-hidden="true">psychology</span>
+            <span class="nav-item__label" data-i18n="common.nav.anki">Anki 处理机</span>
+          </button>
+          <button class="nav-item" data-view="monthly" type="button">
+            <span class="nav-indicator"></span>
+            <span class="material-symbols" aria-hidden="true">calendar_month</span>
+            <span class="nav-item__label" data-i18n="common.nav.monthly">月览</span>
+          </button>
+          <button class="nav-item" data-view="settings" type="button">
+            <span class="nav-indicator"></span>
+            <span class="material-symbols" aria-hidden="true">settings</span>
+            <span class="nav-item__label" data-i18n="common.nav.settings">设置与数据</span>
+          </button>
+          <div id="gist-indicator" class="gist-indicator" role="status" aria-live="polite" aria-atomic="true" data-state="idle" hidden>
+            <svg class="gist-indicator__svg" viewBox="0 0 24 24" aria-hidden="true">
+              <rect class="gist-indicator__frame" x="2" y="2" width="20" height="20" rx="6"></rect>
+              <g class="gist-indicator__spinner">
+                <circle class="gist-indicator__spinner-track" cx="12" cy="12" r="8"></circle>
+                <path class="gist-indicator__spinner-arc" d="M12 4 A8 8 0 0 1 20 12"></path>
+              </g>
+              <path class="gist-indicator__check" d="M7 12.5L10.5 16L17 9"></path>
+            </svg>
+          </div>
+        </aside>
+
+        <main class="main-content">
+          <!-- View 1: Flow -->
+          <section class="view view--flow is-active" data-view="flow" aria-labelledby="page-title">
+            <section class="hero-section">
+              <div>
+                <p class="eyebrow" data-i18n="workflow.eyebrow">YOUR PERSONAL FLOW</p>
+                <h1 id="page-title" data-i18n-html="workflow.title">把今天的节奏，<span>交给流程。</span></h1>
+                <p class="hero-copy" data-i18n="workflow.heroCopy">沿着你的每日流水线前进，专注完成眼前的一步。</p>
+              </div>
+            </section>
+
+            <section class="workflow-section" aria-labelledby="workflow-title">
+              <div class="section-heading section-heading--inline-progress">
+                <div>
+                  <p class="eyebrow" data-i18n="workflow.timelineEyebrow">TODAY'S TIMELINE</p>
+                  <h2 id="workflow-title" data-i18n="workflow.sectionTitle">每日工作流</h2>
+                </div>
+                <div class="workflow-section__trailing">
+                  <output id="workflow-carousel-status" class="workflow-carousel-status" aria-live="polite" aria-atomic="true">0 / 0</output>
+                  <div class="global-progress" aria-label="全局进度" data-i18n-aria="common.globalProgressAria">
+                    <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                      <span id="global-progress-bar"></span>
+                    </div>
+                    <strong id="global-progress-value" class="global-progress__value">0%</strong>
+                  </div>
+                </div>
+              </div>
+              <div id="workflow-list" class="workflow-list" aria-live="polite" tabindex="0"></div>
+              <div id="workflow-carousel-pagination" class="workflow-carousel-pagination" role="tablist" aria-label="切换任务卡片" data-i18n-aria="common.carouselAria" hidden></div>
+            </section>
+          </section>
+
+          <!-- View 2: Words Memo -->
+          <section class="view view--memo" data-view="memo" aria-labelledby="memo-title" hidden>
+            <section class="hero-section">
+              <div>
+                <p class="eyebrow" data-i18n="memo.eyebrow">WORDS · CAPTURE LIGHT</p>
+                <h1 id="memo-title" data-i18n-html="memo.title">生词，<span>随手一记。</span></h1>
+                <p class="hero-copy" data-i18n="memo.heroCopy">把今天遇到的新词扔进卡片流，下次打开 Anki 再批量整理。</p>
+              </div>
+
+            </section>
+
+            <section class="memo-input-card" aria-label="新建生词笔记" data-i18n-aria="memo.inputAria">
+              <div class="memo-input-card__header">
+                <span class="memo-input-card__title">
+                  <span class="material-symbols" aria-hidden="true">draw</span>
+                  <span data-i18n="memo.quickAppendTitle">新笔记 · 快速追加模式</span>
+                </span>
+                </div>
+
+              <div class="tag-selector tag-selector--desktop" role="tablist" aria-label="标签选择器" data-i18n-aria="common.tagSelectorAria">
+                <!-- Tag buttons injected by JS -->
+              </div>
+
+              <div class="memo-input-row">
+                <button
+                  id="memo-tag-picker-trigger"
+                  type="button"
+                  class="tag-picker-trigger"
+                  aria-haspopup="dialog"
+                  aria-expanded="false"
+                  aria-controls="memo-tag-picker-modal">
+                  <span id="memo-tag-picker-trigger-icon" class="material-symbols" aria-hidden="true">sell</span>
+                  <span id="memo-tag-picker-trigger-label" class="tag-picker-trigger__label">常规</span>
+                  <span class="material-symbols tag-picker-trigger__chevron" aria-hidden="true">expand_more</span>
+                </button>
+                <input
+                  id="memo-category-input"
+                  class="memo-category-input"
+                  type="text"
+                  maxlength="20"
+                  placeholder="常规"
+                  data-i18n-placeholder="memo.categoryPlaceholder"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="分类（留空即常规）" data-i18n-aria="memo.categoryAria" />
+                <input
+                  id="memo-word-input"
+                  class="memo-input-single"
+                  type="text"
+                  maxlength="240"
+                  placeholder="输入生词（回车即追加到今日卡片）"
+                  data-i18n-placeholder="memo.wordPlaceholder"
+                  autocomplete="off"
+                  spellcheck="false" />
+                <button id="memo-btn-append" type="button" class="memo-save-btn memo-save-btn--icon" aria-label="追加" data-i18n-aria="memo.appendAria">
+                  <span class="material-symbols" aria-hidden="true">add</span>
+                  <span data-i18n="memo.append">追加</span>
+                </button>
+              </div>
+
+              <div class="memo-input-card__footer">
+                <span id="memo-counter" class="memo-counter">0 条记录</span>
+              </div>
+            </section>
+
+            <section class="memo-stream-section" aria-labelledby="memo-stream-title">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow" data-i18n="memo.streamEyebrow">MEMORY STREAM</p>
+                  <h2 id="memo-stream-title" data-i18n="memo.streamTitle">笔记卡片流</h2>
+                </div>
+              </div>
+              <div id="memo-stream" class="memo-stream" aria-live="polite"></div>
+              <div id="memo-empty" class="memo-empty" hidden>
+                <span class="material-symbols memo-empty__icon" aria-hidden="true">sticky_note_2</span>
+                <p data-i18n="memo.empty">还没有笔记。把今天的生词丢进这里吧。</p>
+              </div>
+            </section>
+          </section>
+
+          <!-- View 4: Monthly View -->
+          <section class="view view--monthly" data-view="monthly" aria-labelledby="monthly-page-title" hidden>
+            <section class="hero-section">
+              <div>
+                <p class="eyebrow" data-i18n="monthly.eyebrow">RETROSPECT · PAST 30 DAYS</p>
+                <h1 id="monthly-page-title" data-i18n-html="monthly.title">月览<span>·热力图</span></h1>
+                <p class="hero-copy" data-i18n="monthly.heroCopy">查看过去30天的任务完成情况，保持连续打卡习惯。</p>
+              </div>
+            </section>
+            <div id="monthly-view-container"></div>
+          </section>
+
+          <!-- View: German Assistant -->
+          <section class="view view--german" data-view="german" aria-labelledby="german-page-title" hidden>
+            <section class="hero-section">
+              <div>
+                <p class="eyebrow" data-i18n="german.eyebrow">GERMAN · DICTIONARY</p>
+                <h1 id="german-page-title" data-i18n-html="german.title">德语助手<span>·查词即记</span></h1>
+                <p class="hero-copy" data-i18n="german.heroCopy">输入德语单词，查询释义、音标、例句，并快速加入生词本。</p>
+              </div>
+            </section>
+
+            <section class="german-panel" aria-label="德语助手">
+              <div class="german-search-card">
+                <div class="german-search-field" data-i18n-aria="german.searchAria">
+                  <span class="material-symbols german-search-icon" aria-hidden="true">search</span>
+                  <input id="german-search-input" class="german-search-input" type="search" autocomplete="off" spellcheck="false" placeholder="输入德语单词，例如 Apfel" data-i18n-placeholder="german.searchPlaceholder" />
+                  <button id="german-clear-input" class="german-clear-button" type="button" aria-label="清空搜索" data-i18n-aria="german.clearAria" hidden>
+                    <span class="material-symbols" aria-hidden="true">close</span>
+                  </button>
+                </div>
+                <div id="german-suggestions" class="german-suggestions" role="listbox" aria-label="搜索候选词" data-i18n-aria="german.suggestionsAria" aria-live="polite" hidden></div>
+              </div>
+
+              <div id="german-result-status" class="german-status" aria-live="polite" hidden>
+                <span id="german-status-text" class="german-status__text"></span>
+                <button id="german-retry" class="btn btn--tonal german-retry" type="button" hidden>
+                  <span class="material-symbols" aria-hidden="true">replay</span>
+                  <span data-i18n="german.retry">重试</span>
+                </button>
+              </div>
+
+              <div id="german-detail" class="german-detail" aria-live="polite"></div>
+            </section>
+          </section>
+
+          <!-- View 5: Settings & Data -->
+          <section class="view view--settings" data-view="settings" aria-labelledby="settings-page-title" hidden>
+            <section class="hero-section settings-page__hero">
+              <div>
+                <p class="eyebrow" data-i18n="settings.eyebrow">SETTINGS · DATA</p>
+                <h1 id="settings-page-title" data-i18n="settings.title">设置与数据</h1>
+                <p class="hero-copy" data-i18n="settings.heroCopy">管理工作流、生词本标签、本地备份与 GitHub Gist 云端同步。</p>
+              </div>
+            </section>
+
+            <div class="settings-page__content">
+              <div class="settings-view-stack">
+                <section class="settings-view settings-view--main" data-settings-view="main">
+                  <button class="settings-menu-item" type="button" data-settings-page="backup">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--backup" aria-hidden="true">import_export</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.backupMenu">数据备份与恢复</strong>
+                      <span data-i18n="settings.backupMenuSub">导出当前数据，或从 JSON 备份还原。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button class="settings-menu-item" type="button" data-settings-page="german">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--german" aria-hidden="true">text_fields</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.germanMenu">德语助手设置</strong>
+                      <span data-i18n="settings.germanMenuSub">调节查词结果页的字号显示。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button class="settings-menu-item" type="button" data-settings-page="anki-api">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--anki" aria-hidden="true">psychology</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.ankiApiMenu">Anki 处理机 API 配置</strong>
+                      <span data-i18n="settings.ankiApiMenuSub">配置 LLM 接口用于生成 Anki 卡片文本。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button class="settings-menu-item" type="button" data-settings-page="workflow">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--workflow" aria-hidden="true">list_alt</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.workflowMenu">工作流管理</strong>
+                      <span data-i18n="settings.workflowMenuSub">添加任务，编辑现有工作流及其排序。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button class="settings-menu-item" type="button" data-settings-page="tags">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--tag" aria-hidden="true">sell</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.tagsMenu">生词本标签管理</strong>
+                      <span data-i18n="settings.tagsMenuSub">维护生词本分类标签，管理自定义标签。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
+                </section>
+
+                <section class="settings-view settings-view--sub" data-settings-view="backup" hidden>
+                  <div class="settings-subpage__header">
+                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
+                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
+                      <span data-i18n="common.back">返回</span>
+                    </button>
+                    <h3 data-i18n="settings.backupMenu">数据备份与恢复</h3>
+                  </div>
+                  <div class="settings-subpage__content">
+                    <section class="backup-card">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--export" aria-hidden="true">download</span>
+                          <div>
+                            <h3 data-i18n="settings.exportTitle">导出备份</h3>
+                            <p data-i18n="settings.exportSub">打包当前的任务配置 + 生词笔记，下载为 JSON 文件。不含每日打卡勾选状态。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <ul class="scope-list">
+                          <li><span class="chip chip--outline" data-i18n="settings.workflowsChip">Workflows 任务配置</span></li>
+                          <li><span class="chip chip--outline" data-i18n="settings.memosChip">Memos 生词笔记</span></li>
+                        </ul>
+                        <button id="btn-export" type="button" class="btn btn--filled">
+                          <span class="material-symbols" aria-hidden="true">sim_card_download</span>
+                          <span data-i18n="settings.exportBtn">导出 JSON</span>
+                        </button>
+                      </footer>
+                    </section>
+
+                    <section class="backup-card">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--import" aria-hidden="true">upload</span>
+                          <div>
+                            <h3 data-i18n="settings.restoreTitle">从备份还原</h3>
+                            <p data-i18n="settings.restoreSub">选择之前导出的 JSON 文件，解析成功后将覆盖当前的任务列表与笔记。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <label class="file-drop">
+                          <input id="file-import" type="file" accept="application/json,.json" hidden />
+                          <span class="material-symbols file-drop__icon" aria-hidden="true">description</span>
+                          <div>
+                            <strong class="file-drop__title" data-i18n="settings.clickSelectJson">点击选择 JSON 文件</strong>
+                            <span id="file-drop-hint" class="file-drop__hint" data-i18n="settings.dropHint">或拖到此处 · 识别 NJW v1.0 / 1.1 / 1.2 / 1.3</span>
+                          </div>
+                        </label>
+                        <div class="backup-card__actions">
+                          <button id="btn-reset-workflows" type="button" class="btn btn--tonal">
+                            <span class="material-symbols" aria-hidden="true">restore</span>
+                            <span data-i18n="settings.restoreDefaultTasks">恢复默认任务</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+
+                    <section class="backup-card backup-card--gist">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--gist" aria-hidden="true">cloud_sync</span>
+                          <div>
+                            <h3 data-i18n="settings.gistTitle">GitHub Gist 云端数据同步</h3>
+                            <p data-i18n="settings.gistSub">把当前数据上传到 GitHub Gist 实现跨设备同步；支持启动时自动拉取 / 改动后自动推送。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <form class="gist-form" id="gist-settings-form" autocomplete="off">
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="gist-token-input">
+                              <span data-i18n="settings.tokenLabel">GitHub Token</span>
+                              <small data-i18n="settings.tokenHint">Personal Access Token · 需启用 gist 权限</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <input id="gist-token-input" type="password" autocomplete="off" spellcheck="false" placeholder="ghp_*** 或 github_pat_***" data-i18n-placeholder="settings.tokenPlaceholder" />
+                            </div>
+                          </div>
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="gist-id-input">
+                              <span data-i18n="settings.gistIdLabel">Gist ID</span>
+                              <small data-i18n="settings.gistIdHint">URL 中 /gist/{id} 那段 32 位哈希</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <input id="gist-id-input" type="text" autocomplete="off" spellcheck="false" placeholder="例如：a1b2c3d4e5f6789..." data-i18n-placeholder="settings.gistIdPlaceholder" />
+                            </div>
+                          </div>
+                        </form>
+
+                        <div class="gist-status-line">
+                          <span class="gist-status__dot" aria-hidden="true"></span>
+                          <span id="gist-status" class="gist-status__text" data-i18n="settings.gistStatusNotConfigured">未配置：请填写 GitHub Token 与 Gist ID。</span>
+                          <span class="gist-status__divider" aria-hidden="true"></span>
+                          <span id="gist-status-meta" class="gist-status__meta" data-i18n="settings.noSyncRecord">暂无同步记录</span>
+                        </div>
+
+                        <div class="gist-actions">
+                          <button id="btn-gist-save" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">save</span>
+                            <span data-i18n="settings.saveConfig">保存配置</span>
+                          </button>
+                          <button id="btn-gist-upload" type="button" class="btn btn--filled gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">cloud_upload</span>
+                            <span data-i18n="settings.uploadToGist">上传到 Gist</span>
+                          </button>
+                          <button id="btn-gist-pull" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">cloud_download</span>
+                            <span data-i18n="settings.pullFromGist">从 Gist 拉取</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+
+                    <section class="backup-card">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--reset" aria-hidden="true">today</span>
+                          <div>
+                            <h3 data-i18n="settings.dailyResetTitle">每日任务重置</h3>
+                            <p data-i18n="settings.dailyResetSub">每天 00:00 自动初始化今日任务打卡状态，并归档昨日已完成的任务到历史记录。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <div class="reset-info">
+                          <div class="reset-info__row">
+                            <span class="reset-info__label" data-i18n="settings.triggerTiming">触发时机</span>
+                            <span class="reset-info__value" data-i18n="settings.triggerTimingValue">打开应用 · 切回前台 · Gist 同步后</span>
+                          </div>
+                          <div class="reset-info__row">
+                            <span class="reset-info__label" data-i18n="settings.lastReset">最近一次</span>
+                            <span id="daily-reset-status" class="reset-info__value" data-i18n="settings.neverReset">尚未执行过自动重置</span>
+                          </div>
+                          <div class="reset-info__row">
+                            <span class="reset-info__label" data-i18n="settings.historyLabel">跨天历史</span>
+                            <span id="daily-reset-history-days" class="reset-info__value">0 天历史已留存</span>
+                          </div>
+                        </div>
+                        <div class="reset-hint">
+                          <span class="material-symbols" aria-hidden="true">info</span>
+                          <span data-i18n="settings.resetHint">每天 00:00 自动初始化今日任务打卡状态。</span>
+                        </div>
+                        <div class="backup-card__actions">
+                          <button id="btn-daily-reset" type="button" class="btn btn--tonal">
+                            <span class="material-symbols" aria-hidden="true">restart_alt</span>
+                            <span data-i18n="settings.resetToday">重置今日打卡状态</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+                  </div>
+                </section>
+
+                <section class="settings-view settings-view--sub" data-settings-view="anki-api" hidden>
+                  <div class="settings-subpage__header">
+                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
+                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
+                      <span data-i18n="common.back">返回</span>
+                    </button>
+                    <h3 data-i18n="settings.ankiApiTitle">Anki 处理机 API 配置</h3>
+                  </div>
+                  <div class="settings-subpage__content">
+                    <section class="backup-card backup-card--anki">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--anki" aria-hidden="true">smart_toy</span>
+                          <div>
+                            <h3 data-i18n="settings.ankiApiTitle">Anki 处理机 API 配置</h3>
+                            <p data-i18n="settings.ankiApiSub">配置 LLM 接口用于生成 Anki 卡片文本；配置随系统数据一并同步至 Gist。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <form class="gist-form" id="anki-settings-form" autocomplete="off">
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="anki-api-type">
+                              <span data-i18n="settings.apiType">API 类型</span>
+                              <small data-i18n="settings.apiTypeHint">选择 Gemini 原生或通用 OpenAI 兼容接口</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <select id="anki-api-type"></select>
+                            </div>
+                          </div>
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="anki-base-url">
+                              <span data-i18n="settings.baseUrl">Base URL</span>
+                              <small data-i18n="settings.baseUrlHint">API 根地址，可填代理或兼容服务地址</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <input id="anki-base-url" type="text" autocomplete="off" spellcheck="false" placeholder="https://..." data-i18n-placeholder="settings.baseUrlPlaceholder" />
+                            </div>
+                          </div>
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="anki-model-id">
+                              <span data-i18n="settings.modelId">模型 ID</span>
+                              <small data-i18n="settings.modelIdHint">如 gemini-3.5-flash-lite / gpt-4o-mini</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <input id="anki-model-id" type="text" autocomplete="off" spellcheck="false" placeholder="model-id" data-i18n-placeholder="settings.modelIdPlaceholder" />
+                            </div>
+                          </div>
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="anki-api-key">
+                              <span data-i18n="settings.apiKey">API Key</span>
+                              <small data-i18n="settings.apiKeyHint">本地保存，不写入日志；随 Gist 一并同步</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <input id="anki-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-*** 或 AIza***" data-i18n-placeholder="settings.apiKeyPlaceholder" />
+                            </div>
+                          </div>
+                        </form>
+                        <div class="gist-actions">
+                          <button id="btn-anki-save" type="button" class="btn btn--filled gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">save</span>
+                            <span data-i18n="settings.saveConfig">保存配置</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+
+                    <section class="backup-card backup-card--passphrase">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--passphrase" aria-hidden="true">lock</span>
+                          <div>
+                            <h3 data-i18n="settings.passphraseTitle">Anki API Key 加密</h3>
+                            <p data-i18n="settings.passphraseSub">设置加密口令，API Key 将以密文形式上传 Gist / 导出备份；拉取或导入时用口令解密还原。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <form class="gist-form" id="anki-passphrase-form" autocomplete="off">
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="anki-passphrase-input">
+                              <span data-i18n="settings.passphraseLabel">加密口令</span>
+                              <small data-i18n="settings.passphraseHint">仅保存在本设备；口令不会上传 Gist 或写入备份</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <input id="anki-passphrase-input" type="password" autocomplete="new-password" spellcheck="false" placeholder="输入口令，用于加密 / 解密 API Key" data-i18n-placeholder="settings.passphrasePlaceholder" />
+                            </div>
+                          </div>
+                          <label class="gist-check" for="anki-passphrase-remember">
+                            <input id="anki-passphrase-remember" type="checkbox" />
+                            <span data-i18n="settings.passphraseRemember">在本设备记住口令（每次打开自动解锁）</span>
+                          </label>
+                        </form>
+                        <div class="gist-status-line">
+                          <span class="gist-status__dot" aria-hidden="true"></span>
+                          <span id="anki-passphrase-status" class="gist-status__text" data-i18n="settings.passphraseStatusNone">未设置口令</span>
+                        </div>
+                        <div id="anki-passphrase-sync-hint-line" class="gist-status-line" hidden aria-live="polite">
+                          <span class="gist-status__dot" aria-hidden="true"></span>
+                          <span class="gist-status__text is-warning" data-i18n="settings.passphraseSyncHintNoPassphrase">API Key 将不会上传到 Gist / 写入备份（其他数据正常同步）</span>
+                        </div>
+                        <div class="gist-actions">
+                          <button id="btn-anki-passphrase-clear" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">lock_reset</span>
+                            <span data-i18n="settings.clearPassphrase">清除口令</span>
+                          </button>
+                          <button id="btn-anki-passphrase-save" type="button" class="btn btn--filled gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">lock</span>
+                            <span data-i18n="settings.savePassphrase">保存口令</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+
+                    <section class="backup-card backup-card--prompt">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--prompt" aria-hidden="true">format_quote</span>
+                          <div>
+                            <h3 data-i18n="settings.promptTitle">Anki 处理机提示词</h3>
+                            <p data-i18n="settings.promptSub">默认读取 docs/anki_prompt.txt；可修改并保存自定义提示词，随 Gist 一并上传与拉取。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <form class="gist-form" id="anki-prompt-form" autocomplete="off">
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="anki-prompt-input">
+                              <span data-i18n="settings.systemPrompt">System Prompt</span>
+                              <small data-i18n="settings.systemPromptHint">留空则使用默认提示词</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <textarea id="anki-prompt-input" spellcheck="false" placeholder="在此输入自定义提示词，留空则回退到 docs/anki_prompt.txt。" data-i18n-placeholder="settings.promptPlaceholder"></textarea>
+                            </div>
+                          </div>
+                        </form>
+                        <div class="gist-status-line">
+                          <span class="gist-status__dot" aria-hidden="true"></span>
+                          <span id="anki-prompt-status" class="gist-status__text" data-i18n="settings.promptStatusDefault">当前使用：默认提示词（docs/anki_prompt.txt）</span>
+                        </div>
+                        <div class="gist-actions">
+                          <button id="btn-anki-prompt-reset" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">restore</span>
+                            <span data-i18n="common.restoreDefault">恢复默认</span>
+                          </button>
+                          <button id="btn-anki-prompt-save" type="button" class="btn btn--filled gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">save</span>
+                            <span data-i18n="settings.savePrompt">保存提示词</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+                  </div>
+                </section>
+
+                <section class="settings-view settings-view--sub" data-settings-view="workflow" hidden>
+                  <div class="settings-subpage__header">
+                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
+                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
+                      <span data-i18n="common.back">返回</span>
+                    </button>
+                    <h3 data-i18n="settings.workflowMenu">工作流管理</h3>
+                  </div>
+                  <div class="settings-subpage__content">
+                    <section class="settings-subpage__hero">
+                      <p class="eyebrow" data-i18n="workflow.eyebrow">WORKFLOW</p>
+                      <h3 class="settings-subpage__hero-title" data-i18n="workflow.workflowPageHeroTitle">管理每日任务的顺序与轮换。</h3>
+                      <p class="settings-subpage__hero-sub" data-i18n="workflow.workflowPageHeroSub">编辑工作流会实时反映到主页面卡片。</p>
+                    </section>
+
+                    <section class="settings-card-group">
+                      <button type="button" class="settings-action-tile settings-action-tile--primary" id="btn-workflow-edit">
+                        <span class="material-symbols" aria-hidden="true">tune</span>
+                        <span class="settings-action-tile__body">
+                          <strong data-i18n="workflow.editWorkflowTile">编辑当前工作流</strong>
+                          <small data-i18n="workflow.editWorkflowTileSub">调整顺序、编辑字段或删除任务。</small>
+                        </span>
+                        <span class="material-symbols settings-action-tile__chevron" aria-hidden="true">chevron_right</span>
+                      </button>
+
+                      <button type="button" class="settings-action-tile" id="btn-workflow-add">
+                        <span class="material-symbols" aria-hidden="true">add_circle</span>
+                        <span class="settings-action-tile__body">
+                          <strong data-i18n="workflow.addTask">添加任务</strong>
+                          <small data-i18n="workflow.addTaskSub">创建一条新的工作流卡片。</small>
+                        </span>
+                        <span class="material-symbols settings-action-tile__chevron" aria-hidden="true">chevron_right</span>
+                      </button>
+                    </section>
+                  </div>
+                </section>
+
+                <section class="settings-view settings-view--sub" data-settings-view="tags" hidden>
+                  <div class="settings-subpage__header">
+                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
+                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
+                      <span data-i18n="common.back">返回</span>
+                    </button>
+                    <h3 data-i18n="settings.tagsTitle">生词本标签管理</h3>
+                  </div>
+                  <div class="settings-subpage__content">
+                    <section class="backup-card">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--tag" aria-hidden="true">sell</span>
+                          <div>
+                            <h3 data-i18n="settings.tagsTitle">生词本标签管理</h3>
+                            <p data-i18n="settings.tagsSub">自定义生词本顶部的分类标签。Deutsch/Anki 为系统默认，不可删除或改名。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <ul id="settings-tag-list" class="settings-tag-list" aria-label="标签列表" data-i18n-aria="common.tagListAria"></ul>
+                        <div class="settings-tag-add">
+                          <input id="settings-tag-input" type="text" placeholder="新标签名称" data-i18n-placeholder="settings.newTagPlaceholder" maxlength="24" autocomplete="off" />
+                          <button id="btn-tag-add" type="button" class="btn btn--filled">
+                            <span class="material-symbols" aria-hidden="true">add</span>
+                            <span data-i18n="settings.addTagBtn">添加标签</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+                  </div>
+                </section>
+
+                <section class="settings-view settings-view--sub" data-settings-view="german" hidden>
+                  <div class="settings-subpage__header">
+                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
+                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
+                      <span data-i18n="common.back">返回</span>
+                    </button>
+                    <h3 data-i18n="settings.germanTitle">德语助手设置</h3>
+                  </div>
+                  <div class="settings-subpage__content">
+                    <!-- Anki LLM 提醒卡片：告知德语助手发音使用 Anki 处理机的 LLM 配置 -->
+                    <section class="backup-card backup-card--german">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--anki" aria-hidden="true">psychology</span>
+                          <div>
+                            <h3 data-i18n="settings.ankiLlmReminderTitle">使用 Anki 处理机的 LLM 配置</h3>
+                            <p data-i18n="settings.ankiLlmReminderSub">德语助手的发音功能复用 Anki 处理机的 LLM 配置（Base URL / 模型 / API Key）。如未配置，将使用匿名 Piper 免费引擎兜底。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <div class="gist-actions">
+                          <button id="btn-german-anki-jump" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">arrow_forward</span>
+                            <span data-i18n="settings.ankiLlmReminderGo">去配置</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+
+                    <section class="backup-card backup-card--german">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--german" aria-hidden="true">text_fields</span>
+                          <div>
+                            <h3 data-i18n="settings.germanSub">调节查词结果页的字号显示。</h3>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <div class="german-font-size" id="german-font-size-field">
+                          <label class="gist-field__label" for="german-font-size-level">
+                            <span data-i18n="settings.germanFontSizeLabel">结果页字号</span>
+                            <small data-i18n="settings.germanFontSizeHint">拖动滑块切换 5 档字号，第 3 档为默认基准；实时作用于结果页所有文本。</small>
+                          </label>
+                          <div class="german-font-size__control">
+                            <input
+                              id="german-font-size-level"
+                              class="german-font-size__range"
+                              type="range"
+                              min="1"
+                              max="5"
+                              step="1"
+                              value="3"
+                              aria-label="德语助手结果页字号档位"
+                            />
+                            <output id="german-font-size-output" class="german-font-size__output" for="german-font-size-level"></output>
+                          </div>
+                          <div class="german-font-size__scale" aria-hidden="true">
+                            <span>最小</span><span>较小</span><span>正常</span><span>较大</span><span>最大</span>
+                          </div>
+                        </div>
+                      </footer>
+                    </section>
+
+                    <!-- TTS API Key 卡片：高音质 Kokoro 模型用 Key，留空则走匿名 Piper 兜底 -->
+                    <section class="backup-card backup-card--german">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--german" aria-hidden="true">record_voice_over</span>
+                          <div>
+                            <h3 data-i18n="settings.ttsKeyTitle">德语发音（TTS）</h3>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <div class="german-tts-key" id="german-tts-key-field">
+                          <label class="gist-field__label" for="german-tts-api-key">
+                            <span data-i18n="settings.ttsKeyLabel">TTS API Key</span>
+                            <small data-i18n="settings.ttsKeyHint">填写 tts.ai 的 Key 启用 Kokoro 高音质德语；留空则用匿名 Piper 免费引擎兜底。仅存本地，不写入日志、不随 Gist 同步。</small>
+                          </label>
+                          <div class="gist-field__control">
+                            <input id="german-tts-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-tts-***" data-i18n-placeholder="settings.ttsKeyPlaceholder" />
+                          </div>
+                          <div class="gist-actions">
+                            <button id="btn-german-tts-key-save" type="button" class="btn btn--filled gist-actions__btn">
+                              <span class="material-symbols" aria-hidden="true">save</span>
+                              <span data-i18n="settings.saveConfig">保存配置</span>
+                            </button>
+                            <button id="btn-german-tts-key-clear" type="button" class="btn gist-actions__btn">
+                              <span class="material-symbols" aria-hidden="true">delete</span>
+                              <span data-i18n="settings.ttsKeyClear">清空</span>
+                            </button>
+                          </div>
+                        </div>
+                      </footer>
+                    </section>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </section>
+
+          <!-- View 4: Anki Processor -->
+          <section class="view view--anki" data-view="anki" aria-labelledby="anki-page-title" hidden>
+            <section class="hero-section">
+              <div>
+                <p class="eyebrow" data-i18n="anki.eyebrow">ANKI · WORD PROCESSOR</p>
+                <h1 id="anki-page-title" data-i18n-html="anki.title">生词，<span>批量造卡。</span></h1>
+                <p class="hero-copy" data-i18n="anki.heroCopy">读取今日生词，一键调用 AI 生成 Anki 导入文本，复制或下载即可入库。</p>
+              </div>
+            </section>
+
+            <section class="anki-panel" aria-labelledby="anki-input-title">
+              <div class="anki-panel__header">
+                <span class="anki-panel__title">
+                  <span class="material-symbols" aria-hidden="true">edit_note</span>
+                  <h2 id="anki-input-title" data-i18n="anki.inputTitle">输入区</h2>
+                </span>
+                <span class="anki-panel__hint" data-i18n="anki.inputHint">每行一个生词，或用逗号 / 空格分隔</span>
+              </div>
+              <textarea id="anki-input" class="anki-textarea" rows="6" placeholder="例如：der Apfel, die Schule, lernen..." data-i18n-placeholder="anki.inputPlaceholder" spellcheck="false"></textarea>
+              <div class="anki-toolbar">
+                <button id="anki-read-today" type="button" class="btn btn--tonal">
+                  <span class="material-symbols" aria-hidden="true">playlist_add</span>
+                  <span data-i18n="anki.readToday">读取今日生词</span>
+                </button>
+                <button id="anki-run" type="button" class="btn btn--filled anki-run">
+                  <span class="material-symbols" aria-hidden="true">auto_awesome</span>
+                  <span class="anki-run-label" data-i18n="anki.startProcess">开始 AI 处理</span>
+                  <span id="anki-loading" class="anki-loading" hidden aria-hidden="true"></span>
+                </button>
+              </div>
+            </section>
+
+            <section class="anki-panel" aria-labelledby="anki-output-title">
+              <div class="anki-panel__header">
+                <span class="anki-panel__title">
+                  <span class="material-symbols" aria-hidden="true">description</span>
+                  <h2 id="anki-output-title" data-i18n="anki.outputTitle">输出区</h2>
+                </span>
+                <span class="anki-panel__hint" data-i18n="anki.outputHint">AI 结果按分类分卡展示，可直接编辑后复制 / 导出</span>
+              </div>
+              <div id="anki-output-cards" class="anki-cards" aria-live="polite"></div>
+            </section>
+          </section>
+        </main>
+      </div>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <!-- Memo Tag Picker Sheet: 移动端标签选择底部弹出 -->
+    <div id="memo-tag-picker-modal" class="modal modal--sheet" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="memo-tag-picker-title" hidden>
+      <div class="modal__scrim" data-close-modal="memo-tag-picker"></div>
+      <div class="modal__dialog modal__dialog--sheet">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <header class="modal__header modal__header--sheet">
+          <div class="modal__title-wrap">
+            <span class="material-symbols modal__title-icon" aria-hidden="true">sell</span>
+            <div>
+              <h2 id="memo-tag-picker-title" data-i18n="memo.pickerTitle">选择标签</h2>
+              <p class="modal__subtitle" data-i18n="memo.pickerSubtitle">点选下方标签快速切换；当前选中会高亮。</p>
+            </div>
+          </div>
+          <button id="memo-tag-picker-close" class="icon-button modal__close" type="button" aria-label="关闭" data-i18n-aria="common.close" data-close-modal="memo-tag-picker">
+            <span class="material-symbols" aria-hidden="true">close</span>
+          </button>
+        </header>
+        <div class="modal__body">
+          <ul id="memo-tag-picker-list" class="memo-tag-picker__list" aria-label="可用标签" data-i18n-aria="memo.pickerListAria"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor Modal: 任务列表编辑（上移 / 下移 / 编辑 / 删除） -->
+    <div id="editor-modal" class="modal modal--editor modal--mobile-page" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="editor-title" hidden>
+      <div class="modal__scrim" data-close-modal="editor"></div>
+      <div class="modal__dialog">
+        <header class="modal__header modal__header--mobile">
+          <button id="editor-back" class="icon-button modal__back" type="button" aria-label="返回工作流管理" data-i18n-aria="common.backToWorkflowAria" data-close-modal="editor">
+            <span class="material-symbols" aria-hidden="true">arrow_back</span>
+          </button>
+          <div class="modal__title-wrap modal__title-wrap--centered">
+            <div>
+              <h2 id="editor-title" data-i18n="workflow.editorTitle">编辑工作流</h2>
+              <p class="modal__subtitle" data-i18n="workflow.editorSubtitle">点击任务右侧菜单调整顺序、编辑或删除。</p>
+            </div>
+          </div>
+          <button id="editor-close" class="icon-button modal__close" type="button" aria-label="关闭编辑器" data-i18n-aria="common.closeEditorAria" data-close-modal="editor">
+            <span class="material-symbols" aria-hidden="true">close</span>
+          </button>
+        </header>
+        <div class="modal__body">
+          <div class="section-heading section-heading--compact">
+            <div>
+              <p class="eyebrow" data-i18n="workflow.editorEyebrow">WORKFLOW LIST</p>
+              <h3 id="editor-task-count" data-i18n="workflow.taskCount">共 0 条任务</h3>
+            </div>
+            <button id="editor-btn-add" type="button" class="btn btn--filled">
+              <span class="material-symbols" aria-hidden="true">add</span>
+              <span data-i18n="common.add">新增</span>
+            </button>
+          </div>
+          <div id="editor-task-list" class="editor-task-list"></div>
+          <div id="editor-empty" class="editor-empty" hidden>
+            <span class="material-symbols editor-empty__icon" aria-hidden="true">list_alt</span>
+            <p data-i18n="workflow.editorEmpty">任务列表为空，点击下方按钮创建第一条。</p>
+            <button id="editor-empty-add" type="button" class="btn btn--filled">
+              <span class="material-symbols" aria-hidden="true">add</span>
+              <span data-i18n="workflow.createFirstTask">创建第一个任务</span>
+            </button>
+          </div>
+        </div>
+        <footer class="modal__footer modal__footer--mobile">
+          <button type="button" class="btn btn--filled modal__footer-done" data-close-modal="editor"><span data-i18n="common.done">完成</span></button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- TaskForm Modal: 新增 / 编辑任务 -->
+    <div id="taskform-modal" class="modal modal--taskform modal--mobile-page" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="taskform-title" hidden>
+      <div class="modal__scrim" data-close-modal="taskform"></div>
+      <div class="modal__dialog">
+        <form id="taskform-form">
+          <header class="modal__header modal__header--mobile">
+            <button id="taskform-back" class="icon-button modal__back" type="button" aria-label="返回编辑器" data-i18n-aria="common.backToEditorAria" data-close-modal="taskform">
+              <span class="material-symbols" aria-hidden="true">arrow_back</span>
+            </button>
+            <div class="modal__title-wrap modal__title-wrap--centered">
+              <div>
+                <h2 id="taskform-title" data-i18n="workflow.taskFormAddTitle">添加新任务</h2>
+                <p id="taskform-subtitle" class="modal__subtitle" data-i18n="workflow.taskFormAddSubtitle">填写下方字段以创建一条新的工作流卡片。</p>
+              </div>
+            </div>
+            <button id="taskform-close" class="icon-button modal__close" type="button" aria-label="关闭表单" data-i18n-aria="common.closeFormAria" data-close-modal="taskform">
+              <span class="material-symbols" aria-hidden="true">close</span>
+            </button>
+          </header>
+          <div class="modal__body modal__body--taskform">
+            <div class="form-grid form-grid--taskform">
+              <!-- 基本信息 -->
+              <section class="taskform-section taskform-section--full" data-taskform-section="basic">
+                <h3 class="taskform-section__title" data-i18n="workflow.basicSection">基本信息</h3>
+                <div class="taskform-section__card">
+                  <div class="form-field form-field--span-2">
+                    <label for="taskform-title-input"><span data-i18n="workflow.taskNameLabel">任务名称</span> <span style="color:#c21f26">*</span></label>
+                    <input id="taskform-title-input" type="text" name="title" placeholder="例如：Tageschau in einfacher Sprache" data-i18n-placeholder="workflow.taskNamePlaceholder" maxlength="64" required />
+                    <small id="taskform-title-helper" class="form-field__helper" data-i18n="workflow.titleHelper">必填，最多 64 字。</small>
+                  </div>
+                  <div class="form-field form-field--span-2">
+                    <label for="taskform-desc" data-i18n="workflow.descLabel">描述</label>
+                    <textarea id="taskform-desc" name="desc" rows="3" placeholder="描述会显示在卡片标题下方。" data-i18n-placeholder="workflow.descPlaceholder" maxlength="240"></textarea>
+                    <small class="form-field__helper" data-i18n="workflow.descHelper">简短说明，显示在卡片标题下方。</small>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 任务行为 -->
+              <section class="taskform-section" data-taskform-section="behavior">
+                <h3 class="taskform-section__title" data-i18n="workflow.behaviorSection">任务行为</h3>
+                <div class="taskform-section__card">
+                  <div class="form-field form-field--span-2">
+                    <label for="taskform-url" data-i18n="workflow.jumpUrlLabel">跳转 URL</label>
+                    <input id="taskform-url" type="url" name="url" placeholder="https://..." />
+                    <small class="form-field__helper" data-i18n="workflow.jumpUrlHelper">填写后卡片会显示“跳转”按钮，新标签页打开。</small>
+                  </div>
+                  <div class="form-field form-field--span-2">
+                    <div class="form-switch" id="taskform-placeholder-wrap">
+                      <div class="form-switch__meta">
+                        <strong data-i18n="workflow.placeholderTask">占位任务</strong>
+                        <small data-i18n="workflow.placeholderTaskHelper">Coming Soon：勾选后卡片灰化，不参与进度统计。</small>
+                      </div>
+                      <label class="switch" for="taskform-placeholder">
+                        <input id="taskform-placeholder" name="placeholder" type="checkbox" />
+                        <span class="switch__track"><span class="switch__thumb"><span class="material-symbols switch__icon" aria-hidden="true">block</span></span></span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 前置任务 -->
+              <section class="taskform-section taskform-section--half" data-taskform-section="prerequisites">
+                <h3 class="taskform-section__title" data-i18n="workflow.prerequisiteSectionTitle">前置任务</h3>
+                <div class="taskform-section__card">
+                  <div class="form-field form-field--span-2">
+                    <label data-i18n="workflow.prerequisiteEditorLabel">前置任务（完成这些任务后才能打卡此任务）</label>
+                    <div id="taskform-prereq-list" class="prereq-list" aria-describedby="taskform-prereq-helper"></div>
+                    <small id="taskform-prereq-helper" class="form-field__helper" data-i18n="workflow.prerequisiteHelper">可勾选多个，所有勾选的任务完成后此任务才可打卡。</small>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 轮换规则摘要入口 -->
+              <section class="taskform-section taskform-section--half" data-taskform-section="rotation">
+                <h3 class="taskform-section__title" data-i18n="workflow.rotationSection">轮换规则</h3>
+                <div class="taskform-section__card">
+                  <div class="form-field form-field--span-2">
+                    <div class="form-switch" id="taskform-rotation-switch-wrap">
+                      <div class="form-switch__meta">
+                        <strong data-i18n="workflow.enableRotation">启用轮换</strong>
+                        <small data-i18n="workflow.enableRotationHelper">关闭后该任务回到静态标题。开启后可选择预设。</small>
+                      </div>
+                      <label class="switch" for="taskform-rotation-enabled">
+                        <input id="taskform-rotation-enabled" name="rotationEnabled" type="checkbox" />
+                        <span class="switch__track"><span class="switch__thumb"><span class="material-symbols switch__icon" aria-hidden="true">auto_awesome</span></span></span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <button id="taskform-rotation-open" type="button" class="taskform-link-row" aria-haspopup="dialog" aria-controls="taskform-rotation-modal" disabled aria-disabled="true">
+                  <span class="taskform-link-row__icon">
+                    <span class="material-symbols" aria-hidden="true">calendar_month</span>
+                  </span>
+                  <span class="taskform-link-row__body">
+                    <strong id="taskform-rotation-summary-title" data-i18n="workflow.rotationNotEnabled">未启用轮换</strong>
+                    <small id="taskform-rotation-summary-desc" data-i18n="workflow.rotationNotEnabledDesc">开启上方开关后，从预设中选择一项。</small>
+                  </span>
+                  <span class="material-symbols taskform-link-row__chevron" aria-hidden="true">chevron_right</span>
+                </button>
+                <input id="taskform-rotation-id" type="hidden" />
+              </section>
+
+              <!-- 自动检查（渐进披露） -->
+              <section class="taskform-section" data-taskform-section="check">
+                <h3 class="taskform-section__title" data-i18n="workflow.checkSection">自动检查</h3>
+                <div class="taskform-section__card">
+                  <div class="form-field form-field--span-2">
+                    <div class="form-switch" id="taskform-check-switch-wrap">
+                      <div class="form-switch__meta">
+                        <strong data-i18n="workflow.memoLinkCheck">生词本联动检查</strong>
+                        <small data-i18n="workflow.memoLinkCheckHelper">开启后卡片右侧显示「检查」按钮，点击自动校验今日指定分类生词数并打卡。</small>
+                      </div>
+                      <label class="switch" for="taskform-check">
+                        <input id="taskform-check" name="check" type="checkbox" />
+                        <span class="switch__track"><span class="switch__thumb"><span class="material-symbols switch__icon" aria-hidden="true">fact_check</span></span></span>
+                      </label>
+                    </div>
+
+                    <div class="check-config-fields" id="taskform-check-fields" hidden>
+                      <label class="form-field form-field--inline">
+                        <span data-i18n="workflow.checkCategory">检查分类</span>
+                        <input id="taskform-check-category" type="text" name="check-category" placeholder="留空默认为常规" data-i18n-placeholder="workflow.checkCategoryPlaceholder" maxlength="32" autocomplete="off" />
+                      </label>
+                      <label class="form-field form-field--inline">
+                        <span data-i18n="workflow.targetCount">达标数量</span>
+                        <input id="taskform-check-count" type="number" name="check-count" min="1" max="999" step="1" value="7" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+          <footer class="modal__footer modal__footer--mobile">
+            <button id="taskform-cancel" type="button" class="btn btn--text modal__footer-secondary" data-close-modal="taskform"><span data-i18n="common.cancel">取消</span></button>
+            <button type="submit" class="btn btn--filled modal__footer-primary"><span data-i18n="common.save">保存</span></button>
+          </footer>
+        </form>
+      </div>
+    </div>
+
+    <!-- Rotation Sheet: 轮换规则编辑二级页面 -->
+    <div id="taskform-rotation-modal" class="modal modal--rotation modal--mobile-page" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="rotation-title" hidden>
+      <div class="modal__scrim" data-close-modal="rotation"></div>
+      <div class="modal__dialog">
+        <header class="modal__header modal__header--mobile">
+          <button class="icon-button modal__back" type="button" aria-label="返回任务表单" data-i18n-aria="common.backToTaskFormAria" data-close-modal="rotation">
+            <span class="material-symbols" aria-hidden="true">arrow_back</span>
+          </button>
+          <div class="modal__title-wrap modal__title-wrap--centered">
+            <div>
+              <h2 id="rotation-title" data-i18n="workflow.rotationPageTitle">轮换规则</h2>
+              <p class="modal__subtitle" data-i18n="workflow.rotationPageSubtitle">为每一天设置标题、图标与休息日。</p>
+            </div>
+          </div>
+          <button class="icon-button modal__close" type="button" aria-label="关闭" data-i18n-aria="common.close" data-close-modal="rotation">
+            <span class="material-symbols" aria-hidden="true">close</span>
+          </button>
+        </header>
+        <div class="modal__body modal__body--rotation">
+          <section class="taskform-section">
+            <div class="rotation-toolbar">
+              <h3 class="taskform-section__title" data-i18n="workflow.presetSection">预设</h3>
+              <button id="rotation-preset-new" type="button" class="chip-toggle" aria-label="新建预设" data-i18n-aria="workflow.newPresetAria">
+                <span class="material-symbols" aria-hidden="true">add</span>
+                <span data-i18n="workflow.newPreset">新建预设</span>
+              </button>
+            </div>
+            <div id="rotation-preset-list" class="rotation-preset-list" role="radiogroup" aria-label="轮换预设" data-i18n-aria="workflow.presetListAria"></div>
+          </section>
+
+          <!-- 选中预设的规则名 + 每日配置（始终展开 7 天） -->
+          <section class="taskform-section" id="rotation-edit-section" hidden>
+            <div class="taskform-section__card">
+              <div class="form-field form-field--span-2">
+                <label for="rotation-rule-name" data-i18n="workflow.ruleName">规则名称</label>
+                <input id="rotation-rule-name" type="text" data-rot-field="name" placeholder="例如：CET-6 每日专项" data-i18n-placeholder="workflow.ruleNamePlaceholder" maxlength="32" />
+                <small class="form-field__helper" data-i18n="workflow.ruleNameHelper">预设名用于在任务中显示。</small>
+              </div>
+            </div>
+            <h3 class="taskform-section__title" data-i18n="workflow.dailyConfig">每日配置</h3>
+            <div id="rotation-summary-list" class="rotation-summary-list" role="list" aria-label="每日配置" data-i18n-aria="workflow.dailyConfigAria"></div>
+          </section>
+        </div>
+        <footer class="modal__footer modal__footer--mobile">
+          <button id="rotation-save" type="button" class="btn btn--filled modal__footer-primary"><span data-i18n="common.save">保存</span></button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Confirm Dialog: 删除等危险动作 -->
+    <div id="confirm-modal" class="modal modal--confirm" aria-hidden="true" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message" hidden>
+      <div class="modal__scrim" data-close-modal="confirm"></div>
+      <div class="modal__dialog modal__dialog--alert">
+        <header class="modal__header modal__header--alert">
+          <div class="modal__title-wrap modal__title-wrap--centered">
+            <div>
+              <h2 id="confirm-title" data-i18n="common.confirmTitle">确认操作</h2>
+            </div>
+          </div>
+        </header>
+        <div class="modal__body modal__body--alert">
+          <p id="confirm-message" data-i18n="common.confirmMessage">是否继续？</p>
+        </div>
+        <footer class="modal__footer modal__footer--alert">
+          <button id="confirm-cancel" type="button" class="btn btn--text modal__footer-secondary" data-close-modal="confirm"><span data-i18n="common.cancel">取消</span></button>
+          <button id="confirm-ok" type="button" class="btn btn--filled modal__footer-primary"><span data-i18n="common.confirm">确认</span></button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Editor Action Sheet: 任务操作菜单（移动端） -->
+    <div id="editor-action-modal" class="modal modal--sheet" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="editor-action-title" hidden>
+      <div class="modal__scrim" data-close-modal="editor-action"></div>
+      <div class="modal__dialog modal__dialog--sheet">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <header class="modal__header modal__header--sheet">
+          <div class="modal__title-wrap modal__title-wrap--centered">
+            <div>
+              <h2 id="editor-action-title" data-i18n="workflow.taskOpsTitle">任务操作</h2>
+              <p id="editor-action-subtitle" class="modal__subtitle" data-i18n="workflow.taskOpsSubtitle">选择下方动作以调整任务。</p>
+            </div>
+          </div>
+        </header>
+        <div class="modal__body modal__body--sheet">
+          <ul id="editor-action-list" class="sheet-action-list" aria-label="任务操作" data-i18n-aria="workflow.taskOpAria"></ul>
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>
