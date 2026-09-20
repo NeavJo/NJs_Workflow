@@ -65,12 +65,27 @@ jobs:
         run: npm run build
       - name: Push dist to master
         run: |
+          set -e
+
+          test -d dist
+          test -f dist/index.html
+
+          # Save build output before git clean deletes it
+          DEPLOY_DIR="$(mktemp -d)"
+          cp -a dist/. "$DEPLOY_DIR"/
+
           git config user.email 'github-actions[bot]'
           git config user.name 'github-actions'
+
           git checkout --orphan temp-pages
           git rm -rf .
           git clean -fdx
-          cp -r dist/. .
+
+          # Restore the saved build output
+          cp -a "$DEPLOY_DIR"/. .
+
+          rm -rf "$DEPLOY_DIR"
+
           git add .
           git commit -m 'deploy: auto build from commit'
           git branch -M master
