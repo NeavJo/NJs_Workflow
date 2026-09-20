@@ -98,17 +98,6 @@ const POS_LABELS = {
 }
 
 /**
-<<<<<<< Updated upstream
- * 解析静态数据 URL：用 Vite 构建期的 BASE_URL 前缀拼接路径。
- * - 本地 dev / 根路径部署：BASE_URL = '/'，最终为 '/data/german/...'
- * - GitHub Pages 二级路径（如 /NJs_Workflow/）：最终为 '/NJs_Workflow/data/german/...'
- * 处理 BASE_URL 末尾无斜杠的边界（虽然 Vite 默认会保留斜杠，但加保险）。
- */
-function resolveDataUrl(relPath) {
-  const base = import.meta.env.BASE_URL || '/'
-  const prefix = base.endsWith('/') ? base : base + '/'
-  return prefix + relPath.replace(/^\/+/, '')
-=======
  * 解析静态数据 URL：自动适配部署路径。
  *
  * 实现策略（按优先级）：
@@ -145,7 +134,6 @@ function resolveDataUrl(relPath) {
     return `/${firstSeg}/${clean}`
   }
   return `/${clean}`
->>>>>>> Stashed changes
 }
 
 /** 将文本中的德语变音字母降级为纯字母（ä→a, ö→o, ü→u），用于非变音 query 的模糊匹配 */
