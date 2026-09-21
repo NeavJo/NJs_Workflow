@@ -20,6 +20,11 @@ const tagsPubsub = createPubSub()
 let memos = []
 let memoTags = []
 let selectedMemoTag = ''
+// 当前分类（如"常规"）。生词本记事本页面的分类输入框会实时写入，
+// 其他模块（如德语助手"添加到生词本"）读取此值，保证跨页面分类联动。
+// 不落盘：与 selectedMemoTag 保持一致的策略，刷新后回到默认分类，
+// 避免在生词本页面残留的分类被误套用到其它场景。
+let selectedMemoCategory = ''
 
 function persistMemosImpl() {
   const ok = safeStorageSet(MEMO_STORAGE_KEY, memos)
@@ -80,6 +85,25 @@ export function setSelectedMemoTag(id) {
   return true
 }
 
+/**
+ * 读取当前分类。
+ * 返回空字符串表示用户尚未在生词本页面指定分类，
+ * 调用方（如 appendOrDailyMemo）需回退到 I18N.memo.defaultCategory。
+ */
+export function getSelectedMemoCategory() {
+  return selectedMemoCategory
+}
+
+/**
+ * 记录生词本当前使用的分类。
+ * 由 memo-events 的分类输入框在用户输入/清空时调用，使德语助手等
+ * 其它调用 appendOrDailyMemo 的模块能自动继承该分类。
+ * 传入空字符串代表清空为"跟随默认"。
+ */
+export function setSelectedMemoCategory(name) {
+  selectedMemoCategory = String(name || '').trim()
+}
+
 export function persistMemos() {
   const ok = persistMemosImpl()
   return ok
@@ -137,7 +161,12 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
   const word = (inputWord || '').trim()
   if (!word) return null
   const tag = currentTag || selectedMemoTag
-  const cat = (category || '').trim() || I18N.memo.defaultCategory
+  // 分类取值优先级：调用方显式指定 > 生词本页面当前分类 > 默认"常规"。
+  // 德语助手等其它模块不传 category（走默认参数）时，自动继承生词本页面当前的分类状态；
+  // 分类输入框被清空（selectedMemoCategory 为空）时回落到默认"常规"。
+  const explicitCat = String(category || '').trim()
+  const cat = (explicitCat !== I18N.memo.defaultCategory ? explicitCat : selectedMemoCategory || explicitCat)
+    .trim() || I18N.memo.defaultCategory
 
   const todayStr = getTodayDateString()
   const targetMemo = memos.find(
@@ -187,7 +216,10 @@ export function addMemo(content, tag, category = I18N.memo.defaultCategory) {
   const cleaned = (content || '').trim()
   if (!cleaned) return null
   const useTag = tag || selectedMemoTag
-  const cat = (category || '').trim() || I18N.memo.defaultCategory
+  // 与 appendOrDailyMemo 保持一致：未显式指定分类时继承生词本页面当前分类。
+  const explicitCat = String(category || '').trim()
+  const cat = (explicitCat !== I18N.memo.defaultCategory ? explicitCat : selectedMemoCategory || explicitCat)
+    .trim() || I18N.memo.defaultCategory
   const now = new Date()
   const memo = {
     id: now.getTime(),

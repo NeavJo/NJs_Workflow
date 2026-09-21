@@ -276,14 +276,20 @@ function speakWord(word) {
 }
 
 // ── 加入生词本 ──
+// 标签和分类都继承生词本记事本页面当前的选择状态（memo-store 单例）：
+// 用户先在生词本页面切换标签 / 填写分类，再回到德语助手点按钮，
+// 单词就会落到对应标签下的对应分类块里；未操作过分类输入框则回退到"常规"。
 function addCurrentToMemo() {
   const word = getDetailWord()
   if (!word) return
   const currentTag = getSelectedMemoTag()
   const result = appendOrDailyMemo(word, currentTag)
   if (result) {
-    showToast(t(I18N.german.toasts.memoAdded, { word }), { status: 'success' })
-    DBG('german:memo:added', { word, mode: result.mode })
+    showToast(
+      t(I18N.german.toasts.memoAdded, { word, tag: currentTag, category: result.category }),
+      { status: 'success' }
+    )
+    DBG('german:memo:added', { word, mode: result.mode, tag: currentTag, category: result.category })
   } else {
     showToast(I18N.german.toasts.memoFailed, { status: 'error' })
     DBG('german:memo:failed', { word })

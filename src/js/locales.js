@@ -236,7 +236,7 @@ export const I18N = {
       searchEmpty: '请先输入一个德语单词。',
       searchFailed: '词典查询失败，请稍后重试。',
       noData: '公开数据源未返回该词信息。',
-      memoAdded: '「{word}」已加入生词本。',
+      memoAdded: '「{word}」已加入生词本（{tag} / {category}）。',
       memoFailed: '添加生词本失败，请检查本地存储。',
       speakNetworkFailed: '网络发音加载失败',
       refetchDone: '「{word}」已重新获取最新释义。'

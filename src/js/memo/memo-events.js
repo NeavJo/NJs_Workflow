@@ -1,18 +1,23 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
 import { I18N, t } from '../locales.js'
-import { getSelectedMemoTag, setSelectedMemoTag, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos } from './memo-store.js'
+import { getSelectedMemoTag, setSelectedMemoTag, setSelectedMemoCategory, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos } from './memo-store.js'
 import { renderMemos, renderMemoTagPickerList, renderMemoTagPickerTrigger, renderTagSelector } from './memo-renderer.js'
 import { openModal, closeModal, isModalOpen } from '../settings/modal.js'
 import { switchView } from '../settings/navigation.js'
 import { bindBatch, bindOnce } from '../utils/event-manager.js'
 import { once } from '../utils/dom-utils.js'
 import { uploadToGist } from '../backup/gist-sync.js'
+import { createGuard } from '../utils/guard.js'
 
 /**
  * 笔记事件层：表单提交、刷新、标签选择、卡片按钮（编辑/保存/取消/删除/复制）。
  * 全部用事件委托，少量直接绑定到表单控件。
  */
+
+// 幂等守卫：防止 bindMemoEvents 被重复调用导致 input/keydown 等
+// 直接绑定在表单控件上的监听被重复注册（项目规范：每个 bindXxxEvents 可重复调用）
+const guard = createGuard('memoEventsBound')
 
 function focusMemoInput() {
   const s = document.getElementById('memo-word-input')
@@ -258,6 +263,8 @@ async function processInAnki(card) {
 }
 
 export function bindMemoEvents() {
+  if (guard.is(document)) return
+  guard.set(document)
   const wordInput = document.getElementById('memo-word-input')
   const categoryInput = document.getElementById('memo-category-input')
   const appendBtn = document.getElementById('memo-btn-append')
@@ -270,8 +277,11 @@ export function bindMemoEvents() {
       focusMemoInput()
       return
     }
-    const category = (categoryInput?.value || '').trim() || I18N.memo.defaultCategory
-    const r = appendOrDailyMemo(word, getSelectedMemoTag(), category)
+    // 显式传入用户输入框中的分类（空则落默认"常规"），同时同步给 store，
+    // 让德语助手等其它模块调用 appendOrDailyMemo 时也能继承该分类。
+    const explicitCategory = (categoryInput?.value || '').trim() || I18N.memo.defaultCategory
+    setSelectedMemoCategory(explicitCategory)
+    const r = appendOrDailyMemo(word, getSelectedMemoTag(), explicitCategory)
     if (r) {
       const tagName = getSelectedMemoTag()
       showToast(
@@ -335,6 +345,18 @@ export function bindMemoEvents() {
       cleanups.push(bindBatch(element, [{ event, handler }]))
     }
   })
+
+  /* 分类输入实时同步：用户在记事本页填写/清空分类时写入 store，
+     让后续其它模块（德语助手"添加到生词本"等）调用 appendOrDailyMemo
+     时能自动继承该分类；清空则回退到默认"常规"。 */
+  if (categoryInput) {
+    cleanups.push(bindBatch(categoryInput, [{
+      event: 'input',
+      handler: () => {
+        setSelectedMemoCategory((categoryInput.value || '').trim())
+      }
+    }]))
+  }
 
   /* 移动端：标签触发器 -> 底部弹窗选择 */
   const tagPickerTrigger = document.getElementById('memo-tag-picker-trigger')
