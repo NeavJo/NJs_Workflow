@@ -224,6 +224,7 @@ export const I18N = {
     refetchAria: '重新获取该词的最新释义（忽略本地缓存）',
     speakAria: '朗读德语单词',
     sourceLabel: '数据源',
+    collocationsLabel: '搭配：',
     godicLabel: '德语助手',
     sourceLabels: {
       godic: 'godic 代理',

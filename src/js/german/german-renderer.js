@@ -132,9 +132,37 @@ function iconEl(symbol) {
 }
 
 /**
+ * 把原始德语例句按 {…} 和 <…> 拆词渲染。
+ * 两种标记的内容最终都通过 textContent 写入，避免把标记解析和 HTML 转义混在一起。
+ */
+function renderExampleWithTerms(el, rawText, allowedPrepositions = []) {
+  const text = String(rawText || '')
+  const allowed = new Set(allowedPrepositions.map((value) => String(value).toLocaleLowerCase()))
+  const parts = text.split(/(\{[^{}]+\}|<[^<>]+>)/g)
+  for (const part of parts) {
+    if (!part) continue
+    const termMatch = part.match(/^\{(.+)\}$/)
+    const prepMatch = part.match(/^\<(.+)\>$/)
+    if (termMatch) {
+      const m = document.createElement('mark')
+      m.className = 'german-example__term'
+      m.textContent = termMatch[1]
+      el.appendChild(m)
+    } else if (prepMatch && allowed.has(prepMatch[1].toLocaleLowerCase())) {
+      const m = document.createElement('mark')
+      m.className = 'german-example__preposition'
+      m.textContent = prepMatch[1]
+      el.appendChild(m)
+    } else {
+      el.appendChild(document.createTextNode(part))
+    }
+  }
+}
+
+/**
  * 渲染完整详情卡（LLM 返回数据后）。
  * 用 createElement + replaceChildren 构建（与候选词渲染一致），避免 innerHTML 解析开销；
- * 全部文案经 escapeHtml 后写入 textContent（textContent 本身不解析 HTML，双重保险防注入）。
+ * 普通文本直接写入 textContent，例句标记拆分后各片段也只写入文本节点。
  * 保留全部 class 与 DOM 结构不变。
  * @param {object} detail — { word, ipa, grammar, definitions, source }
  */
@@ -148,18 +176,16 @@ export function renderDetail(detail) {
   }
 
   const g = I18N.german || {}
-  const word = escapeHtml(detail.word || '')
-  const ipa = escapeHtml(detail.ipa || '')
-  const grammar = escapeHtml(detail.grammar || '')
+  const word = String(detail.word || '')
+  const ipa = String(detail.ipa || '')
+  const grammar = String(detail.grammar || '')
   // 数据源展示：优先显示 Anki 处理机设置里配置的 LLM 模型名（用户可见其实际由哪个模型生成），
   // 未配置模型时回退到 detail.source 对应的原始标签（godic 代理 / Free Dictionary 等）。
   const configuredModel = (getAnkiSettings().modelId || '').trim()
-  const sourceFallback = escapeHtml(
-    g.sourceLabels?.[detail.source] || detail.source || 'AI'
-  )
-  const source = configuredModel ? escapeHtml(configuredModel) : sourceFallback
-  const speakAria = escapeHtml(g.speakAria || '朗读')
-  const refetchAria = escapeHtml(g.refetchAria || '重新获取')
+  const sourceFallback = String(g.sourceLabels?.[detail.source] || detail.source || 'AI')
+  const source = configuredModel || sourceFallback
+  const speakAria = String(g.speakAria || '朗读')
+  const refetchAria = String(g.refetchAria || '重新获取')
   const definitions = Array.isArray(detail.definitions) ? detail.definitions : []
 
   // 卡片根
@@ -194,7 +220,7 @@ export function renderDetail(detail) {
   // 音标行（无音标时显示"暂无"）
   const phonetic = ipa
     ? textEl('p', 'german-detail-card__phonetic', ipa)
-    : textEl('p', 'german-detail-card__phonetic german-detail-card__phonetic--empty', escapeHtml(g.missingData || '暂无'))
+    : textEl('p', 'german-detail-card__phonetic german-detail-card__phonetic--empty', String(g.missingData || '暂无'))
 
   header.appendChild(wordRow)
   header.appendChild(phonetic)
@@ -206,14 +232,14 @@ export function renderDetail(detail) {
   addBtn.type = 'button'
   addBtn.className = 'german-add-memo btn btn--tonal'
   addBtn.appendChild(iconEl('add_circle'))
-  addBtn.appendChild(textEl('span', '', escapeHtml(g.addMemo || '添加到生词本')))
+  addBtn.appendChild(textEl('span', '', String(g.addMemo || '添加到生词本')))
   actions.appendChild(addBtn)
 
   // 词典结果（<details open>）：语法 + 释义列表
   const dict = document.createElement('details')
   dict.className = 'german-dict'
   dict.open = true
-  dict.appendChild(textEl('summary', 'german-dict__summary', escapeHtml(g.resultsTitle || '词典结果')))
+  dict.appendChild(textEl('summary', 'german-dict__summary', String(g.resultsTitle || '词典结果')))
 
   const dictBody = document.createElement('div')
   dictBody.className = 'german-dict__body'
@@ -229,19 +255,40 @@ export function renderDetail(detail) {
   }
 
   if (definitions.length === 0) {
-    dictBody.appendChild(textEl('p', 'german-missing', escapeHtml(g.missingData || '暂无数据')))
+    dictBody.appendChild(textEl('p', 'german-missing', String(g.missingData || '暂无数据')))
   } else {
     const ol = document.createElement('ol')
     ol.className = 'german-definitions'
     for (const d of definitions) {
-      const meaning = escapeHtml(d.meaning || '')
-      const tag = escapeHtml(d.tag || '')
-      const exDe = escapeHtml(d.example_de || '')
-      const exCn = escapeHtml(d.example_cn || '')
+      const meaning = String(d.meaning || '')
+      const tag = String(d.tag || '')
+      const exDe = String(d.example_de || '')
+      const exCn = String(d.example_cn || '')
+      const collocations = Array.isArray(d.collocations) ? d.collocations : []
+      const exampleCollocation = collocations[d.example_collocation_index] || collocations[0]
+      const examplePrepositions = exampleCollocation?.prepositions || []
 
       const li = document.createElement('li')
       li.className = 'german-definition'
-      if (tag) li.appendChild(textEl('div', 'german-definition__trans', tag))
+      const meta = document.createElement('div')
+      meta.className = 'german-definition__meta'
+      if (tag) meta.appendChild(textEl('span', 'german-definition__trans', tag))
+      if (d.collocations && d.collocations.length > 0) {
+        const wrap = document.createElement('span')
+        wrap.className = 'german-collocations'
+        const label = document.createElement('span')
+        label.className = 'german-collocations__label'
+        label.textContent = g.collocationsLabel || '搭配：'
+        wrap.appendChild(label)
+        for (const col of d.collocations) {
+          const badge = document.createElement('span')
+          badge.className = 'german-collocations__item'
+          badge.textContent = String(col.template || '')
+          wrap.appendChild(badge)
+        }
+        meta.appendChild(wrap)
+      }
+      if (meta.childNodes.length > 0) li.appendChild(meta)
       li.appendChild(textEl('div', 'german-definition__main', meaning))
 
       if (exDe || exCn) {
@@ -250,7 +297,7 @@ export function renderDetail(detail) {
         const exLi = document.createElement('li')
         exLi.className = 'german-example'
         const em = document.createElement('i')
-        em.textContent = exDe
+        renderExampleWithTerms(em, exDe, examplePrepositions)
         exLi.appendChild(em)
         exLi.appendChild(textEl('span', '', '(' + exCn + ')'))
         ul.appendChild(exLi)
@@ -266,7 +313,7 @@ export function renderDetail(detail) {
   const sourceRow = document.createElement('div')
   sourceRow.className = 'german-detail-card__source'
   sourceRow.appendChild(textEl('span', 'german-detail-card__source-label',
-    escapeHtml(g.sourceLabel || '数据源') + ': ' + source))
+    String(g.sourceLabel || '数据源') + ': ' + source))
 
   card.appendChild(header)
   card.appendChild(actions)

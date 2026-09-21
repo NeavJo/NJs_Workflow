@@ -323,6 +323,61 @@
 .german-example i { font-style: italic; color: var(--md-on-surface); }
 .german-example span { color: var(--md-on-surface-variant); }
 .german-example span:empty { display: none; }
+/* 例句中被 {…} 包裹的目标词：紫色粗体，便于定位；字号继承 .german-example 跟随滑块。
+ * 取主题 --md-primary（亮 #6750a4 / 暗 #d0bcff，本就是 Material 紫，暗色自动适配）；
+ * background: transparent 去掉 mark 默认黄底——只要紫色粗体文字，不要高亮底色。 */
+.german-example mark.german-example__term {
+  background: transparent;
+  color: var(--md-primary);
+  font-weight: 700;
+  font-style: inherit;
+  padding: 0;
+}
+/* 例句中被 <…> 包裹的固定介词：深绿色粗体，与紫色目标词形成双色对照。 */
+.german-example mark.german-example__preposition {
+  background: transparent;
+  color: #2e7d32;
+  font-weight: 700;
+  font-style: inherit;
+  padding: 0;
+}
+@media (prefers-color-scheme: dark) {
+  .german-example mark.german-example__preposition { color: #81c784; }
+}
+/* 动词搭配模板标签：与词性共用 meta 行，空间不足时整体换行。 */
+.german-definition__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.german-definition__trans {
+  flex: 0 0 auto;
+}
+.german-collocations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: calc(var(--german-font-scale, 1) * 13px);
+  color: var(--md-on-surface-variant);
+}
+.german-collocations__label {
+  font-weight: 600;
+  color: var(--md-on-surface-variant);
+  white-space: nowrap;
+}
+.german-collocations__item {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--md-primary) 14%, transparent);
+  color: var(--md-primary);
+  font-weight: 600;
+  font-size: calc(var(--german-font-scale, 1) * 12px);
+  white-space: nowrap;
+}
 
 /* 缺失数据提示 */
 .german-missing {

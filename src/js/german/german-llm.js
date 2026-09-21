@@ -18,6 +18,7 @@
  *         "index": 1,
  *         "tag": "Substantiv",
  *         "meaning": "苹果，一种圆形水果",
+ *         "collocations": [],
  *         "example_de": "Ich esse jeden Tag einen Apfel.",
  *         "example_cn": "我每天吃一个苹果。"
  *       }
@@ -70,7 +71,15 @@ const SYSTEM_PROMPT = `你是一个专业的德语词典助手。请为用户提
       "index": 1,
       "tag": "词性标注，如 Substantiv / Verb / Adjektiv / Adverb",
       "meaning": "中文释义",
-      "example_de": "德语例句（完整句子）",
+      "collocations": [
+        {
+          "template": "sich freuen über + Akk.",
+          "prepositions": ["über"]
+        }
+      ],
+      "example_collocation_index": 0,
+      "example_de": "德语例句（完整句子）。目标词的原型、变位形式、可分动词拆开的各部分或名词变格形式用花括号 {…} 包裹，例如 \"Ich {freue} mich <über> den Erfolg.\"；当前例句使用的固定介词用尖括号 <…> 包裹，且必须来自 collocations[example_collocation_index].prepositions。只包介词本身，不包冠词、宾语或 + Akk.",
+
       "example_cn": "例句中文翻译"
     }
   ]
@@ -78,12 +87,31 @@ const SYSTEM_PROMPT = `你是一个专业的德语词典助手。请为用户提
 
 规则：
 1. 只返回 JSON 对象，不要任何额外文字
-2. 释义至少 2 条，至多 5 条，按常用度排序
-3. 每条释义必须包含德语例句和中文翻译
-4. 名词必须标注 der/die/das 和复数形式
-5. 动词必须标注关键变位形式（现在时第三人称单数、过去时、完成时）
-6. 形容词必须标注比较级和最高级
-7. 如果单词不存在或无法识别，返回 {"word":"","ipa":"","grammar":"","definitions":[]}`
+2. 释义至少 2 条，至多 5 条；排序不能只按字面义或词典传统顺序，必须按“真实使用频率 × 交际实用性”排序
+3. 每条释义必须包含德语例句和中文翻译；例句必须能证明该释义或句型的实际用法
+4. 例句中体现目标词的部分必须用花括号 {目标词} 包起来（如 {Apfel}）；动词变位、可分动词拆开的各部分、名词变格形式都要各自包裹；只包体现目标词的词，不要包整个句子
+5. 名词必须标注 der/die/das 和复数形式
+6. 动词必须标注关键变位形式（现在时第三人称单数、过去时、完成时）
+7. 形容词必须标注比较级和最高级
+8. 如果单词不存在或无法识别，返回 {"word":"","ipa":"","grammar":"","definitions":[]}
+
+动词释义与高频句型优先级规则：
+9. 查询结果是动词时，先识别该词在现代日常德语中最常出现、最值得学习的固定句型、功能结构和动介搭配，再组织释义；不能只从动词的字面本义（如“走、去”）开始罗列
+10. 对动词按以下优先级生成释义：第一优先是高频固定句型或功能结构（包括无人称结构、代词结构和常用介词搭配）；第二优先是高频日常义；第三优先才是低频、书面、专业或字面延伸义。高频固定句型如果与字面义不同，必须单独作为核心释义项，不得埋在普通释义的例句里
+11. 固定句型必须给出“句型整体的中文意义”，不能只翻译动词本身。例如 gehen 必须优先考虑并可单独生成“关于、涉及某事”的核心释义，句型为“es geht um + Akk.”，而不是只生成“走、去”；freuen 必须优先覆盖“sich freuen auf + Akk.”（期待）和“sich freuen über + Akk.”（为已经发生或拥有的事情感到高兴）等高频用法
+12. 每个动词释义都要判断它是否对应一个独立的高频句型或搭配。若是，meaning、collocations、example_de、example_cn 必须围绕同一个句型生成；不得让中文释义说“涉及某事”，例句却使用“去某地”，也不得让搭配和例句表达无关意义
+13. 对有多个常见义项的动词，优先保留学习价值最高的 2—5 个义项；可以合并明显同义的普通义，但不得为了凑数量加入罕见或脱离上下文的释义。固定句型和普通字面义属于不同用法时必须分开
+
+动介搭配与例句绑定规则：
+14. 如果当前释义是动词，collocations 列出该释义下最常用、最具代表性的固定动介搭配；搭配按该释义中的使用频率排序，每个释义优先列 1—3 个，不要罗列所有可能介词；非动词释义返回空数组 []
+15. template 是可直接展示的完整搭配或句型模板（如 “es geht um + Akk.”、“sich freuen auf + Akk.”），必须保留必要的代词、无人称主语或反身结构；prepositions 仅含模板中实际固定介词的词形（如 ["um"] 或 ["auf"]）
+16. example_collocation_index 必须是当前例句实际使用的搭配在 collocations 中的下标；如果没有搭配则固定为 0
+17. example_de 必须先确定当前释义和 example_collocation_index 指定的搭配，再生成完整、自然、贴近日常场景的例句；例句必须同时满足：表达当前 meaning、使用指定句型、与中文翻译逐字对应。不能先生成一个普通例句再强行添加搭配标记
+18. 例句中的目标词词形用 {…} 包裹，实际出现且属于所选搭配 prepositions 的介词用 <…> 包裹；例如“Es {geht} <um> die Kosten.”对应“关于费用/涉及费用”，不得写成与搭配无关的“Wir {gehen} nach Hause.”
+19. <…> 只包介词本身，不包冠词、宾语、补语或 + Akk.；不得把与当前搭配无关的介词用尖括号包裹。若所选搭配没有在例句中实际出现，不得声称该例句使用了该搭配
+20. 同一释义若有多个搭配，只能为 example_collocation_index 指定的一个搭配生成例句；其余搭配仅在 collocations 中展示。不同搭配表达不同中文意义时，应拆成不同释义项，不要用一个含糊释义覆盖它们
+21. 标记符号不得嵌套；普通标点和其他句子部分不加标记
+22. 返回内容必须仍是合法 JSON，不得输出 Markdown 或额外解释`
 
 /**
  * 读取缓存中的词条详情（命中时刷新 ts，作为 LRU 触点的近似实现）。
@@ -100,7 +128,7 @@ export function getCachedDetail(word) {
     entry.ts = Date.now()
     safeStorageSet(CACHE_KEY, cache)
     DBG('german:cache:hit', { word, ts: entry.ts })
-    return entry.detail
+    return normalizeDetail(entry.detail)
   }
   return null
 }
@@ -286,8 +314,12 @@ function normalizeDetail(raw) {
     index: d.index || i + 1,
     tag: String(d.tag || ''),
     meaning: String(d.meaning || ''),
-    example_de: String(d.example_de || d.example_de || ''),
-    example_cn: String(d.example_cn || d.example_cn || '')
+    collocations: normalizeCollocations(d.collocations),
+    example_collocation_index: Number.isInteger(d.example_collocation_index) && d.example_collocation_index >= 0
+      ? d.example_collocation_index
+      : 0,
+    example_de: String(d.example_de || ''),
+    example_cn: String(d.example_cn || '')
   })).filter((d) => d.meaning || d.example_de)
 
   return {
@@ -295,8 +327,27 @@ function normalizeDetail(raw) {
     ipa: String(raw.ipa || raw.phonetic || ''),
     grammar: String(raw.grammar || raw.inflection || ''),
     definitions,
-    source: 'AI'
+    source: String(raw.source || 'AI')
   }
+}
+
+/**
+ * 规范化 collocations 数组，兼容旧缓存和异常输入。
+ * 每个条目仅保留合法 template 字符串和非空 prepositions 数组。
+ */
+function normalizeCollocations(raw) {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((c) => c && typeof c === 'object')
+    .map((c) => {
+      const template = String(c.template || '')
+      const prepositions = Array.isArray(c.prepositions)
+        ? c.prepositions.filter((p) => typeof p === 'string' && p.length > 0)
+        : []
+      if (!template || prepositions.length === 0) return null
+      return { template, prepositions }
+    })
+    .filter(Boolean)
 }
 
 export { CACHE_KEY, LLM_TIMEOUT_MS, CACHE_MAX_ENTRIES }
