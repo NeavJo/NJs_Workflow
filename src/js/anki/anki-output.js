@@ -4,6 +4,7 @@ import { I18N, t } from '../locales.js'
 import { getTodayDateString } from '../core/date.js'
 import { triggerDownload } from '../backup/snapshot.js'
 import { $ } from '../utils/dom-utils.js'
+import { getSelectedMemoTag, getMemoTags } from '../memo/memo-store.js'
 
 /**
  * Anki 输出区：AI 返回结果解析与分类卡片渲染
@@ -14,6 +15,18 @@ import { $ } from '../utils/dom-utils.js'
  */
 
 const ANKI_TXT_FILENAME_PREFIX = 'Anki_Import_'
+
+/**
+ * 获取当前选中的笔记标签显示名（去 # 前缀）。
+ * 未配置或无法匹配时返回空字符串，由调用方做兜底。
+ */
+function getSelectedTagDisplayName() {
+  const tagId = String(getSelectedMemoTag() || '')
+  if (!tagId) return ''
+  const tags = getMemoTags()
+  const found = tags.find((t) => t.id === tagId)
+  return found?.name ? found.name.replace(/^#/, '') : tagId.replace(/^#/, '')
+}
 
 export function parseAnkiOutput(rawText) {
   const raw = typeof rawText === 'string' ? rawText : ''
@@ -228,7 +241,8 @@ function exportCategory(name) {
     showToast(I18N.toast.anki.outputEmptyDownload)
     return
   }
-  const filename = `Anki_${sanitizeFilename(name)}_${getTodayDateString()}.txt`
+  const tag = getSelectedTagDisplayName()
+  const filename = tag ? `Anki_${sanitizeFilename(tag)}_${sanitizeFilename(name)}_${getTodayDateString()}.txt` : `Anki_${sanitizeFilename(name)}_${getTodayDateString()}.txt`
   triggerDownload(filename, text, 'text/plain;charset=utf-8')
   DBG('anki:download:category', { filename, length: text.length })
   showToast(t(I18N.toast.anki.categoryDownloadStarted, { name }))
@@ -252,7 +266,8 @@ export function downloadAllAnkiTxt() {
     return
   }
   const text = sections.map((s) => s.text).join('\n')
-  const filename = `${ANKI_TXT_FILENAME_PREFIX}${getTodayDateString()}.txt`
+  const tag = getSelectedTagDisplayName()
+  const filename = tag ? `${ANKI_TXT_FILENAME_PREFIX}${sanitizeFilename(tag)}_${getTodayDateString()}.txt` : `${ANKI_TXT_FILENAME_PREFIX}${getTodayDateString()}.txt`
   triggerDownload(filename, text, 'text/plain;charset=utf-8')
   DBG('anki:download:all', { filename, length: text.length, sections: sections.length })
   showToast(I18N.toast.anki.downloadStarted)
