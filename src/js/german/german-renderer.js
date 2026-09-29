@@ -11,7 +11,7 @@
 import { escapeHtml } from '../utils/dom-utils.js'
 import { I18N } from '../locales.js'
 import { DBG } from '../core/debug.js'
-import { getAnkiSettings } from '../anki/anki-store.js'
+import { getActiveProfile } from '../anki/anki-store.js'
 
 /** 视图根选择器 */
 function root() {
@@ -181,7 +181,7 @@ export function renderDetail(detail) {
   const grammar = String(detail.grammar || '')
   // 数据源展示：优先显示 Anki 处理机设置里配置的 LLM 模型名（用户可见其实际由哪个模型生成），
   // 未配置模型时回退到 detail.source 对应的原始标签（godic 代理 / Free Dictionary 等）。
-  const configuredModel = (getAnkiSettings().modelId || '').trim()
+  const configuredModel = (getActiveProfile()?.modelId || '').trim()
   const sourceFallback = String(g.sourceLabels?.[detail.source] || detail.source || 'AI')
   const source = configuredModel || sourceFallback
   const speakAria = String(g.speakAria || '朗读')

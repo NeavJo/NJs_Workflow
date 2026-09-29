@@ -10,16 +10,33 @@ export const USER_SETTINGS_STORAGE_KEY = 'njs-workflow-user-settings'
 
 export const ANKI_SETTINGS_STORAGE_KEY = 'njs-workflow-anki-settings'
 
-export const DEFAULT_ANKI_SETTINGS = Object.freeze({
+export const ANKI_API_TYPES = ['gemini', 'openai']
+
+export const DEFAULT_ANKI_PROFILE = Object.freeze({
+  id: '',
+  name: '',
   apiType: 'gemini',
   baseUrl: 'https://generativelanguage.googleapis.com',
   modelId: 'gemini-3.5-flash-lite',
   apiKey: '',
-  apiKeyEncrypted: '',
-  prompt: ''
+  apiKeyEncrypted: ''
 })
 
-export const ANKI_API_TYPES = ['gemini', 'openai']
+export const DEFAULT_ANKI_SETTINGS = Object.freeze({
+  profiles: [
+    {
+      id: '',
+      name: '',
+      apiType: 'gemini',
+      baseUrl: 'https://generativelanguage.googleapis.com',
+      modelId: 'gemini-3.5-flash-lite',
+      apiKey: '',
+      apiKeyEncrypted: ''
+    }
+  ],
+  activeProfileId: '',
+  prompt: ''
+})
 
 export const DEFAULT_GIST_SETTINGS = Object.freeze({
   token: '',
@@ -29,6 +46,114 @@ export const DEFAULT_GIST_SETTINGS = Object.freeze({
 })
 
 export const DEFAULT_USER_SETTINGS = Object.freeze({})
+
+function generateAnkiProfileId() {
+  const random =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  return `anki-profile-${random}`
+}
+
+function normalizeAnkiApiType(value) {
+  return ANKI_API_TYPES.includes(value) ? value : 'gemini'
+}
+
+function normalizeAnkiBaseUrl(value) {
+  const text = typeof value === 'string' ? value.trim() : ''
+  if (!text) return text
+  try {
+    return new URL(text).toString()
+  } catch {
+    return text
+  }
+}
+
+export function normalizeAnkiProfile(raw, index = 0, fallbackName = '') {
+  const safe = raw && typeof raw === 'object' ? raw : {}
+  const name = typeof safe.name === 'string' ? safe.name.trim() : ''
+  return {
+    id: typeof safe.id === 'string' && safe.id.trim() ? safe.id.trim() : generateAnkiProfileId(),
+    name: name || fallbackName || `模型 ${index + 1}`,
+    apiType: normalizeAnkiApiType(safe.apiType),
+    baseUrl: normalizeAnkiBaseUrl(safe.baseUrl),
+    modelId: typeof safe.modelId === 'string' ? safe.modelId.trim() : '',
+    apiKey: typeof safe.apiKey === 'string' ? safe.apiKey : '',
+    apiKeyEncrypted: typeof safe.apiKeyEncrypted === 'string' ? safe.apiKeyEncrypted : ''
+  }
+}
+
+export function normalizeAnkiSettings(raw) {
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
+  // 旧版 localStorage / 备份可能保存单对象：
+  // { apiType, baseUrl, modelId, apiKey, apiKeyEncrypted, prompt }
+  // 先检测"单配置"形态，再迁移为一个档案，避免旧用户升级后配置丢失。
+  const looksLikeLegacySingleProfile =
+    Object.prototype.hasOwnProperty.call(source, 'apiType') ||
+    Object.prototype.hasOwnProperty.call(source, 'baseUrl') ||
+    Object.prototype.hasOwnProperty.call(source, 'modelId') ||
+    Object.prototype.hasOwnProperty.call(source, 'apiKey') ||
+    Object.prototype.hasOwnProperty.call(source, 'apiKeyEncrypted')
+
+  let rawProfiles
+  if (Array.isArray(source.profiles)) {
+    rawProfiles = source.profiles
+  } else if (looksLikeLegacySingleProfile) {
+    rawProfiles = [source]
+  } else {
+    rawProfiles = []
+  }
+
+  let profiles = rawProfiles
+    .filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+    .map((item, index) => normalizeAnkiProfile(item, index))
+
+  if (profiles.length === 0) {
+    profiles = [
+      {
+        ...normalizeAnkiProfile(DEFAULT_ANKI_PROFILE, 0),
+        id: generateAnkiProfileId()
+      }
+    ]
+  }
+
+  const idSet = new Set(profiles.map((profile) => profile.id))
+  // 保持"至少一个档案"不变量：UI 可临时删到 0 个再新增；
+  // 写入存储前 normalizeAnkiSettings 会兜底一个默认档案。
+  let activeProfileId = typeof source.activeProfileId === 'string' ? source.activeProfileId.trim() : ''
+  if (!idSet.has(activeProfileId)) {
+    // 旧版没有 activeProfileId；优先沿用旧单配置迁移出的档案。
+    activeProfileId =
+      looksLikeLegacySingleProfile && profiles.length > 0 ? profiles[0].id : profiles[0].id
+  }
+
+  return {
+    profiles,
+    activeProfileId,
+    prompt: typeof source.prompt === 'string' ? source.prompt.trim() : ''
+  }
+}
+
+export function createAnkiProfile(partial = {}, index = 0) {
+  const profile = normalizeAnkiProfile({
+    ...DEFAULT_ANKI_PROFILE,
+    ...partial,
+    id: partial?.id || generateAnkiProfileId(),
+    name: partial?.name || `模型 ${index + 1}`
+  }, index)
+  return profile
+}
+
+export function getActiveAnkiProfile(settings) {
+  const normalized = normalizeAnkiSettings(settings)
+  const active = normalized.profiles.find((profile) => profile.id === normalized.activeProfileId)
+  return active || normalized.profiles[0]
+}
+
+export function hasAnkiProfileCredentials(profile) {
+  if (!profile || typeof profile !== 'object') return false
+  return Boolean(profile.apiKey && profile.modelId && profile.baseUrl)
+}
 
 export function normalizeGistSettings(raw) {
   const safe = raw && typeof raw === 'object' ? raw : {}
@@ -48,10 +173,15 @@ export function normalizeCompletionHistory(raw) {
   const result = {}
   for (const key of Object.keys(raw)) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue
-    const list = raw[key]
-    if (!Array.isArray(list)) continue
-    const ids = [...new Set(list.filter((x) => typeof x === 'string' && x))]
-    if (ids.length) result[key] = ids
+    const value = raw[key]
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+    // 新规范要求 daily record 是对象；旧数组等不符合规范的记录直接清空
+    const ids = Array.isArray(value.completedIds)
+      ? [...new Set(value.completedIds.filter((x) => typeof x === 'string' && x))]
+      : []
+    const totalTasks = Number.isInteger(value.totalTasks) && value.totalTasks >= 0 ? value.totalTasks : null
+    if (ids.length === 0 && totalTasks === null) continue
+    result[key] = { completedIds: ids, totalTasks }
   }
   return result
 }
@@ -66,15 +196,4 @@ export function normalizeUserSettings(raw) {
     }
   }
   return result
-}
-
-export function normalizeAnkiSettings(raw) {
-  const safe = raw && typeof raw === 'object' ? raw : {}
-  const apiType = ANKI_API_TYPES.includes(safe.apiType) ? safe.apiType : 'gemini'
-  const baseUrl = typeof safe.baseUrl === 'string' ? safe.baseUrl.trim() : ''
-  const modelId = typeof safe.modelId === 'string' ? safe.modelId.trim() : ''
-  const apiKey = typeof safe.apiKey === 'string' ? safe.apiKey : ''
-  const apiKeyEncrypted = typeof safe.apiKeyEncrypted === 'string' ? safe.apiKeyEncrypted : ''
-  const prompt = typeof safe.prompt === 'string' ? safe.prompt.trim() : ''
-  return { apiType, baseUrl, modelId, apiKey, apiKeyEncrypted, prompt }
 }

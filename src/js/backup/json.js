@@ -6,7 +6,6 @@ import {
   USER_SETTINGS_STORAGE_KEY,
   WORKFLOWS_STORAGE_KEY,
   ANKI_SETTINGS_STORAGE_KEY,
-  DEFAULT_ANKI_SETTINGS,
   normalizeCompletionHistory,
   normalizeUserSettings,
   normalizeAnkiSettings
@@ -123,9 +122,10 @@ export function normalizeBackupPayload(payload, { fallbackLastReset = '' } = {})
     /^\d{4}-\d{2}-\d{2}$/.test(payload.data.lastResetDate)) ? payload.data.lastResetDate : fallbackLastReset
   const importedUserSettings = normalizeUserSettings(payload.data.userSettings || {})
   // ankiSettings 在 1.3 起加入；旧版备份缺失时保留当前本地配置，避免覆盖用户已配置的 API Key。
+  // normalizeAnkiSettings 会同时处理旧单档案 { apiType, apiKey, ... } 与新多档案 { profiles, activeProfileId }。
   const importedAnkiSettings = payload.data.ankiSettings !== undefined
     ? normalizeAnkiSettings(payload.data.ankiSettings)
-    : normalizeAnkiSettings(safeStorageGet(ANKI_SETTINGS_STORAGE_KEY, DEFAULT_ANKI_SETTINGS))
+    : normalizeAnkiSettings(safeStorageGet(ANKI_SETTINGS_STORAGE_KEY, {}))
   
   // memoTags 处理：如果备份中有数据则使用，否则保留当前本地数据
   const importedMemoTags = Array.isArray(payload.data.memoTags) ? payload.data.memoTags : []
@@ -193,13 +193,17 @@ export function persistBackupToStorage(payload, { fallbackLastReset = '' } = {})
       }
     }
 
+    const profileCount = Array.isArray(normalized.ankiSettings?.profiles) ? normalized.ankiSettings.profiles.length : 0
+    const activeProfile = normalized.ankiSettings?.profiles?.find((profile) => profile.id === normalized.ankiSettings.activeProfileId)
+    const hasAnkiKey = Boolean(activeProfile?.apiKey || normalized.ankiSettings?.profiles?.some((profile) => profile.apiKey))
     DBG('apply:success', {
       workflowsLength: normalized.workflows.length,
       rotationRulesLength: normalized.rotationRules.length,
       memosLength: normalized.memos.length,
       historyDays: Object.keys(normalized.completionHistory).length,
       importedLastResetDate: normalized.lastResetDate,
-      hasAnkiKey: Boolean(normalized.ankiSettings && normalized.ankiSettings.apiKey)
+      ankiProfileCount: profileCount,
+      hasAnkiKey
     })
     return normalized
   } catch (err) {

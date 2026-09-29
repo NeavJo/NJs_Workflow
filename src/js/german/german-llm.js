@@ -38,7 +38,7 @@
 
 import { DBG } from '../core/debug.js'
 import { safeStorageGet, safeStorageSet } from '../core/storage.js'
-import { getAnkiSettings, hasAnkiCredentials } from '../anki/anki-store.js'
+import { getActiveProfile, hasAnkiCredentials } from '../anki/anki-store.js'
 import { requestGemini, requestOpenAI } from '../anki/anki-api.js'
 
 const CACHE_KEY = 'njs-german-cache'
@@ -195,24 +195,24 @@ export async function lookupWordViaLLM(word, options) {
     return { ok: false, error: 'no_credentials', message: '请先在「设置」中配置 AI API Key 与模型。' }
   }
 
-  const settings = getAnkiSettings()
-  DBG('german:llm:request', { word: w, apiType: settings.apiType, modelId: settings.modelId })
+  const activeProfile = getActiveProfile() || {}
+  DBG('german:llm:request', { word: w, apiType: activeProfile.apiType, modelId: activeProfile.modelId })
 
   // 3. 调用 LLM
   let result
   try {
-    result = settings.apiType === 'openai'
+    result = activeProfile.apiType === 'openai'
       ? await requestOpenAI({
-          baseUrl: settings.baseUrl,
-          modelId: settings.modelId,
-          apiKey: settings.apiKey,
+          baseUrl: activeProfile.baseUrl,
+          modelId: activeProfile.modelId,
+          apiKey: activeProfile.apiKey,
           systemPrompt: SYSTEM_PROMPT,
           userMessage: w
         })
       : await requestGemini({
-          baseUrl: settings.baseUrl,
-          modelId: settings.modelId,
-          apiKey: settings.apiKey,
+          baseUrl: activeProfile.baseUrl,
+          modelId: activeProfile.modelId,
+          apiKey: activeProfile.apiKey,
           systemPrompt: SYSTEM_PROMPT,
           userMessage: w
         })

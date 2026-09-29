@@ -84,17 +84,25 @@ export class MonthlyView {
       date.setDate(date.getDate() - i)
       const dateStr = this.formatDate(date)
 
-      const dailyTotalTasks = getTrackableTasks(date).length
-
-      // 今日使用实时完成状态，历史日期读取历史记录
+      // 今日使用实时完成状态；历史日期优先读取首次归档时锁定的 totalTasks 快照
       let completedCount
+      let dailyTotalTasks
       if (dateStr === this.today) {
         completedCount = [...todayCompletedIds].filter(id =>
           workflows.some(w => w.id === id)
         ).length
+        // 今日尚未归档，必须按当前任务/轮换状态实时计算，避免使用昨日残留快照
+        dailyTotalTasks = getTrackableTasks(date).length
       } else {
         const dayHistory = history[dateStr]
-        completedCount = Array.isArray(dayHistory) ? dayHistory.length : 0
+        completedCount = dayHistory && Array.isArray(dayHistory.completedIds)
+          ? dayHistory.completedIds.length
+          : 0
+        const snapshotTotal = dayHistory?.totalTasks
+        // totalTasks: 0 是合法快照，不能用 || 误判为缺失；缺失时按查看日回退
+        dailyTotalTasks = typeof snapshotTotal === 'number'
+          ? snapshotTotal
+          : getTrackableTasks(date).length
       }
 
       const rate = dailyTotalTasks > 0

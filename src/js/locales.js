@@ -54,7 +54,7 @@ export const I18N = {
       flow: '每日工作流',
       memo: '生词记事本',
       anki: 'Anki 处理机',
-      monthly: '月览',
+      monthly: '月览 beta',
       german: '德语助手',
       settings: '设置与数据'
     },
@@ -305,7 +305,10 @@ export const I18N = {
     abnormalTitle: '⚠️ 发现拼写/语法异常词汇',
     abnormalTip: '以下词汇未通过校验，请在上方【原始单词】输入框中修正后重新生成',
     geminiLabel: 'Google Gemini 原生 API',
-    openaiLabel: '通用 OpenAI 兼容接口'
+    openaiLabel: '通用 OpenAI 兼容接口',
+    profileSelectLabel: '选择模型',
+    profileSelectPlaceholder: '暂无模型档案',
+    profileSelectAriaLabel: '选择 Anki 处理机使用的模型档案'
   },
 
   /* ========================================================================
@@ -388,6 +391,15 @@ export const I18N = {
 
     ankiApiTitle: 'Anki 处理机 API 配置',
     ankiApiSub: '配置 LLM 接口用于生成 Anki 卡片文本；配置随系统数据一并同步至 Gist。',
+    profileListEmpty: '暂无模型档案',
+    profileActiveBadge: '使用中',
+    profileDefaultName: '默认模型',
+    profileAdd: '添加档案',
+    profileDuplicate: '复制档案',
+    profileDelete: '删除档案',
+    profileName: '档案名称',
+    profileNameHint: '用于区分多个模型配置',
+    profileNamePlaceholder: '例如：Gemini 主力',
     apiType: 'API 类型',
     apiTypeHint: '选择 Gemini 原生或通用 OpenAI 兼容接口',
     baseUrl: 'Base URL',
@@ -528,6 +540,8 @@ export const I18N = {
       promptRestored: '已恢复默认提示词。',
       promptRestoreFailed: '恢复默认提示词失败，请检查浏览器存储权限。',
       promptRestoredDefault: '已恢复默认提示词，后续处理将使用内置默认提示词。',
+      cannotDeleteLastProfile: '至少需要保留一个模型档案。',
+      deleteProfileConfirm: '确认删除当前模型档案？删除后配置不可恢复。',
       configSaveFailed: 'Anki API 配置保存失败，请检查浏览器存储权限。',
       configSaved: 'Anki API 配置已保存。',
       defaultPromptEmpty: '默认提示词为空，请检查项目配置。',

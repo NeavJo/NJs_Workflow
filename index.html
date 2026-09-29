@@ -472,7 +472,25 @@
                         </div>
                       </div>
                       <footer class="backup-card__footer">
+                        <!-- 档案列表：渲染所有模型档案，点击选中、可复制/删除 -->
+                        <div id="anki-profile-list" class="anki-profile-list" role="listbox" aria-label="模型档案列表"></div>
+                        <div class="anki-profile-actions">
+                          <button id="btn-anki-profile-add" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">add</span>
+                            <span data-i18n="settings.profileAdd">添加档案</span>
+                          </button>
+                        </div>
+                        <!-- 详情表单：编辑当前选中档案；编辑态由 JS 管理 -->
                         <form class="gist-form" id="anki-settings-form" autocomplete="off">
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="anki-profile-name">
+                              <span data-i18n="settings.profileName">档案名称</span>
+                              <small data-i18n="settings.profileNameHint">用于区分多个模型配置</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <input id="anki-profile-name" type="text" autocomplete="off" spellcheck="false" placeholder="例如：Gemini 主力" data-i18n-placeholder="settings.profileNamePlaceholder" />
+                            </div>
+                          </div>
                           <div class="gist-field">
                             <label class="gist-field__label" for="anki-api-type">
                               <span data-i18n="settings.apiType">API 类型</span>
@@ -511,6 +529,14 @@
                           </div>
                         </form>
                         <div class="gist-actions">
+                          <button id="btn-anki-profile-duplicate" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">copy</span>
+                            <span data-i18n="settings.profileDuplicate">复制档案</span>
+                          </button>
+                          <button id="btn-anki-profile-delete" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">delete</span>
+                            <span data-i18n="settings.profileDelete">删除档案</span>
+                          </button>
                           <button id="btn-anki-save" type="button" class="btn btn--filled gist-actions__btn">
                             <span class="material-symbols" aria-hidden="true">save</span>
                             <span data-i18n="settings.saveConfig">保存配置</span>
@@ -797,6 +823,14 @@
               </div>
               <textarea id="anki-input" class="anki-textarea" rows="6" placeholder="例如：der Apfel, die Schule, lernen..." data-i18n-placeholder="anki.inputPlaceholder" spellcheck="false"></textarea>
               <div class="anki-toolbar">
+                <div class="anki-profile-picker">
+                  <button id="anki-profile-select" type="button" class="anki-profile-select" aria-haspopup="menu" aria-expanded="false" data-i18n-aria="anki.profileSelectAriaLabel">
+                    <span class="material-symbols anki-profile-select__icon" aria-hidden="true">smart_toy</span>
+                    <span id="anki-profile-select-label" class="anki-profile-select__label" data-i18n="anki.profileSelectLabel">选择模型</span>
+                    <span class="material-symbols anki-profile-select__chevron" aria-hidden="true">expand_more</span>
+                  </button>
+                  <div id="anki-profile-menu" class="anki-profile-menu" role="menu" hidden></div>
+                </div>
                 <button id="anki-read-today" type="button" class="btn btn--tonal">
                   <span class="material-symbols" aria-hidden="true">playlist_add</span>
                   <span data-i18n="anki.readToday">读取今日生词</span>

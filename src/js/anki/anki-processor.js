@@ -4,10 +4,11 @@ import { parseMemoContentToMap } from '../memo/memo-parser.js'
 import { getTodayDateString } from '../core/date.js'
 import { showToast } from '../ui.js'
 import { I18N, t } from '../locales.js'
-import { getAnkiSettings, hasAnkiCredentials } from './anki-store.js'
+import { hasAnkiCredentials, getActiveProfile } from './anki-store.js'
 import { loadAnkiPrompt } from './anki-prompt.js'
 import { requestGemini, requestOpenAI } from './anki-api.js'
 import { renderAnkiCards, bindAnkiOutputEvents } from './anki-output.js'
+import { initAnkiProfileSelect } from './anki-profile-select.js'
 import { $ } from '../utils/dom-utils.js'
 
 /**
@@ -46,6 +47,7 @@ function setProcessing(processing) {
   const readBtn = $('anki-read-today')
   const copyBtn = $('anki-copy')
   const dlBtn = $('anki-download')
+  const profileSelect = $('anki-profile-select')
   const loadingEl = $('anki-loading')
   const buttons = [runBtn, readBtn, copyBtn, dlBtn].filter(Boolean)
   document.querySelectorAll('#anki-output-cards button').forEach((btn) => buttons.push(btn))
@@ -53,6 +55,7 @@ function setProcessing(processing) {
     btn.disabled = processing
     btn.classList.toggle('is-busy', processing)
   }
+  if (profileSelect) profileSelect.disabled = processing
   if (runBtn) {
     const label = runBtn.querySelector('.anki-run-label')
     if (label) label.textContent = processing ? I18N.anki.processing : I18N.anki.startProcess
@@ -66,14 +69,14 @@ export async function runAnkiProcessing() {
   if (!inputEl || !cardsEl) return
   const words = inputEl.value.trim()
   if (!words) {
-    showToast('请先输入或读取需要处理的单词。')
+    showToast(I18N.toast.anki.noWordsInput)
     return
   }
   if (!hasAnkiCredentials()) {
-    showToast('请先在设置中配置 API Key 与模型。')
+    showToast(I18N.toast.anki.noApiConfig)
     return
   }
-  const settings = getAnkiSettings()
+  const activeProfile = getActiveProfile() || {}
   setProcessing(true)
   try {
     const systemPrompt = await loadAnkiPrompt()
@@ -81,19 +84,19 @@ export async function runAnkiProcessing() {
       showToast(I18N.toast.anki.promptLoadFailed)
       return
     }
-    DBG('anki:run:start', { apiType: settings.apiType, wordsLen: words.length })
-    const result = settings.apiType === 'openai'
+    DBG('anki:run:start', { apiType: activeProfile.apiType, modelId: activeProfile.modelId, wordsLen: words.length })
+    const result = activeProfile.apiType === 'openai'
       ? await requestOpenAI({
-          baseUrl: settings.baseUrl,
-          modelId: settings.modelId,
-          apiKey: settings.apiKey,
+          baseUrl: activeProfile.baseUrl,
+          modelId: activeProfile.modelId,
+          apiKey: activeProfile.apiKey,
           systemPrompt,
           userMessage: words
         })
       : await requestGemini({
-          baseUrl: settings.baseUrl,
-          modelId: settings.modelId,
-          apiKey: settings.apiKey,
+          baseUrl: activeProfile.baseUrl,
+          modelId: activeProfile.modelId,
+          apiKey: activeProfile.apiKey,
           systemPrompt,
           userMessage: words
         })
@@ -119,4 +122,6 @@ export function bindAnkiProcessorEvents() {
   readBtn?.addEventListener('click', readTodayWords)
   runBtn?.addEventListener('click', runAnkiProcessing)
   bindAnkiOutputEvents()
+  // 主处理页档案选择器：渲染 + 幂等绑定 + 变更订阅
+  initAnkiProfileSelect()
 }

@@ -3,7 +3,16 @@ export {
   getAnkiSettings,
   setAnkiSettings,
   persistAnkiSettings,
-  hasAnkiCredentials
+  hasAnkiCredentials,
+  hasAnyAnkiCredentials,
+  getAnkiProfiles,
+  getActiveProfile,
+  getActiveProfileId,
+  addAnkiProfile,
+  updateAnkiProfile,
+  duplicateAnkiProfile,
+  deleteAnkiProfile,
+  setActiveProfile
 } from './anki-store.js'
 
 export { loadAnkiPrompt, getCachedAnkiPrompt } from './anki-prompt.js'
@@ -15,6 +24,14 @@ export {
   runAnkiProcessing,
   bindAnkiProcessorEvents
 } from './anki-processor.js'
+
+export {
+  renderAnkiProfileSelect,
+  bindAnkiProfileSelectEvents,
+  initAnkiProfileSelect
+} from './anki-profile-select.js'
+
+export { onAnkiSettingsChange } from './anki-store.js'
 
 export {
   parseAnkiOutput,

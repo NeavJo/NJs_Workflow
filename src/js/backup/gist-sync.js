@@ -9,7 +9,7 @@ import {
   markGistSyncSuccess,
   hasGistCredentials
 } from '../core/settings-store.js'
-import { normalizeGistSettings } from '../config/storage-config.js'
+import { normalizeGistSettings, normalizeCompletionHistory } from '../config/storage-config.js'
 import { gistApiRequest, gistErrorMessage, GIST_FILENAME } from './gist-api.js'
 import { buildExportPayload, keyOmitReasonText } from './snapshot.js'
 import { validateBackupPayload } from './json.js'
@@ -30,7 +30,8 @@ import {
 import { setRotationRules, persistRotationRules } from '../workflow/rotation-store.js'
 import { replaceMemos, persistMemos, setMemoTags, persistMemoTags } from '../memo/memo-store.js'
 import { setUserSettings, persistUserSettings } from '../core/settings-store.js'
-import { setAnkiSettings, persistAnkiSettings, getAnkiSettings } from '../anki/anki-store.js'
+import { setAnkiSettings, persistAnkiSettings, getAnkiProfiles } from '../anki/anki-store.js'
+import { normalizeAnkiSettings } from '../config/storage-config.js'
 import { renderAnkiSettingsInputs } from '../anki/anki-settings.js'
 import { decryptAnkiSecret } from '../anki/anki-crypto.js'
 import { getEffectivePassphrase } from '../anki/anki-passphrase.js'
@@ -81,7 +82,8 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     rotationRules: rotationRules.length,
     memos: memos.length,
     historyDays: Object.keys(completionHistory).length,
-    hasAnkiKey: Boolean(ankiSettings && ankiSettings.apiKey),
+    ankiProfileCount: Array.isArray(ankiSettings?.profiles) ? ankiSettings.profiles.length : 0,
+    hasAnkiKey: ankiSettings?.profiles?.some((p) => p.apiKey) || false,
     memoTags: Array.isArray(memoTags) ? memoTags.length : 0
   })
 }
@@ -226,32 +228,57 @@ export async function pullFromGist({ silent = false } = {}) {
     return { ok: false, reason: 'invalid-format', notify: validateErr }
   }
 
-  // 解密加密的 API Key：口令缺失 / 解密失败时不阻断拉取——保留本地 apiKey，丢弃无法解密的密文，
-  // 其余 Anki 字段照常同步，并以非阻断提示告知用户。
-  const ankiIn = parsed.data.ankiSettings
-  if (ankiIn && typeof ankiIn === 'object' && ankiIn.apiKeyEncrypted) {
-    const passphrase = getEffectivePassphrase()
-    let ankiKeyOmitReason = null
-    if (!passphrase) {
-      ankiKeyOmitReason = 'no-passphrase'
-      DBG('gist:pull:anki-key:skip', { reason: 'no-passphrase', preservedLocalKey: Boolean(getAnkiSettings().apiKey) })
-    } else {
-      try {
-        ankiIn.apiKey = await decryptAnkiSecret(ankiIn.apiKeyEncrypted, passphrase)
-      } catch (err) {
-        const cryptoDown = err && (err.code === 'crypto-unavailable' || err.message === 'crypto-unavailable')
-        ankiKeyOmitReason = cryptoDown ? 'crypto-unavailable' : 'decrypt-error'
-        DBG('gist:pull:decrypt:error', { reason: ankiKeyOmitReason, name: err?.name, message: err?.message })
+  // 解密加密的 API Key：逐档案处理；口令缺失/解密失败时不阻断拉取，
+  // 失败档案保留本地同 id 明文 Key（若存在）并清空远端密文，其余档案不受影响。
+  let ankiIn = parsed.data.ankiSettings
+  if (ankiIn && typeof ankiIn === 'object') {
+    const normalizedIn = normalizeAnkiSettings(ankiIn)
+    const anyEncrypted = normalizedIn.profiles.some((p) => p.apiKeyEncrypted)
+    if (anyEncrypted) {
+      const passphrase = getEffectivePassphrase()
+      let anyOmitReason = null
+      let failedCount = 0
+      if (!passphrase) {
+        anyOmitReason = 'no-passphrase'
+        DBG('gist:pull:anki-key:skip', { reason: 'no-passphrase' })
+      } else {
+        const localProfiles = getAnkiProfiles()
+        const localById = new Map(localProfiles.map((p) => [p.id, p]))
+        for (const p of normalizedIn.profiles) {
+          if (!p.apiKeyEncrypted) continue
+          try {
+            p.apiKey = await decryptAnkiSecret(p.apiKeyEncrypted, passphrase)
+          } catch (err) {
+            failedCount += 1
+            const cryptoDown = err && (err.code === 'crypto-unavailable' || err.message === 'crypto-unavailable')
+            if (!anyOmitReason) anyOmitReason = cryptoDown ? 'crypto-unavailable' : 'decrypt-error'
+            DBG('gist:pull:anki:decrypt:error', { profileId: p.id, reason: anyOmitReason })
+            const localMatch = localById.get(p.id) || localProfiles.find((l) => l.name === p.name && l.apiType === p.apiType)
+            if (localMatch?.apiKey) p.apiKey = localMatch.apiKey
+            p.apiKeyEncrypted = ''
+          }
+        }
       }
+      if (anyOmitReason) {
+        // 口令缺失时全部档案都未解密；保留本地已有明文 Key
+        if (anyOmitReason === 'no-passphrase') {
+          const localProfiles = getAnkiProfiles()
+          const localById = new Map(localProfiles.map((p) => [p.id, p]))
+          for (const p of normalizedIn.profiles) {
+            if (p.apiKeyEncrypted && !p.apiKey) {
+              const localMatch = localById.get(p.id) || localProfiles.find((l) => l.name === p.name && l.apiType === p.apiType)
+              if (localMatch?.apiKey) p.apiKey = localMatch.apiKey
+              p.apiKeyEncrypted = ''
+            }
+          }
+        }
+        if (!silent) showToast(t(I18N.toast.anki.keyOmittedPull, { reason: keyOmitReasonText(anyOmitReason), count: failedCount || normalizedIn.profiles.filter((p) => !p.apiKey && !p.apiKeyEncrypted).length }))
+      }
+      parsed.data.ankiSettings = { ...normalizedIn }
+    } else if (normalizedIn.profiles.some((p) => p.apiKey && !p.apiKeyEncrypted)) {
+      if (!silent) showToast(I18N.toast.anki.plainApiKeyWarning)
+      parsed.data.ankiSettings = { ...normalizedIn }
     }
-    if (ankiKeyOmitReason) {
-      const localKey = getAnkiSettings().apiKey
-      if (localKey) ankiIn.apiKey = localKey
-      ankiIn.apiKeyEncrypted = ''
-      if (!silent) showToast(t(I18N.toast.anki.keyOmittedPull, { reason: keyOmitReasonText(ankiKeyOmitReason) }))
-    }
-  } else if (ankiIn && typeof ankiIn === 'object' && ankiIn.apiKey && !ankiIn.apiKeyEncrypted) {
-    if (!silent) showToast(I18N.toast.anki.plainApiKeyWarning)
   }
 
   // 应用到各 store + 重新渲染
@@ -261,11 +288,12 @@ export async function pullFromGist({ silent = false } = {}) {
   // 期间触发的 persist* 不应立刻把同一份数据反向传回 Gist。
   suspendAutoUpload()
   try {
+    // 云端可能仍是旧数组格式；统一清洗为新对象规范，避免 setCompletionHistory 后持久化结构不合法
     applyImportedState({
       workflows: parsed.data.workflows,
       rotationRules: parsed.data.rotationRules,
       memos: parsed.data.memos,
-      completionHistory: parsed.data.completionHistory,
+      completionHistory: normalizeCompletionHistory(parsed.data.completionHistory),
       lastResetDate: parsed.data.lastResetDate,
       userSettings: parsed.data.userSettings,
       ankiSettings: parsed.data.ankiSettings,

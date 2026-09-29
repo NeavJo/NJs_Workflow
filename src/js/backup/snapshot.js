@@ -6,8 +6,9 @@ import { getRotationRules } from '../workflow/rotation-store.js'
 import { getMemos } from '../memo/memo-store.js'
 import { getCompletionHistory, getLastResetDate } from '../workflow/history-store.js'
 import { getCompletedIds } from '../workflow/completion-store.js'
+import { normalizeCompletionHistory } from '../config/storage-config.js'
 import { getUserSettings } from '../core/settings-store.js'
-import { getAnkiSettings } from '../anki/anki-store.js'
+import { getAnkiSettings, getActiveProfile } from '../anki/anki-store.js'
 import { getMemoTags } from '../memo/memo-store.js'
 
 import { getTodayDateString } from '../core/date.js'
@@ -66,33 +67,59 @@ export function readFileAsText(file) {
 
 /**
  * 把 Anki 配置转为可导出形态：
- *  - apiKey 非空且存在有效口令 → 现场加密为 apiKeyEncrypted，apiKey 置空后随备份/Gist 输出。
- *  - apiKey 非空但无口令 / 加密不可用 / 加密失败 → 省略 apiKey（置空），其余字段照常输出，绝不阻断同步。
- *  - 返回 { settings, keyOmitted, omitReason? }；omitReason ∈ 'no-passphrase' | 'crypto-unavailable' | 'encrypt-error'。
+ *  - profiles 中每个档案的 apiKey 非空且存在有效口令 → 现场加密为 apiKeyEncrypted，apiKey 置空后随备份/Gist 输出。
+ *  - 某档案 apiKey 非空但无口令 / 加密不可用 / 加密失败 → 仅省略该档案的明文 Key，不阻断其它档案。
+ *  - 返回 { settings, keyOmitted, omitReason?, omittedProfileIds }；omitReason ∈ 'no-passphrase' | 'crypto-unavailable' | 'encrypt-error'。
  */
 async function prepareAnkiSettingsForExport(ankiSnapshot) {
-  const snapshot = { ...ankiSnapshot, apiKeyEncrypted: ankiSnapshot.apiKeyEncrypted || '' }
-  if (!snapshot.apiKey) {
-    return { settings: { ...snapshot, apiKeyEncrypted: '' }, keyOmitted: false }
-  }
-  const passphrase = getEffectivePassphrase()
-  if (!passphrase) {
-    return { settings: { ...snapshot, apiKey: '', apiKeyEncrypted: '' }, keyOmitted: true, omitReason: 'no-passphrase' }
-  }
-  try {
-    const encrypted = await encryptAnkiSecret(snapshot.apiKey, passphrase)
-    return { settings: { ...snapshot, apiKey: '', apiKeyEncrypted: encrypted }, keyOmitted: false }
-  } catch (err) {
-    const reason = err && (err.code === 'crypto-unavailable' || err.message === 'crypto-unavailable')
-      ? 'crypto-unavailable'
-      : 'encrypt-error'
-    DBG('export:anki:encrypt:error', {
-      reason,
-      name: err?.name,
-      message: err?.message,
-      stack: String(err?.stack || err).slice(0, 300)
+  const activeProfile = getActiveProfile()
+  const activeId = activeProfile?.id || ''
+  const preparedProfiles = await Promise.all(
+    (ankiSnapshot.profiles || []).map(async (profile) => {
+      const base = {
+        ...profile,
+        apiKey: '',
+        apiKeyEncrypted: profile.apiKeyEncrypted || ''
+      }
+      if (!profile.apiKey) return base
+      const passphrase = getEffectivePassphrase()
+      if (!passphrase) {
+        DBG('export:anki:encrypt:skip', { profileId: profile.id, reason: 'no-passphrase' })
+        return base
+      }
+      try {
+        const encrypted = await encryptAnkiSecret(profile.apiKey, passphrase)
+        return { ...base, apiKeyEncrypted: encrypted }
+      } catch (err) {
+        const reason = err && (err.code === 'crypto-unavailable' || err.message === 'crypto-unavailable')
+          ? 'crypto-unavailable'
+          : 'encrypt-error'
+        DBG('export:anki:encrypt:error', {
+          reason,
+          profileId: profile.id,
+          name: err?.name,
+          message: err?.message,
+          stack: String(err?.stack || err).slice(0, 300)
+        })
+        return { ...base, encryptOmitReason: reason }
+      }
     })
-    return { settings: { ...snapshot, apiKey: '', apiKeyEncrypted: '' }, keyOmitted: true, omitReason: reason }
+  )
+  const omittedProfileIds = preparedProfiles
+    .filter((profile, index) => Boolean((ankiSnapshot.profiles || [])[index]?.apiKey))
+    .filter((profile) => !profile.apiKeyEncrypted)
+    .map((profile) => profile.id)
+  const firstReason = preparedProfiles.find((profile) => profile.encryptOmitReason)?.encryptOmitReason
+  const anyOmitted = omittedProfileIds.length > 0
+  const omitReason = anyOmitted ? (firstReason || 'no-passphrase') : undefined
+  return {
+    settings: {
+      ...ankiSnapshot,
+      profiles: preparedProfiles.map(({ encryptOmitReason, ...profile }) => profile),
+      activeProfileId: activeId
+    },
+    keyOmitted: anyOmitted,
+    omitReason
   }
 }
 
@@ -121,8 +148,21 @@ export async function buildExportPayload() {
     tag: m.tag,
     content: m.content
   }))
-  const completionHistorySnapshot = JSON.parse(JSON.stringify(getCompletionHistory()))
-  completionHistorySnapshot[getTodayDateString()] = [...getCompletedIds()]
+  const completionHistorySnapshot = normalizeCompletionHistory(JSON.parse(JSON.stringify(getCompletionHistory())))
+  const todayStr = getTodayDateString()
+  const todayCompleted = [...getCompletedIds()]
+  const existingTodayRecord = completionHistorySnapshot[todayStr]
+  const existingTotal = existingTodayRecord && typeof existingTodayRecord.totalTasks === 'number'
+    ? existingTodayRecord.totalTasks
+    : null
+  const existingIds = existingTodayRecord && Array.isArray(existingTodayRecord.completedIds)
+    ? existingTodayRecord.completedIds
+    : []
+  // 仅更新当天 completedIds；totalTasks 缺失时不伪造，留待归档/月览回退
+  completionHistorySnapshot[todayStr] = {
+    completedIds: [...new Set([...existingIds, ...todayCompleted])],
+    totalTasks: existingTotal
+  }
   const userSettingsSnapshot = { ...getUserSettings() }
   const ankiSettingsSnapshot = { ...getAnkiSettings() }
   const memoTagsSnapshot = []

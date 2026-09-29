@@ -18,9 +18,10 @@ import {
   restoreTodayCompletedFromHistory
 } from '../workflow/history-store.js'
 import { setUserSettings, persistUserSettings, getUserSettings } from '../core/settings-store.js'
-import { setAnkiSettings, persistAnkiSettings } from '../anki/anki-store.js'
+import { setAnkiSettings, persistAnkiSettings, getAnkiProfiles } from '../anki/anki-store.js'
 import { decryptAnkiSecret } from '../anki/anki-crypto.js'
 import { setPassphrase } from '../anki/anki-passphrase.js'
+import { normalizeAnkiSettings } from '../config/storage-config.js'
 import { renderAnkiSettingsInputs } from '../anki/anki-settings.js'
 import { renderWorkflow } from '../workflow/workflow-renderer.js'
 import { renderMemos, updateMemoCounters, renderTagSelector } from '../memo/memo-renderer.js'
@@ -151,29 +152,54 @@ async function handleImportFile(file) {
   const err = validateBackupPayload(parsed)
   if (err) { showToast(err); return }
 
-  // 解密加密的 API Key（若有）：口令缺失 / 错误 / 数据损坏时中止导入，不污染本地配置。
-  const ankiIn = parsed.data.ankiSettings
-  if (ankiIn && typeof ankiIn === 'object' && ankiIn.apiKeyEncrypted) {
-    const passphrase = window.prompt(I18N.toast.anki.importPassphrasePrompt)
-    if (passphrase == null) {
-      showToast(I18N.toast.backup.importCancelled)
-      return
-    }
-    try {
-      ankiIn.apiKey = await decryptAnkiSecret(ankiIn.apiKeyEncrypted, passphrase)
+  // 解密加密的 API Key（若有）：把旧/新 Anki 配置归一化为多档案；逐档案解密。
+  // 某档案解密失败时仅保留该档案的本地明文 Key（若存在）并清空远端密文，其余档案不受影响。
+  let ankiIn = parsed.data.ankiSettings
+  if (ankiIn && typeof ankiIn === 'object') {
+    const normalizedIn = normalizeAnkiSettings(ankiIn)
+    const anyEncrypted = normalizedIn.profiles.some((p) => p.apiKeyEncrypted)
+    if (anyEncrypted) {
+      const passphrase = window.prompt(I18N.toast.anki.importPassphrasePrompt)
+      if (passphrase == null) {
+        showToast(I18N.toast.backup.importCancelled)
+        return
+      }
       setPassphrase(passphrase)
-    } catch (err) {
-      const cryptoDown = err && (err.code === 'crypto-unavailable' || err.message === 'crypto-unavailable')
-      DBG('import:anki:decrypt:error', {
-        reason: cryptoDown ? 'crypto-unavailable' : 'decrypt-error',
-        name: err?.name,
-        message: err?.message
-      })
-      showToast(cryptoDown ? I18N.toast.anki.cryptoUnavailable : I18N.toast.anki.decryptFailed)
-      return
+      const localProfiles = getAnkiProfiles()
+      const localById = new Map(localProfiles.map((p) => [p.id, p]))
+      let firstFailReason = null
+      let failedCount = 0
+      for (const p of normalizedIn.profiles) {
+        if (!p.apiKeyEncrypted) continue
+        try {
+          p.apiKey = await decryptAnkiSecret(p.apiKeyEncrypted, passphrase)
+        } catch (err) {
+          failedCount += 1
+          const cryptoDown = err && (err.code === 'crypto-unavailable' || err.message === 'crypto-unavailable')
+          if (!firstFailReason) firstFailReason = cryptoDown ? 'crypto-unavailable' : 'decrypt-error'
+          DBG('import:anki:decrypt:error', {
+            profileId: p.id,
+            reason: firstFailReason,
+            name: err?.name,
+            message: err?.message
+          })
+          const localMatch = localById.get(p.id) || localProfiles.find((l) => l.name === p.name && l.apiType === p.apiType)
+          if (localMatch?.apiKey) p.apiKey = localMatch.apiKey
+          p.apiKeyEncrypted = ''
+        }
+      }
+      if (failedCount > 0) {
+        showToast(
+          firstFailReason === 'crypto-unavailable'
+            ? I18N.toast.anki.cryptoUnavailable
+            : t(I18N.toast.anki.decryptFailed, { count: failedCount })
+        )
+      }
+      ankiIn = { ...normalizedIn }
+      parsed.data.ankiSettings = ankiIn
+    } else if (normalizedIn.profiles.some((p) => p.apiKey && !p.apiKeyEncrypted)) {
+      showToast(I18N.toast.anki.plainApiKeyWarning)
     }
-  } else if (ankiIn && typeof ankiIn === 'object' && ankiIn.apiKey && !ankiIn.apiKeyEncrypted) {
-    showToast(I18N.toast.anki.plainApiKeyWarning)
   }
 
   const historyDays = parsed.data.completionHistory ? Object.keys(parsed.data.completionHistory).length : 0
@@ -232,7 +258,8 @@ async function handleImportFile(file) {
     memos: getMemos().length,
     historyDays: Object.keys(getCompletionHistory()).length,
     userSettingsKeys: Object.keys(getUserSettings()).length,
-    hasAnkiKey: Boolean(imported.ankiSettings && imported.ankiSettings.apiKey)
+    ankiProfileCount: Array.isArray(imported.ankiSettings?.profiles) ? imported.ankiSettings.profiles.length : 0,
+    hasAnkiKey: imported.ankiSettings?.profiles?.some((p) => p.apiKey) || false
   })
   showToast(t(I18N.toast.backup.importSuccess, {
     tasks: getWorkflows().length,

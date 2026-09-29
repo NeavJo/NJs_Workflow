@@ -7,6 +7,7 @@ import { safeStorageGet, safeStorageSet } from '../core/storage.js'
 import { DBG } from '../core/debug.js'
 import { getTodayDateString } from '../core/date.js'
 import { getCompletedIds, setCompletedIds, persistCompleted, clearCompleted } from './completion-store.js'
+import { getTrackableTasks } from './workflow-runtime.js'
 import { requestAutoUpload } from '../core/sync-hooks.js'
 import { createPubSub } from '../utils/pubsub.js'
 
@@ -33,7 +34,10 @@ export function persistCompletionHistory() {
   const ok = safeStorageSet(COMPLETION_HISTORY_STORAGE_KEY, completionHistory)
   DBG('persist:completionHistory', {
     days: Object.keys(completionHistory).length,
-    total: Object.values(completionHistory).reduce((acc, arr) => acc + arr.length, 0),
+    total: Object.values(completionHistory).reduce((acc, record) => {
+      const ids = record && Array.isArray(record.completedIds) ? record.completedIds.length : 0
+      return acc + ids
+    }, 0),
     ok
   })
   requestAutoUpload()
@@ -61,21 +65,34 @@ export function persistLastResetDate() {
   return ok
 }
 
+function toDateObject(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 export function archiveTodayToHistory(dateStr) {
   const date = dateStr || lastResetDate || getTodayDateString()
   if (!date) return false
   const currentIds = [...getCompletedIds()]
-  if (currentIds.length === 0) {
+  const prevRecord = completionHistory[date]
+  const prevIds = prevRecord && Array.isArray(prevRecord.completedIds) ? prevRecord.completedIds : []
+  const merged = [...new Set([...prevIds, ...currentIds])]
+  // 0 完成也要保存 totalTasks 快照：旧早退逻辑会让“无完成日”缺失分母
+  if (currentIds.length === 0 && prevIds.length === 0) {
     DBG('archive:noop', { date })
     return false
   }
-  const prev = Array.isArray(completionHistory[date]) ? completionHistory[date] : []
-  const merged = [...new Set([...prev, ...currentIds])]
-  if (merged.length === prev.length) {
-    DBG('archive:no-new', { date, prev: prev.length })
+  const hasNewIds = merged.length > prevIds.length
+  // 同日后续归档不覆盖首次锁定的 totalTasks；无新增且已有快照时保持幂等不重写
+  if (!hasNewIds && typeof prevRecord?.totalTasks === 'number') {
+    DBG('archive:no-new', { date, prev: prevIds.length })
     return false
   }
-  completionHistory = { ...completionHistory, [date]: merged }
+  let totalTasks = typeof prevRecord?.totalTasks === 'number' ? prevRecord.totalTasks : null
+  if (totalTasks === null) {
+    totalTasks = getTrackableTasks(toDateObject(date)).length
+  }
+  completionHistory = { ...completionHistory, [date]: { completedIds: merged, totalTasks } }
   return true
 }
 
@@ -106,7 +123,8 @@ export function checkDailyReset({ force = false, reason = 'init', onComplete } =
 
 export function restoreTodayCompletedFromHistory() {
   const todayStr = getTodayDateString()
-  const todayIds = Array.isArray(completionHistory[todayStr]) ? completionHistory[todayStr] : []
+  const record = completionHistory[todayStr]
+  const todayIds = record && Array.isArray(record.completedIds) ? record.completedIds : []
   setCompletedIds(todayIds)
   persistCompleted()
   if (todayIds.length === 0) {
