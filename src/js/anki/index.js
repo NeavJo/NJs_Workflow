@@ -10,9 +10,13 @@ export {
   getActiveProfileId,
   addAnkiProfile,
   updateAnkiProfile,
+  updateAnkiProfileWithKey,
+  commitAnkiPrompt,
   duplicateAnkiProfile,
   deleteAnkiProfile,
-  setActiveProfile
+  setActiveProfile,
+  hydrateAnkiSecrets,
+  autoHydrateOnStartup
 } from './anki-store.js'
 
 export { loadAnkiPrompt, getCachedAnkiPrompt } from './anki-prompt.js'
@@ -20,7 +24,6 @@ export { loadAnkiPrompt, getCachedAnkiPrompt } from './anki-prompt.js'
 export { requestGemini, requestOpenAI } from './anki-api.js'
 
 export {
-  readTodayWords,
   runAnkiProcessing,
   bindAnkiProcessorEvents
 } from './anki-processor.js'

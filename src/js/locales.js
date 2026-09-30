@@ -273,6 +273,12 @@ export const I18N = {
     pickerTitle: '选择标签',
     pickerSubtitle: '点选下方标签快速切换；当前选中会高亮。',
     pickerListAria: '可用标签',
+    filterAll: '全部',
+    filterAria: '筛选标签',
+    filterTitle: '筛选笔记',
+    filterSubtitle: '按标签筛选笔记卡片流。',
+    filterListAria: '筛选标签列表',
+    filterEmpty: '没有「{tag}」标签的笔记。',
     expandAria: '展开全部内容',
     collapseAria: '收起全部内容',
     expandBtn: '展开全部',
@@ -289,7 +295,6 @@ export const I18N = {
     inputTitle: '输入区',
     inputHint: '每行一个生词，或用逗号 / 空格分隔',
     inputPlaceholder: 'Apfel\nSchule\nlernen\n...',
-    readToday: '读取今日生词',
     startProcess: '开始 AI 处理',
     processing: '处理中…',
     outputTitle: '输出区',
@@ -409,8 +414,9 @@ export const I18N = {
     modelIdHint: '如 gemini-3.5-flash-lite / gpt-4o-mini',
     modelIdPlaceholder: 'model-id',
     apiKey: 'API Key',
-    apiKeyHint: '本地保存，不写入日志；上传 Gist / 导出备份时以密文形式同步',
+    apiKeyHint: '本地保存（已加密）；上传 Gist / 导出备份时以密文形式同步',
     apiKeyPlaceholder: 'sk-*** 或 AIza***',
+    apiKeyStoredPlaceholder: '已保存，留空则不修改',
 
     passphraseTitle: 'Anki API Key 加密',
     passphraseSub: '设置加密口令，API Key 将以密文形式上传 Gist / 导出备份；拉取或导入时用口令解密还原。',
@@ -517,9 +523,7 @@ export const I18N = {
     },
 
     anki: {
-      noWordsToday: '今日暂无 Anki 生词记录。',
-      wordsLoaded: '已读取今日笔记全文，共 {length} 字符。',
-      noWordsInput: '请先输入或读取需要处理的单词。',
+      noWordsInput: '请先输入需要处理的单词。',
       noApiConfig: '请先在设置中配置 API Key 与模型。',
       ankiInputNotFound: '未找到 Anki 处理机输入框。',
       ankiCopied: '已复制到 Anki 处理机。',
@@ -544,6 +548,7 @@ export const I18N = {
       deleteProfileConfirm: '确认删除当前模型档案？删除后配置不可恢复。',
       configSaveFailed: 'Anki API 配置保存失败，请检查浏览器存储权限。',
       configSaved: 'Anki API 配置已保存。',
+      passphraseRequired: '保存 API Key 需先设置加密口令，请在下方口令区设置后重试。',
       defaultPromptEmpty: '默认提示词为空，请检查项目配置。',
       defaultPromptLoadFailed: '无法加载默认提示词，请稍后重试。',
       passphraseEmpty: '口令不能为空。',
@@ -624,6 +629,7 @@ export const I18N = {
 
     system: {
       networkError: '网络异常，请求失败。',
+      badConfig: 'API 配置不完整（Base URL 或模型 ID 缺失），请检查设置。',
       apiEmpty: 'API 返回为空，请检查模型或重试。',
       timeout: '请求超时，请稍后重试。',
       gemini400: '请求参数有误（400），请检查模型 ID 与 Base URL。',

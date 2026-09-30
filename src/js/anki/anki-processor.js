@@ -1,55 +1,33 @@
 import { DBG } from '../core/debug.js'
-import { getMemos } from '../memo/memo-store.js'
-import { parseMemoContentToMap } from '../memo/memo-parser.js'
-import { getTodayDateString } from '../core/date.js'
 import { showToast } from '../ui.js'
-import { I18N, t } from '../locales.js'
+import { I18N } from '../locales.js'
 import { hasAnkiCredentials, getActiveProfile } from './anki-store.js'
 import { loadAnkiPrompt } from './anki-prompt.js'
 import { requestGemini, requestOpenAI } from './anki-api.js'
 import { renderAnkiCards, bindAnkiOutputEvents } from './anki-output.js'
 import { initAnkiProfileSelect } from './anki-profile-select.js'
 import { $ } from '../utils/dom-utils.js'
+import { createGuard } from '../utils/guard.js'
 
 /**
  * Anki 处理机业务编排：
- *  - readTodayWords：从今日笔记（Anki 相关标签）抽取去重生词填入输入框。
  *  - runAnkiProcessing：校验配置 → 加载 Prompt → 按apiType 调用 LLM → 按分类渲染输出卡片。
  *  - setProcessing：统一管理 Loading 态与按钮禁用（含动态卡片按钮），防止重复提交。
  */
 
+// JS 级重入锁：与按钮 disabled 的 UI 防护形成双保险，防止程序化/竞态触发并发重复请求。
+let isProcessing = false
 
-
-export function readTodayWords() {
-  const inputEl = $('anki-input')
-  if (!inputEl) return
-  const todayStr = getTodayDateString()
-  const memos = getMemos()
-  let fullText = ''
-  for (const memo of memos) {
-    const ts = String(memo.timestamp || '')
-    if (!ts.startsWith(todayStr)) continue
-    const tag = String(memo.tag || '')
-    if (!/anki/i.test(tag)) continue
-    fullText += (memo.content || '').trim() + '\n'
-  }
-  if (!fullText.trim()) {
-    showToast(I18N.toast.anki.noWordsToday)
-    return
-  }
-  inputEl.value = fullText.trim()
-  DBG('anki:readToday', { length: fullText.length })
-  showToast(t(I18N.toast.anki.wordsLoaded, { length: fullText.length }))
-}
+// 幂等守卫：确保 bindAnkiProcessorEvents 可被重复调用而不重复绑定监听（D1）。
+const guardProcessor = createGuard('ankiProcessorEventsBound')
 
 function setProcessing(processing) {
   const runBtn = $('anki-run')
-  const readBtn = $('anki-read-today')
   const copyBtn = $('anki-copy')
   const dlBtn = $('anki-download')
   const profileSelect = $('anki-profile-select')
   const loadingEl = $('anki-loading')
-  const buttons = [runBtn, readBtn, copyBtn, dlBtn].filter(Boolean)
+  const buttons = [runBtn, copyBtn, dlBtn].filter(Boolean)
   document.querySelectorAll('#anki-output-cards button').forEach((btn) => buttons.push(btn))
   for (const btn of buttons) {
     btn.disabled = processing
@@ -64,6 +42,7 @@ function setProcessing(processing) {
 }
 
 export async function runAnkiProcessing() {
+  if (isProcessing) return
   const inputEl = $('anki-input')
   const cardsEl = $('anki-output-cards')
   if (!inputEl || !cardsEl) return
@@ -77,6 +56,7 @@ export async function runAnkiProcessing() {
     return
   }
   const activeProfile = getActiveProfile() || {}
+  isProcessing = true
   setProcessing(true)
   try {
     const systemPrompt = await loadAnkiPrompt()
@@ -113,13 +93,15 @@ export async function runAnkiProcessing() {
     showToast(I18N.toast.anki.aiError)
   } finally {
     setProcessing(false)
+    isProcessing = false
   }
 }
 
 export function bindAnkiProcessorEvents() {
-  const readBtn = $('anki-read-today')
+  // 幂等守卫：可重复调用，杜绝重复监听（D1）
+  if (guardProcessor.is()) return
+  guardProcessor.set()
   const runBtn = $('anki-run')
-  readBtn?.addEventListener('click', readTodayWords)
   runBtn?.addEventListener('click', runAnkiProcessing)
   bindAnkiOutputEvents()
   // 主处理页档案选择器：渲染 + 幂等绑定 + 变更订阅

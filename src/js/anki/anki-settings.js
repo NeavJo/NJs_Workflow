@@ -4,17 +4,17 @@ import { I18N } from '../locales.js'
 import { ANKI_API_TYPES } from '../config/storage-config.js'
 import {
   getAnkiSettings,
-  setAnkiSettings,
-  persistAnkiSettings,
   getAnkiProfiles,
   getActiveProfile,
   getActiveProfileId,
   addAnkiProfile,
-  updateAnkiProfile,
+  updateAnkiProfileWithKey,
+  commitAnkiPrompt,
   duplicateAnkiProfile,
   deleteAnkiProfile,
   setActiveProfile,
-  onAnkiSettingsChange
+  onAnkiSettingsChange,
+  hydrateAnkiSecrets
 } from './anki-store.js'
 import {
   setPassphrase,
@@ -23,7 +23,6 @@ import {
   hasRememberedPassphrase,
   getEffectivePassphrase
 } from './anki-passphrase.js'
-import { hasAnkiProfileCredentials } from '../config/storage-config.js'
 import { $ } from '../utils/dom-utils.js'
 import { createGuard } from '../utils/guard.js'
 
@@ -38,6 +37,8 @@ import { createGuard } from '../utils/guard.js'
  *  - 编辑中档案（_editingProfileId）是 UI 本地状态，保存后才写回 store
  *  - 新增/复制/删除直接操作 store，然后刷新列表
  *  - apiType 切换时自动联动 baseUrl（Gemini 固定，OpenAI 可用默认值）
+ *  - 档案保存一律走 updateAnkiProfileWithKey（含明文密钥时先加密，D4 密钥保护）；
+ *    表单密钥框不再回显明文（renderAnkiSettingsInputs），仅"留空则不修改"。
  */
 
 const DEFAULT_BASE_URL_FOR_TYPE = {
@@ -49,17 +50,21 @@ const DEFAULT_BASE_URL_FOR_TYPE = {
 let _editingProfileId = null
 
 /**
- * 把当前 UI 中编辑的档案写回 store（不持久化）。
+ * 把当前 UI 中编辑的档案写回 store（含持久化与密钥加密，异步）。
  * 由列表切换、新增、复制等场景在切换前调用，避免丢失未保存的修改。
  *
  * 单档案场景下用户不会（也不需要）点击档案列表项去"切换"，
  * 此时 _editingProfileId 为 null；若直接 return 会导致表单中已修改的内容
  * 被丢弃、保存时回退到旧值（表现为"点保存被清空"）。
  * 因此这里回退到 active 档案作为编辑目标，保证保存一定写入当前表单内容。
+ *
+ * 密钥处理（D4）：keyEl.value 有值 → 走 updateAnkiProfileWithKey（有口令则加密为 apiKeyEncrypted，
+ * 无口令则失败并保持旧状态）；留空 → 不带 apiKey 字段，store 会保留该档案既有密钥。
+ * @returns {Promise<boolean>} 是否成功写回（调用方据此决定是否继续切换/新增）
  */
-function _commitEditingProfile() {
+async function _commitEditingProfile() {
   const targetId = _editingProfileId || getActiveProfileId()
-  if (!targetId) return
+  if (!targetId) return false
   const nameEl = $('anki-profile-name')
   const typeEl = $('anki-api-type')
   const urlEl = $('anki-base-url')
@@ -69,11 +74,16 @@ function _commitEditingProfile() {
     name: (nameEl?.value || '').trim(),
     apiType: typeEl?.value || 'gemini',
     baseUrl: (urlEl?.value || '').trim(),
-    modelId: (modelEl?.value || '').trim(),
-    apiKey: keyEl?.value || ''
+    modelId: (modelEl?.value || '').trim()
   }
-  updateAnkiProfile(targetId, partial)
+  // 密钥仅在用户填写时携带；留空则不传该字段，store 保留原档案密钥。
+  const keyValue = (keyEl?.value || '').trim()
+  if (keyValue) {
+    partial.apiKey = keyValue
+  }
+  const result = await updateAnkiProfileWithKey(targetId, partial)
   _editingProfileId = null
+  return Boolean(result.ok)
 }
 
 /** 在档案列表中查找或创建选中项 */
@@ -193,7 +203,14 @@ export function renderAnkiSettingsInputs() {
       }
     }
     if (modelEl) modelEl.value = editProfile.modelId || ''
-    if (keyEl) keyEl.value = editProfile.apiKey || ''
+    // 密钥不回显明文（D4）：仅在"已存有密钥"时给出占位提示，输入框留空，
+    // 用户可填写新密钥以覆盖；留空则保存时保留原密钥。
+    if (keyEl) {
+      keyEl.value = ''
+      keyEl.placeholder = editProfile.apiKey || editProfile.apiKeyEncrypted
+        ? I18N.settings.apiKeyStoredPlaceholder
+        : ''
+    }
   }
 
   if (promptEl) promptEl.value = settings.prompt || ''
@@ -232,22 +249,33 @@ export function renderAnkiPassphraseStatus() {
 
 /* ===== 档案 CRUD ===== */
 
-export function addNewAnkiProfile() {
-  _commitEditingProfile()
+export async function addNewAnkiProfile() {
+  await _commitEditingProfile()
   const profile = addAnkiProfile({})
+  if (!profile) {
+    showToast(I18N.toast.anki.configSaveFailed)
+    return
+  }
   _editingProfileId = profile.id
   // 设为 active 以便表单显示
-  setActiveProfile(profile.id)
+  const active = setActiveProfile(profile.id)
+  if (!active) {
+    showToast(I18N.toast.anki.configSaveFailed)
+    return
+  }
   renderAnkiSettingsInputs()
   DBG('anki:profile:add:ui', { profileId: profile.id })
 }
 
-export function duplicateCurrentAnkiProfile() {
+export async function duplicateCurrentAnkiProfile() {
   const targetId = _editingProfileId || getActiveProfileId()
   if (!targetId) return
-  _commitEditingProfile()
+  await _commitEditingProfile()
   const copy = duplicateAnkiProfile(targetId)
-  if (!copy) return
+  if (!copy) {
+    showToast(I18N.toast.anki.configSaveFailed)
+    return
+  }
   _editingProfileId = copy.id
   renderAnkiSettingsInputs()
   DBG('anki:profile:duplicate:ui', { sourceId: targetId, newId: copy.id })
@@ -263,24 +291,28 @@ export function deleteCurrentAnkiProfile() {
   }
   if (!window.confirm(I18N.toast.anki.deleteProfileConfirm)) return
   _editingProfileId = null
+  // 删除是同步的严格一致性提交：store 内部已持久化 + emit，
+  // 此处不再重复调用 persistAnkiSettings。
   const result = deleteAnkiProfile(targetId)
-  persistAnkiSettings()
+  if (!result) {
+    showToast(I18N.toast.anki.configSaveFailed)
+    return
+  }
   // 删除后刷新列表；如果删除的是 active，activeProfileId 会被 store 重置为首项
   renderAnkiSettingsInputs()
   DBG('anki:profile:delete:ui', { deletedId: targetId, remaining: result.profiles.length })
 }
 
-export function saveAnkiSettingsFromInputs() {
-  _commitEditingProfile()
-  const persisted = persistAnkiSettings()
+export async function saveAnkiSettingsFromInputs() {
+  const ok = await _commitEditingProfile()
   _editingProfileId = null
   renderAnkiSettingsInputs()
-  if (!persisted) {
+  if (!ok) {
     showToast(I18N.toast.anki.configSaveFailed)
   } else {
     showToast(I18N.toast.anki.configSaved)
   }
-  DBG('anki:settings:save:ui', { persisted })
+  DBG('anki:settings:save:ui', { ok })
 }
 
 /* ===== 提示词与口令（保持全局语义） ===== */
@@ -288,37 +320,39 @@ export function saveAnkiSettingsFromInputs() {
 export function saveAnkiPromptFromInputs() {
   const promptEl = $('anki-prompt-input')
   const prev = getAnkiSettings()
-  const next = { ...prev, prompt: (promptEl?.value || '').trim() }
-  const changed = prev.prompt !== next.prompt
-  setAnkiSettings(next)
-  const persisted = persistAnkiSettings()
+  const nextPrompt = (promptEl?.value || '').trim()
+  const changed = prev.prompt !== nextPrompt
+  // 严格一致性（D2）：提示词不含密钥，走同步 commitAnkiPrompt；
+  // 持久化成功才更新内存并 emit，失败则回退输入框、不发布虚假刷新。
+  const ok = commitAnkiPrompt(nextPrompt)
+  if (promptEl && !ok) promptEl.value = prev.prompt || ''
   renderAnkiSettingsInputs()
-  if (!persisted) {
+  if (!ok) {
     showToast(I18N.toast.anki.promptSaveFailed)
   } else if (changed) {
-    showToast(next.prompt ? I18N.toast.anki.promptSaved : I18N.toast.anki.promptRestored)
+    showToast(nextPrompt ? I18N.toast.anki.promptSaved : I18N.toast.anki.promptRestored)
   }
-  DBG('anki:prompt:save', { changed, hasCustomPrompt: Boolean(next.prompt), persisted })
+  DBG('anki:prompt:save', { changed, hasCustomPrompt: Boolean(nextPrompt), ok })
 }
 
 export function resetAnkiPrompt() {
   const promptEl = $('anki-prompt-input')
   if (promptEl) promptEl.value = ''
   const prev = getAnkiSettings()
-  const next = { ...prev, prompt: '' }
   const changed = Boolean(prev.prompt)
-  setAnkiSettings(next)
-  const persisted = persistAnkiSettings()
+  // 严格一致性（D2）：持久化成功才清除内存 prompt；失败则回滚输入框。
+  const ok = commitAnkiPrompt('')
+  if (promptEl && !ok) promptEl.value = prev.prompt || ''
   renderAnkiSettingsInputs()
-  if (!persisted) {
+  if (!ok) {
     showToast(I18N.toast.anki.promptRestoreFailed)
   } else if (changed) {
     showToast(I18N.toast.anki.promptRestoredDefault)
   }
-  DBG('anki:prompt:reset', { changed, persisted })
+  DBG('anki:prompt:reset', { changed, ok })
 }
 
-export function saveAnkiPassphraseFromInputs() {
+export async function saveAnkiPassphraseFromInputs() {
   const passphraseEl = $('anki-passphrase-input')
   const rememberEl = $('anki-passphrase-remember')
   const passphrase = passphraseEl?.value || ''
@@ -329,12 +363,16 @@ export function saveAnkiPassphraseFromInputs() {
   const remember = Boolean(rememberEl?.checked)
   const ok = setPassphrase(passphrase, { remember })
   if (passphraseEl) passphraseEl.value = ''
-  renderAnkiPassphraseStatus()
   if (!ok) {
     showToast(I18N.toast.anki.passphraseSaveFailed)
-  } else {
-    showToast(remember ? I18N.toast.anki.passphraseSavedRemembered : I18N.toast.anki.passphraseSaved)
+    DBG('anki:passphrase:save', { remember, ok })
+    return
   }
+  // 口令生效后立即用其解密已有密文（水合内存明文），
+  // 让"已存密钥"在解锁后即刻可运行、可加密上传；异步、不阻塞提示。
+  hydrateAnkiSecrets().catch((e) => DBG('anki:passphrase:hydrate:fail', String(e)))
+  renderAnkiPassphraseStatus()
+  showToast(remember ? I18N.toast.anki.passphraseSavedRemembered : I18N.toast.anki.passphraseSaved)
   DBG('anki:passphrase:save', { remember, ok })
 }
 
@@ -349,12 +387,9 @@ export function clearAnkiPassphrase() {
 /* ===== 事件绑定（幂等） ===== */
 
 const guardAnkiSettings = createGuard('ankiSettingsEventsBound')
-const guardProfileActions = createGuard('ankiProfileActionsBound')
-const guardSubPageNav = createGuard('ankiSubPageNavBound')
 
 export function bindAnkiSettingsEvents() {
   if (guardAnkiSettings.is()) return
-  guardAnkiSettings.set()
 
   // 档案操作按钮
   try {
@@ -447,21 +482,9 @@ export function bindAnkiSettingsEvents() {
   } catch (e) {
     DBG('anki:bind:settings-subscribe:fail', String(e))
   }
+
+  // 各绑定独立 try/catch 完成后统一置位：单次绑定失败不阻断其它模块，
+  // 但整轮绑定尝试完成后标记 guard，避免重复调用时二次绑定、产生重复监听。
+  guardAnkiSettings.set()
 }
 
-/**
- * 子页面导航：进入 anki-api 子页时刷新一次状态。
- * 用 guard 保证不重复绑定。
- */
-export function bindAnkiSubPageNav() {
-  if (guardSubPageNav.is()) return
-  guardSubPageNav.set()
-  document.querySelectorAll('.view--settings [data-settings-page]').forEach((item) => {
-    item.addEventListener('click', () => {
-      if (item.dataset.settingsPage === 'anki-api') {
-        _editingProfileId = null
-        renderAnkiSettingsInputs()
-      }
-    })
-  })
-}

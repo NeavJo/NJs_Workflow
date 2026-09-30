@@ -13,7 +13,8 @@ export const MODAL_IDS = {
   rotation: 'taskform-rotation-modal',
   'editor-action': 'editor-action-modal',
   confirm: 'confirm-modal',
-  'memo-tag-picker': 'memo-tag-picker-modal'
+  'memo-tag-picker': 'memo-tag-picker-modal',
+  'memo-filter': 'memo-filter-modal'
 }
 
 const FOCUSABLE_SELECTOR = [

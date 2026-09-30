@@ -10,16 +10,6 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236750a4'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='700' fill='white' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E" />
     <link rel="stylesheet" href="./src/css/index.css" />
     <title data-i18n-title>NJ's Workflow</title>
-    <style>
-      html { background: var(--md-surface, #f7f5ff); }
-      body { margin: 0; background: var(--md-surface, #f7f5ff); }
-      body.app-loading { min-height: 100vh; display: grid; place-items: center; color: var(--md-on-surface-variant, #4b4660); font: 500 14px/1.5 system-ui, sans-serif; }
-      body.app-loading .app-shell { visibility: hidden; }
-      body:not(.app-loading) #app-loading { display: none; }
-      #app-loading { display: grid; justify-items: center; gap: 12px; }
-      #app-loading::before { content: ''; width: 24px; height: 24px; border: 3px solid var(--md-surface-container-high, #ded8f4); border-top-color: var(--md-primary, #6750a4); border-radius: 50%; animation: app-loading-spin .7s linear infinite; }
-      @keyframes app-loading-spin { to { transform: rotate(360deg); } }
-    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
@@ -182,10 +172,26 @@
             </section>
 
             <section class="memo-stream-section" aria-labelledby="memo-stream-title">
-              <div class="section-heading">
+              <div class="section-heading section-heading--filter">
                 <div>
                   <p class="eyebrow" data-i18n="memo.streamEyebrow">MEMORY STREAM</p>
                   <h2 id="memo-stream-title" data-i18n="memo.streamTitle">笔记卡片流</h2>
+                </div>
+                <div class="memo-filter">
+                  <div class="memo-filter__tabs" role="tablist" aria-label="筛选标签" data-i18n-aria="memo.filterAria">
+                    <!-- Filter buttons injected by JS -->
+                  </div>
+                  <button
+                    id="memo-filter-trigger"
+                    type="button"
+                    class="memo-filter__trigger"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    aria-controls="memo-filter-modal">
+                    <span class="material-symbols" aria-hidden="true">filter_list</span>
+                    <span id="memo-filter-trigger-label" class="memo-filter__trigger-label">全部</span>
+                    <span class="material-symbols memo-filter__trigger-chevron" aria-hidden="true">expand_more</span>
+                  </button>
                 </div>
               </div>
               <div id="memo-stream" class="memo-stream" aria-live="polite"></div>
@@ -530,7 +536,7 @@
                         </form>
                         <div class="gist-actions">
                           <button id="btn-anki-profile-duplicate" type="button" class="btn btn--tonal gist-actions__btn">
-                            <span class="material-symbols" aria-hidden="true">copy</span>
+                            <span class="material-symbols" aria-hidden="true">content_copy</span>
                             <span data-i18n="settings.profileDuplicate">复制档案</span>
                           </button>
                           <button id="btn-anki-profile-delete" type="button" class="btn btn--tonal gist-actions__btn">
@@ -598,7 +604,7 @@
                           <span class="material-symbols backup-icon backup-icon--prompt" aria-hidden="true">format_quote</span>
                           <div>
                             <h3 data-i18n="settings.promptTitle">Anki 处理机提示词</h3>
-                            <p data-i18n="settings.promptSub">默认读取 docs/anki_prompt.txt；可修改并保存自定义提示词，随 Gist 一并上传与拉取。</p>
+                            <p data-i18n="settings.promptSub">内置默认提示词；可修改并保存自定义提示词，随 Gist 一并上传与拉取。</p>
                           </div>
                         </div>
                       </div>
@@ -610,13 +616,13 @@
                               <small data-i18n="settings.systemPromptHint">留空则使用默认提示词</small>
                             </label>
                             <div class="gist-field__control">
-                              <textarea id="anki-prompt-input" spellcheck="false" placeholder="在此输入自定义提示词，留空则回退到 docs/anki_prompt.txt。" data-i18n-placeholder="settings.promptPlaceholder"></textarea>
+                              <textarea id="anki-prompt-input" spellcheck="false" placeholder="在此输入自定义提示词，留空则使用内置默认提示词。" data-i18n-placeholder="settings.promptPlaceholder"></textarea>
                             </div>
                           </div>
                         </form>
                         <div class="gist-status-line">
                           <span class="gist-status__dot" aria-hidden="true"></span>
-                          <span id="anki-prompt-status" class="gist-status__text" data-i18n="settings.promptStatusDefault">当前使用：默认提示词（docs/anki_prompt.txt）</span>
+                          <span id="anki-prompt-status" class="gist-status__text" data-i18n="settings.promptStatusDefault">当前使用：内置默认提示词</span>
                         </div>
                         <div class="gist-actions">
                           <button id="btn-anki-prompt-reset" type="button" class="btn btn--tonal gist-actions__btn">
@@ -809,7 +815,7 @@
               <div>
                 <p class="eyebrow" data-i18n="anki.eyebrow">ANKI · WORD PROCESSOR</p>
                 <h1 id="anki-page-title" data-i18n-html="anki.title">生词，<span>批量造卡。</span></h1>
-                <p class="hero-copy" data-i18n="anki.heroCopy">读取今日生词，一键调用 AI 生成 Anki 导入文本，复制或下载即可入库。</p>
+                <p class="hero-copy" data-i18n="anki.heroCopy">一键调用 AI 生成 Anki 导入格式，复制或下载即可入库。</p>
               </div>
             </section>
 
@@ -831,10 +837,6 @@
                   </button>
                   <div id="anki-profile-menu" class="anki-profile-menu" role="menu" hidden></div>
                 </div>
-                <button id="anki-read-today" type="button" class="btn btn--tonal">
-                  <span class="material-symbols" aria-hidden="true">playlist_add</span>
-                  <span data-i18n="anki.readToday">读取今日生词</span>
-                </button>
                 <button id="anki-run" type="button" class="btn btn--filled anki-run">
                   <span class="material-symbols" aria-hidden="true">auto_awesome</span>
                   <span class="anki-run-label" data-i18n="anki.startProcess">开始 AI 处理</span>
@@ -878,6 +880,29 @@
         </header>
         <div class="modal__body">
           <ul id="memo-tag-picker-list" class="memo-tag-picker__list" aria-label="可用标签" data-i18n-aria="memo.pickerListAria"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Memo Filter Sheet: 移动端筛选标签底部弹出 -->
+    <div id="memo-filter-modal" class="modal modal--sheet" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="memo-filter-modal-title" hidden>
+      <div class="modal__scrim" data-close-modal="memo-filter"></div>
+      <div class="modal__dialog modal__dialog--sheet">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <header class="modal__header modal__header--sheet">
+          <div class="modal__title-wrap">
+            <span class="material-symbols modal__title-icon" aria-hidden="true">filter_list</span>
+            <div>
+              <h2 id="memo-filter-modal-title" data-i18n="memo.filterTitle">筛选笔记</h2>
+              <p class="modal__subtitle" data-i18n="memo.filterSubtitle">按标签筛选笔记卡片流。</p>
+            </div>
+          </div>
+          <button class="icon-button modal__close" type="button" aria-label="关闭" data-i18n-aria="common.close" data-close-modal="memo-filter">
+            <span class="material-symbols" aria-hidden="true">close</span>
+          </button>
+        </header>
+        <div class="modal__body">
+          <ul id="memo-filter-list" class="memo-filter__list" aria-label="筛选标签" data-i18n-aria="memo.filterListAria"></ul>
         </div>
       </div>
     </div>

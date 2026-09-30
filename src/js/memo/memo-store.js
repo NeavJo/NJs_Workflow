@@ -16,10 +16,14 @@ import { createPubSub } from '../utils/pubsub.js'
 
 const memosPubsub = createPubSub()
 const tagsPubsub = createPubSub()
+const filterPubsub = createPubSub()
 
 let memos = []
 let memoTags = []
 let selectedMemoTag = ''
+// 筛选状态：'' 表示"全部"，非空时为某标签 id。
+// 不落盘：刷新后回到"全部"，避免上次筛选状态影响新用户首次体验。
+let memoFilterTag = ''
 // 当前分类（如"常规"）。生词本记事本页面的分类输入框会实时写入，
 // 其他模块（如德语助手"添加到生词本"）读取此值，保证跨页面分类联动。
 // 不落盘：与 selectedMemoTag 保持一致的策略，刷新后回到默认分类，
@@ -293,4 +297,21 @@ export function onMemosChange(fn) {
 
 export function onMemoTagsChange(fn) {
   return tagsPubsub.on(fn)
+}
+
+export function getMemoFilterTag() {
+  return memoFilterTag
+}
+
+export function setMemoFilterTag(id) {
+  const next = String(id || '')
+  // 校验：若传入非空值，须为当前有效的标签 id 或 ''（全部）
+  if (next && !memoTags.find((t) => t.id === next)) return false
+  memoFilterTag = next
+  filterPubsub.emit({ filterTag: memoFilterTag })
+  return true
+}
+
+export function onMemoFilterChange(fn) {
+  return filterPubsub.on(fn)
 }

@@ -12,13 +12,39 @@ import { fetchWithTimeout } from '../utils/fetch-utils.js'
 
 export const ANKI_API_TIMEOUT = 30000
 
+/**
+ * 校验 baseUrl 是否可解析为合法 http(s) URL。
+ * 与 storage-config.isValidAnkiBaseUrl 语义一致；此处独立实现避免跨模块循环依赖。
+ */
+export function isValidAnkiBaseUrl(value) {
+  if (typeof value !== 'string') return false
+  const text = value.trim()
+  if (!text) return false
+  try {
+    const url = new URL(text)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 构造 Gemini 请求 URL。
+ * 健壮性（§6.5）：baseUrl 或 modelId 缺失/非法时返回 null，
+ * 调用方据此返回明确错误而非拼出坏 URL。
+ * @returns {string|null}
+ */
 function buildGeminiUrl(baseUrl, modelId) {
-  const root = (baseUrl || '').replace(/\/+$/, '')
-  return `${root}/v1beta/models/${modelId}:generateContent`
+  if (!isValidAnkiBaseUrl(baseUrl)) return null
+  const model = typeof modelId === 'string' ? modelId.trim() : ''
+  if (!model) return null
+  const root = baseUrl.replace(/\/+$/, '')
+  return `${root}/v1beta/models/${encodeURIComponent(model)}:generateContent`
 }
 
 function buildOpenAIUrl(baseUrl) {
-  const root = (baseUrl || '').replace(/\/+$/, '')
+  if (!isValidAnkiBaseUrl(baseUrl)) return null
+  const root = baseUrl.replace(/\/+$/, '')
   if (/\/chat\/completions$/.test(root)) return root
   return `${root}/chat/completions`
 }
@@ -29,6 +55,10 @@ function buildOpenAIUrl(baseUrl) {
  */
 export function requestGemini({ baseUrl, modelId, apiKey, systemPrompt, userMessage }) {
   const url = buildGeminiUrl(baseUrl, modelId)
+  if (!url) {
+    DBG('anki:gemini:bad-url', { hasBaseUrl: Boolean(baseUrl), modelId })
+    return Promise.resolve({ ok: false, status: 0, text: '', error: I18N.toast.system.badConfig })
+  }
   const fullUrl = `${url}?key=${encodeURIComponent(apiKey || '')}`
   const body = {
     contents: [{ parts: [{ text: userMessage || '' }] }],
@@ -59,6 +89,10 @@ export function requestGemini({ baseUrl, modelId, apiKey, systemPrompt, userMess
  */
 export function requestOpenAI({ baseUrl, modelId, apiKey, systemPrompt, userMessage }) {
   const url = buildOpenAIUrl(baseUrl)
+  if (!url) {
+    DBG('anki:openai:bad-url', { hasBaseUrl: Boolean(baseUrl), modelId })
+    return Promise.resolve({ ok: false, status: 0, text: '', error: I18N.toast.system.badConfig })
+  }
   const body = {
     model: modelId,
     messages: [

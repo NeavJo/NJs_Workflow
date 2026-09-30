@@ -152,7 +152,28 @@ export function getActiveAnkiProfile(settings) {
 
 export function hasAnkiProfileCredentials(profile) {
   if (!profile || typeof profile !== 'object') return false
-  return Boolean(profile.apiKey && profile.modelId && profile.baseUrl)
+  const hasModel = Boolean(profile.modelId)
+  const hasKey = Boolean(profile.apiKey)
+  // baseUrl 必须能解析为合法 URL（§6.5）：避免把坏 URL 拼进请求体；
+  // 仅当三者齐备时判定"可运行"。
+  const hasUrl = Boolean(profile.baseUrl) && isValidAnkiBaseUrl(profile.baseUrl)
+  return hasModel && hasKey && hasUrl
+}
+
+/**
+ * 校验 baseUrl 是否可解析为合法 URL（http/https），供 hasAnkiProfileCredentials 使用。
+ * 仅做格式校验，不校验域名；失败返回 false 由调用方决定是否发起请求。
+ */
+export function isValidAnkiBaseUrl(value) {
+  if (typeof value !== 'string') return false
+  const text = value.trim()
+  if (!text) return false
+  try {
+    const url = new URL(text)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
 }
 
 export function normalizeGistSettings(raw) {

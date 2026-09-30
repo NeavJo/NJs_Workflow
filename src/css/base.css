@@ -29,7 +29,15 @@ input, textarea {
    浏览器会隐藏纵向滚动条，导致 body 内容宽度瞬变 → 导航栏/布局水平跳动。
    固定槽位保证不同页面间布局宽度一致，彻底消除滚动条引起的重排位移。
    不支持 scrollbar-gutter 的旧浏览器自动降级，回退到默认行为（无回归）。 */
-html { scrollbar-gutter: stable; }
+html { scrollbar-gutter: stable; background: var(--md-surface, #f7f5ff); }
+
+/* --- App loading state --- */
+body.app-loading { min-height: 100vh; display: grid; place-items: center; color: var(--md-on-surface-variant, #4b4660); font: 500 14px/1.5 system-ui, sans-serif; }
+body.app-loading .app-shell { visibility: hidden; }
+body:not(.app-loading) #app-loading { display: none; }
+#app-loading { display: grid; justify-items: center; gap: 12px; }
+#app-loading::before { content: ''; width: 24px; height: 24px; border: 3px solid var(--md-surface-container-high, #ded8f4); border-top-color: var(--md-primary, #6750a4); border-radius: 50%; animation: app-loading-spin .7s linear infinite; }
+@keyframes app-loading-spin { to { transform: rotate(360deg); } }
 
 body { margin: 0; background: var(--md-surface); color: var(--md-on-surface); }
 body.modal-open {

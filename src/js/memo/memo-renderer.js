@@ -1,7 +1,7 @@
 import { DBG } from '../core/debug.js'
 import { I18N, t as translate } from '../locales.js'
 import { escapeHtml } from '../utils/dom-utils.js'
-import { getMemos, getMemoTags, getSelectedMemoTag, onMemosChange, onMemoTagsChange } from './memo-store.js'
+import { getMemos, getMemoTags, getSelectedMemoTag, getMemoFilterTag, onMemosChange, onMemoTagsChange } from './memo-store.js'
 
 /**
  * 笔记渲染层：只读 store 产出 DOM；事件绑定交给 memo-events.js。
@@ -16,6 +16,12 @@ function countWords(content) {
   }).length
 }
 
+function isToday(memo) {
+  const d = new Date(memo.id)
+  const now = new Date()
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+}
+
 function createMemoCard(memo, memoTags) {
   const card = document.createElement('article')
   card.className = 'memo-card'
@@ -23,6 +29,7 @@ function createMemoCard(memo, memoTags) {
   const lineCount = countWords(memo.content)
   const isLong = lineCount > 7
   card.classList.toggle("memo-card--long", isLong)
+  card.classList.toggle("memo-card--today", isToday(memo))
   const tagOptions = memoTags
     .map((t) => `<option value="${escapeHtml(t.id)}" ${t.id === memo.tag ? 'selected' : ''}>${escapeHtml(t.name)}</option>`)
     .join('')
@@ -74,6 +81,7 @@ function createMemoCard(memo, memoTags) {
   const memoDate = new Date(memo.id)
   timeEl.dateTime = Number.isNaN(memoDate.getTime()) ? '' : memoDate.toISOString()
   timeEl.textContent = memo.timestamp
+  if (isToday(memo)) timeEl.classList.add('memo-card__time--today')
 
   const tagChip = card.querySelector('.memo-tag-chip--display')
   const tagInfo = memoTags.find((t) => t.id === memo.tag)
@@ -88,13 +96,129 @@ function createMemoCard(memo, memoTags) {
 export function renderMemos() {
   const stream = document.querySelector('#memo-stream')
   if (!stream) return
-  const memos = getMemos()
+  const allMemos = getMemos()
   const tags = getMemoTags()
-  const sorted = [...memos].sort((a, b) => b.id - a.id)
+  const filterTag = getMemoFilterTag()
+  let sorted = [...allMemos].sort((a, b) => b.id - a.id)
+  if (filterTag) {
+    sorted = sorted.filter((m) => m.tag === filterTag)
+  }
   stream.replaceChildren(...sorted.map((memo) => createMemoCard(memo, tags)))
   const empty = document.querySelector('#memo-empty')
-  if (empty) empty.hidden = sorted.length > 0
+  if (empty) {
+    // 筛选后无结果时，显示提示（而非"还没有笔记"的默认空态）
+    empty.hidden = allMemos.length > 0
+    const emptyText = empty.querySelector('[data-i18n="memo.empty"]')
+    if (emptyText && empty.hidden === false && filterTag) {
+      const tag = tags.find((t) => t.id === filterTag)
+      emptyText.textContent = tag ? translate(I18N.memo.filterEmpty, { tag: tag.name }) : I18N.memo.empty
+    } else if (emptyText) {
+      emptyText.textContent = I18N.memo.empty
+    }
+  }
   updateMemoCounters()
+}
+
+export function renderMemoFilterTabs() {
+  const container = document.querySelector('.memo-filter__tabs')
+  if (!container) return
+  const tags = getMemoTags()
+  const filterTag = getMemoFilterTag()
+  const frag = document.createDocumentFragment()
+
+  // "全部"按钮
+  const allBtn = document.createElement('button')
+  allBtn.type = 'button'
+  allBtn.className = 'memo-filter__tab' + (filterTag === '' ? ' is-active' : '')
+  allBtn.dataset.value = ''
+  allBtn.dataset.action = 'select-memo-filter'
+  allBtn.setAttribute('role', 'tab')
+  allBtn.setAttribute('aria-selected', filterTag === '' ? 'true' : 'false')
+  const allIcon = document.createElement('span')
+  allIcon.className = 'material-symbols'
+  allIcon.setAttribute('aria-hidden', 'true')
+  allIcon.textContent = 'apps'
+  const allLabel = document.createElement('span')
+  allLabel.textContent = I18N.memo.filterAll
+  allBtn.append(allIcon, allLabel)
+
+  // 各标签按钮
+  tags.forEach((tag) => {
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'memo-filter__tab' + (filterTag === tag.id ? ' is-active' : '')
+    btn.dataset.value = tag.id
+    btn.dataset.action = 'select-memo-filter'
+    btn.setAttribute('role', 'tab')
+    btn.setAttribute('aria-selected', filterTag === tag.id ? 'true' : 'false')
+    const icon = document.createElement('span')
+    icon.className = 'material-symbols'
+    icon.setAttribute('aria-hidden', 'true')
+    icon.textContent = tag.icon || 'label'
+    const label = document.createElement('span')
+    label.textContent = tag.name
+    btn.append(icon, label)
+    frag.append(btn)
+  })
+
+  container.replaceChildren(allBtn, frag)
+}
+
+export function renderMemoFilterTrigger() {
+  const labelEl = document.getElementById('memo-filter-trigger-label')
+  if (!labelEl) return
+  const tags = getMemoTags()
+  const filterTag = getMemoFilterTag()
+  if (filterTag === '') {
+    labelEl.textContent = I18N.memo.filterAll
+  } else {
+    const tag = tags.find((t) => t.id === filterTag)
+    labelEl.textContent = tag ? tag.name : I18N.memo.filterAll
+  }
+}
+
+export function renderMemoFilterList() {
+  const list = document.getElementById('memo-filter-list')
+  if (!list) return
+  const tags = getMemoTags()
+  const filterTag = getMemoFilterTag()
+  const frag = document.createDocumentFragment()
+
+  const allLi = document.createElement('li')
+  const allBtn = document.createElement('button')
+  allBtn.type = 'button'
+  allBtn.className = 'memo-filter__list-item' + (filterTag === '' ? ' is-active' : '')
+  allBtn.dataset.value = ''
+  allBtn.dataset.action = 'select-memo-filter-sheet'
+  const allIcon = document.createElement('span')
+  allIcon.className = 'material-symbols'
+  allIcon.setAttribute('aria-hidden', 'true')
+  allIcon.textContent = 'apps'
+  const allLabel = document.createElement('span')
+  allLabel.textContent = I18N.memo.filterAll
+  allBtn.append(allIcon, allLabel)
+  allLi.append(allBtn)
+  frag.append(allLi)
+
+  tags.forEach((tag) => {
+    const li = document.createElement('li')
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'memo-filter__list-item' + (filterTag === tag.id ? ' is-active' : '')
+    btn.dataset.value = tag.id
+    btn.dataset.action = 'select-memo-filter-sheet'
+    const icon = document.createElement('span')
+    icon.className = 'material-symbols'
+    icon.setAttribute('aria-hidden', 'true')
+    icon.textContent = tag.icon || 'label'
+    const label = document.createElement('span')
+    label.textContent = tag.name
+    btn.append(icon, label)
+    li.append(btn)
+    frag.append(li)
+  })
+
+  list.replaceChildren(frag)
 }
 
 export function updateMemoCounters() {
@@ -212,6 +336,10 @@ export function subscribeMemoTagChanges() {
     renderTagSelector()
     renderMemoTagPickerTrigger()
     renderMemoTagPickerList()
+    // 标签列表变化时也刷新筛选 tab / 触发器 / 弹窗列表
+    renderMemoFilterTabs()
+    renderMemoFilterTrigger()
+    renderMemoFilterList()
   })
   return memoTagsUnsubscribe
 }

@@ -157,6 +157,9 @@ export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
       body
     })
     if (res.ok) {
+      // 成功路径由 showGistUploaded()/hideGistIndicator() 自行接管指示器的收起时机，
+      // 置回 false 以免下方 finally 立即清理掉刚触发的「转圈→画勾」成功动画。
+      indicatorShown = false
       if (built.keyOmitted && notifyKeyOmitted) {
         hideGistIndicator()
         showToast(t(I18N.toast.anki.keyOmittedUpload, { reason: keyOmitReasonText(built.keyOmitReason) }))

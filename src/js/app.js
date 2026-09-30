@@ -33,7 +33,8 @@ import {
   loadMemoTags,
   getMemos,
   getMemoTags,
-  getSelectedMemoTag
+  getSelectedMemoTag,
+  onMemoFilterChange
 } from './memo/memo-store.js'
 import { parseMemoContentToMap } from './memo/memo-parser.js'
 import { cleanExpiredMemos } from './memo/memo-retention.js'
@@ -41,6 +42,9 @@ import {
   renderMemos,
   renderTagSelector,
   renderMemoTagPickerTrigger,
+  renderMemoFilterTabs,
+  renderMemoFilterTrigger,
+  renderMemoFilterList,
   subscribeMemoChanges,
   subscribeMemoTagChanges
 } from './memo/memo-renderer.js'
@@ -63,10 +67,12 @@ import { renderDailyResetStatus } from './backup/daily-reset.js'
 import {
   loadAnkiSettings,
   getAnkiSettings,
+  getActiveProfile,
   hasAnkiCredentials,
   renderAnkiSettingsInputs,
   bindAnkiSettingsEvents,
-  bindAnkiProcessorEvents
+  bindAnkiProcessorEvents,
+  autoHydrateOnStartup
 } from './anki/index.js'
 import {
   unlockFromRemembered,
@@ -136,6 +142,8 @@ try {
   renderWorkflow()
   renderTagSelector()
   renderMemoTagPickerTrigger()
+  renderMemoFilterTabs()
+  renderMemoFilterTrigger()
   cleanExpiredMemos(getMemos())
   renderMemos()
   renderAnkiSettingsInputs()
@@ -189,6 +197,14 @@ const EVENT_BINDS = [
   { name: 'anki-processor', fn: bindAnkiProcessorEvents },
   { name: 'memo-subscribe', fn: subscribeMemoChanges },
   { name: 'memo-tag-subscribe', fn: subscribeMemoTagChanges },
+  {
+    name: 'memo-filter-subscribe',
+    fn: () => {
+      onMemoFilterChange(() => {
+        renderMemos()
+      })
+    }
+  },
   {
     name: 'german',
     fn: bindGermanAssistantEvents
@@ -282,6 +298,16 @@ try {
  * ========================================================================= */
 async function autoPullOnStartup() {
   try {
+    // 启动时密钥水合（D4）：有"记住的口令"则解锁并解密 apiKeyEncrypted → 内存明文，
+    // 使"已存密钥"在自动拉取前即可运行；无口令时静默返回，不影响后续流程。
+    await autoHydrateOnStartup().catch((e) =>
+      errorHandler.handleError(e, {
+        type: ErrorTypes.SYSTEM,
+        severity: ErrorSeverity.LOW,
+        context: { stage: 'anki_key_hydrate' }
+      })
+    )
+
     if (!hasGistCredentials()) return
     
     const settings = getGistSettings()
@@ -342,6 +368,7 @@ try {
   registerDebugHook(() => {
     try {
       const anki = getAnkiSettings()
+      const activeProfile = getActiveProfile()
       return {
         workflows: getWorkflows(),
         rotationRules: getRotationRules(),
@@ -351,16 +378,17 @@ try {
         history: getCompletionHistory(),
         anki: {
           hasKey: hasAnkiCredentials(),
-          apiType: anki.apiType,
-          baseUrl: anki.baseUrl,
-          modelId: anki.modelId,
+          activeProfileId: activeProfile?.id || '',
+          apiType: activeProfile?.apiType,
+          baseUrl: activeProfile?.baseUrl,
+          modelId: activeProfile?.modelId,
           hasCustomPrompt: Boolean(anki.prompt),
           passphraseState: isPassphraseUnlocked()
             ? 'unlocked'
             : hasRememberedPassphrase()
               ? 'remembered-locked'
               : 'none',
-          hasEncryptedKey: Boolean(anki.apiKeyEncrypted)
+          hasEncryptedKey: Boolean(activeProfile?.apiKeyEncrypted)
         }
       }
     } catch (error) {

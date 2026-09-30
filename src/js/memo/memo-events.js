@@ -1,9 +1,9 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
 import { I18N, t } from '../locales.js'
-import { getSelectedMemoTag, setSelectedMemoTag, setSelectedMemoCategory, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos } from './memo-store.js'
-import { renderMemos, renderMemoTagPickerList, renderMemoTagPickerTrigger, renderTagSelector } from './memo-renderer.js'
-import { openModal, closeModal, isModalOpen } from '../settings/modal.js'
+import { getSelectedMemoTag, setSelectedMemoTag, setSelectedMemoCategory, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos, setMemoFilterTag } from './memo-store.js'
+import { renderMemos, renderMemoTagPickerList, renderMemoTagPickerTrigger, renderTagSelector, renderMemoFilterTabs, renderMemoFilterTrigger, renderMemoFilterList } from './memo-renderer.js'
+import { openModal, closeModal, isModalOpen, registerModalCloseCleanup } from '../settings/modal.js'
 import { switchView } from '../settings/navigation.js'
 import { bindBatch, bindOnce } from '../utils/event-manager.js'
 import { once } from '../utils/dom-utils.js'
@@ -435,6 +435,64 @@ export function bindMemoEvents() {
 
     cleanups.push(bindBatch(stream, streamEvents))
   }
+
+  /* ===== 筛选标签事件绑定 ===== */
+
+  // 桌面端：筛选 tab 点击（横向排列的按钮组）
+  const filterTabs = document.querySelector('.memo-filter__tabs')
+  if (filterTabs) {
+    cleanups.push(bindBatch(filterTabs, [{
+      event: 'click',
+      handler: (event) => {
+        const btn = event.target.closest('[data-action="select-memo-filter"]')
+        if (!btn) return
+        const value = btn.dataset.value || ''
+        if (setMemoFilterTag(value)) {
+          renderMemoFilterTabs()
+          renderMemos()
+        }
+      }
+    }]))
+  }
+
+  // 移动端：筛选触发器 -> 打开底部弹窗
+  const filterTrigger = document.getElementById('memo-filter-trigger')
+  if (filterTrigger) {
+    cleanups.push(bindBatch(filterTrigger, [{
+      event: 'click',
+      handler: () => {
+        if (isModalOpen('memo-filter')) return
+        renderMemoFilterList()
+        filterTrigger.setAttribute('aria-expanded', 'true')
+        openModal('memo-filter')
+      }
+    }]))
+    // 弹窗以任意方式关闭时复位触发器展开态，避免 aria-expanded 长期滞留 true
+    cleanups.push(registerModalCloseCleanup('memo-filter', () => {
+      filterTrigger.setAttribute('aria-expanded', 'false')
+    }))
+  }
+
+  // 移动端：弹窗内列表项点击
+  const filterList = document.getElementById('memo-filter-list')
+  if (filterList) {
+    cleanups.push(bindBatch(filterList, [{
+      event: 'click',
+      handler: (event) => {
+        const btn = event.target.closest('[data-action="select-memo-filter-sheet"]')
+        if (!btn) return
+        const value = btn.dataset.value || ''
+        if (setMemoFilterTag(value)) {
+          renderMemoFilterTrigger()
+          renderMemos()
+          closeModal('memo-filter')
+        }
+      }
+    }]))
+  }
+
+  // 弹窗关闭（遮罩 / 关闭按钮）由 bindGlobalModalEvents 统一处理，
+  // 筛选状态在关闭时保持不变，此处无需额外绑定。
 
   // 返回清理函数，用于组件销毁时清理事件
   return () => {

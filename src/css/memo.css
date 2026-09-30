@@ -158,6 +158,10 @@
 }
 .memo-card:hover { transform: translateY(-2px); box-shadow: var(--md-elevation-2); }
 
+.memo-card--today {
+  background: color-mix(in srgb, var(--md-primary-container) 42%, var(--md-surface-container));
+}
+
 .memo-card__header {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; margin-bottom: 10px;
@@ -166,6 +170,13 @@
   display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px;
 }
 .memo-card__time { color: var(--md-on-surface-variant); font-size: 12px; font-weight: 500; }
+.memo-card__time--today {
+  color: var(--md-primary);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--md-primary-container) 40%, transparent);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
 .memo-tag-chip {
   display: inline-flex; align-items: center; gap: 3px;
   padding: 4px 10px; border-radius: 99px;
@@ -427,6 +438,169 @@
 }
 .memo-empty__icon { font-size: 44px; color: var(--md-primary); opacity: 0.85; }
 .memo-empty p { margin: 0; font-size: 14px; }
+
+/* ===== 筛选标签（桌面横向 tab 组 + 移动端触发器 + 弹窗列表） ===== */
+
+/* 桌面：section heading 左右分栏。
+   左列是 eyebrow + h2 的竖排标题，右列是筛选器；
+   用 flex-end 让筛选器底部对齐 h2 基线（而非顶部 eyebrow），
+   视觉上"落到笔记卡片流那一行"，与标题形成一条水平线。 */
+.section-heading--filter {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px 24px;
+  flex-wrap: wrap;
+}
+.section-heading--filter > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 筛选容器：桌面显示 tabs，移动显示 trigger */
+.memo-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding-bottom: 4px; /* 微调，让胶囊在视觉上与标题文字居中对齐 */
+}
+
+/* 桌面横向 tab 按钮组：分段控件风格 */
+.memo-filter__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 单个筛选 tab 按钮（放大尺寸，供桌面舒适点击） */
+.memo-filter__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 42px;
+  padding: 0 18px;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 30%, transparent);
+  border-radius: 999px;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  cursor: pointer;
+  transition: background var(--md-motion-standard), border-color var(--md-motion-standard), color var(--md-motion-standard), transform var(--md-motion-standard), box-shadow var(--md-motion-standard);
+}
+.memo-filter__tab .material-symbols {
+  font-size: 19px;
+}
+.memo-filter__tab:hover {
+  border-color: color-mix(in srgb, var(--md-primary) 60%, transparent);
+  background: var(--md-surface-container);
+  color: var(--md-on-surface);
+  transform: translateY(-1px);
+}
+.memo-filter__tab:active {
+  transform: translateY(0);
+}
+.memo-filter__tab.is-active {
+  background: linear-gradient(135deg, var(--md-primary), color-mix(in srgb, var(--md-primary) 78%, var(--md-tertiary)));
+  border-color: transparent;
+  color: var(--md-on-primary);
+  box-shadow: var(--md-elevation-2);
+}
+.memo-filter__tab.is-active .material-symbols {
+  font-variation-settings: 'FILL' 1;
+}
+
+/* 移动端筛选触发器（默认隐藏，在 responsive.css 中启用） */
+.memo-filter__trigger {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 24%, transparent);
+  border-radius: 999px;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--md-motion-standard), border-color var(--md-motion-standard), color var(--md-motion-standard);
+}
+.memo-filter__trigger .material-symbols {
+  font-size: 19px;
+}
+.memo-filter__trigger:hover {
+  border-color: var(--md-primary);
+  color: var(--md-on-surface);
+}
+.memo-filter__trigger-label {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.memo-filter__trigger-chevron {
+  font-size: 20px;
+  color: var(--md-on-surface-variant);
+}
+
+/* 筛选弹窗列表 */
+.memo-filter__list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.memo-filter__list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--md-on-surface);
+  text-align: left;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--md-motion-standard), color var(--md-motion-standard), transform var(--md-motion-standard);
+}
+.memo-filter__list-item:hover {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+.memo-filter__list-item:active {
+  transform: scale(.985);
+}
+.memo-filter__list-item > .material-symbols {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  font-size: 22px;
+  flex: 0 0 auto;
+}
+.memo-filter__list-item.is-active {
+  background: color-mix(in srgb, var(--md-primary-container) 60%, transparent);
+  color: var(--md-on-primary-container);
+}
+.memo-filter__list-item.is-active > .material-symbols {
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+}
 
 /* ===== 移动端标签触发器（默认隐藏，桌面继续用 .tag-selector 横向 tab） ===== */
 .tag-picker-trigger { display: none; }

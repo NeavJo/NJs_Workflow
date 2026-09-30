@@ -4,6 +4,7 @@ import { I18N, t } from '../locales.js'
 import { getTodayDateString } from '../core/date.js'
 import { triggerDownload } from '../backup/snapshot.js'
 import { $ } from '../utils/dom-utils.js'
+import { createGuard } from '../utils/guard.js'
 import { getSelectedMemoTag, getMemoTags } from '../memo/memo-store.js'
 
 /**
@@ -273,9 +274,14 @@ export function downloadAllAnkiTxt() {
   showToast(I18N.toast.anki.downloadStarted)
 }
 
+const guardOutput = createGuard('ankiOutputEventsBound')
+
 export function bindAnkiOutputEvents() {
+  // 幂等守卫：本委托监听挂在持久化的 #anki-output-cards 上，重复调用不得二次绑定。
+  if (guardOutput.is()) return
   const container = $('anki-output-cards')
   if (!container) return
+  guardOutput.set()
   container.addEventListener('click', (event) => {
     // 分类级按钮
     const btn = event.target?.closest?.('button[data-action]')

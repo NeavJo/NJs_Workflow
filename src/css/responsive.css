@@ -196,6 +196,36 @@
     cursor: pointer;
     transition: background var(--md-motion-standard), border-color var(--md-motion-standard), transform var(--md-motion-standard), box-shadow var(--md-motion-standard);
   }
+
+  /* ===== 移动端：筛选标签由桌面 tabs 折叠成触发器 + 弹窗 ===== */
+  .memo-filter__tabs { display: none; }
+  /* 移动端标题与筛选器改为竖排：标题在上，触发器靠左另起一行 */
+  .section-heading--filter {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .section-heading--filter .memo-filter {
+    justify-content: flex-start;
+    padding-bottom: 0;
+  }
+  .memo-filter__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: var(--md-radius-medium);
+    /* 与标签触发器保持同一视觉语言：淡紫容器底 + 主色描边 */
+    background: color-mix(in srgb, var(--md-primary-container) 70%, var(--md-surface));
+    color: var(--md-on-primary-container);
+  }
+  .memo-filter__trigger:hover {
+    background: color-mix(in srgb, var(--md-primary-container) 90%, var(--md-surface));
+    border-color: var(--md-primary);
+  }
+  .memo-filter__trigger:active { transform: scale(.985); }
+  .memo-filter__trigger-label { max-width: none; flex: 1 1 auto; text-align: left; }
   .tag-picker-trigger:hover {
     background: color-mix(in srgb, var(--md-primary-container) 90%, var(--md-surface));
     border-color: var(--md-primary);
