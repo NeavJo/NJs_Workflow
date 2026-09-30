@@ -51,9 +51,15 @@ let _editingProfileId = null
 /**
  * 把当前 UI 中编辑的档案写回 store（不持久化）。
  * 由列表切换、新增、复制等场景在切换前调用，避免丢失未保存的修改。
+ *
+ * 单档案场景下用户不会（也不需要）点击档案列表项去"切换"，
+ * 此时 _editingProfileId 为 null；若直接 return 会导致表单中已修改的内容
+ * 被丢弃、保存时回退到旧值（表现为"点保存被清空"）。
+ * 因此这里回退到 active 档案作为编辑目标，保证保存一定写入当前表单内容。
  */
 function _commitEditingProfile() {
-  if (!_editingProfileId) return
+  const targetId = _editingProfileId || getActiveProfileId()
+  if (!targetId) return
   const nameEl = $('anki-profile-name')
   const typeEl = $('anki-api-type')
   const urlEl = $('anki-base-url')
@@ -66,7 +72,7 @@ function _commitEditingProfile() {
     modelId: (modelEl?.value || '').trim(),
     apiKey: keyEl?.value || ''
   }
-  updateAnkiProfile(_editingProfileId, partial)
+  updateAnkiProfile(targetId, partial)
   _editingProfileId = null
 }
 
