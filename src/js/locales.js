@@ -558,6 +558,7 @@ export const I18N = {
       keyOmittedUpload: '已上传 Gist：API Key 未包含（{reason}），其他数据已同步。',
       keyOmittedExport: '已导出备份：API Key 未包含（{reason}），其他数据已写入文件。',
       keyOmittedPull: '已拉取 Gist：API Key 未还原（{reason}），已保留本地 API Key，其他数据已同步。',
+      ankiSyncBlocked: '已保护本地 Anki 配置：远端 API Key 无法解密，未应用 Anki 配置，也未覆盖云端数据。请先解锁加密口令后重试。',
       keyOmitReasonNoPass: '未设置加密口令',
       keyOmitReasonCrypto: '当前环境不支持加密',
       keyOmitReasonError: '加密 / 解密失败',

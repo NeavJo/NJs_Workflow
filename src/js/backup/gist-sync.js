@@ -30,7 +30,7 @@ import {
 import { setRotationRules, persistRotationRules } from '../workflow/rotation-store.js'
 import { replaceMemos, persistMemos, setMemoTags, persistMemoTags } from '../memo/memo-store.js'
 import { setUserSettings, persistUserSettings } from '../core/settings-store.js'
-import { setAnkiSettings, persistAnkiSettings, getAnkiProfiles } from '../anki/anki-store.js'
+import { setAnkiSettings, persistAnkiSettings, getAnkiProfiles, getAnkiSettings } from '../anki/anki-store.js'
 import { normalizeAnkiSettings } from '../config/storage-config.js'
 import { renderAnkiSettingsInputs } from '../anki/anki-settings.js'
 import { decryptAnkiSecret } from '../anki/anki-crypto.js'
@@ -228,57 +228,62 @@ export async function pullFromGist({ silent = false } = {}) {
     return { ok: false, reason: 'invalid-format', notify: validateErr }
   }
 
-  // 解密加密的 API Key：逐档案处理；口令缺失/解密失败时不阻断拉取，
-  // 失败档案保留本地同 id 明文 Key（若存在）并清空远端密文，其余档案不受影响。
+  // 解密 API Key 失败时不应用 Gist：保留远端密文并阻止整个拉取覆盖本地状态。
+  // 当前设备可能缺少口令或不具备 Web Crypto，不能把“暂时不可解密”当成有效空 Key。
   let ankiIn = parsed.data.ankiSettings
+  let preserveLocalAnkiSettings = false
   if (ankiIn && typeof ankiIn === 'object') {
     const normalizedIn = normalizeAnkiSettings(ankiIn)
+    const localSettings = getAnkiSettings()
+    const localProfiles = getAnkiProfiles()
+    const localHasConfiguredProfile = localProfiles.some((profile) =>
+      Boolean(profile.modelId || profile.apiKey || profile.apiKeyEncrypted)
+    )
+
+    const remoteHasProfiles = Array.isArray(ankiIn.profiles) && ankiIn.profiles.some((profile) =>
+      profile && typeof profile === 'object' && !Array.isArray(profile)
+    )
+    const remoteLooksLikeLegacyProfile = ['apiType', 'baseUrl', 'modelId', 'apiKey', 'apiKeyEncrypted']
+      .some((key) => Object.prototype.hasOwnProperty.call(ankiIn, key))
+
+    if (!remoteHasProfiles && !remoteLooksLikeLegacyProfile && localHasConfiguredProfile) {
+      preserveLocalAnkiSettings = true
+      DBG('gist:pull:anki:preserve-local', { reason: 'remote-profiles-missing-or-empty' })
+    }
+
     const anyEncrypted = normalizedIn.profiles.some((p) => p.apiKeyEncrypted)
     if (anyEncrypted) {
       const passphrase = getEffectivePassphrase()
-      let anyOmitReason = null
       let failedCount = 0
-      if (!passphrase) {
-        anyOmitReason = 'no-passphrase'
-        DBG('gist:pull:anki-key:skip', { reason: 'no-passphrase' })
-      } else {
-        const localProfiles = getAnkiProfiles()
-        const localById = new Map(localProfiles.map((p) => [p.id, p]))
-        for (const p of normalizedIn.profiles) {
-          if (!p.apiKeyEncrypted) continue
-          try {
-            p.apiKey = await decryptAnkiSecret(p.apiKeyEncrypted, passphrase)
-          } catch (err) {
-            failedCount += 1
-            const cryptoDown = err && (err.code === 'crypto-unavailable' || err.message === 'crypto-unavailable')
-            if (!anyOmitReason) anyOmitReason = cryptoDown ? 'crypto-unavailable' : 'decrypt-error'
-            DBG('gist:pull:anki:decrypt:error', { profileId: p.id, reason: anyOmitReason })
-            const localMatch = localById.get(p.id) || localProfiles.find((l) => l.name === p.name && l.apiType === p.apiType)
-            if (localMatch?.apiKey) p.apiKey = localMatch.apiKey
-            p.apiKeyEncrypted = ''
-          }
+      const localById = new Map(localProfiles.map((p) => [p.id, p]))
+      for (const p of normalizedIn.profiles) {
+        if (!p.apiKeyEncrypted) continue
+        if (!passphrase) {
+          failedCount += 1
+          continue
+        }
+        try {
+          p.apiKey = await decryptAnkiSecret(p.apiKeyEncrypted, passphrase)
+        } catch (err) {
+          failedCount += 1
+          const cryptoDown = err && (err.code === 'crypto-unavailable' || err.message === 'crypto-unavailable')
+          DBG('gist:pull:anki:decrypt:error', { profileId: p.id, reason: cryptoDown ? 'crypto-unavailable' : 'decrypt-error' })
+          const localMatch = localById.get(p.id) || localProfiles.find((l) => l.name === p.name && l.apiType === p.apiType)
+          if (localMatch?.apiKey) p.apiKey = localMatch.apiKey
         }
       }
-      if (anyOmitReason) {
-        // 口令缺失时全部档案都未解密；保留本地已有明文 Key
-        if (anyOmitReason === 'no-passphrase') {
-          const localProfiles = getAnkiProfiles()
-          const localById = new Map(localProfiles.map((p) => [p.id, p]))
-          for (const p of normalizedIn.profiles) {
-            if (p.apiKeyEncrypted && !p.apiKey) {
-              const localMatch = localById.get(p.id) || localProfiles.find((l) => l.name === p.name && l.apiType === p.apiType)
-              if (localMatch?.apiKey) p.apiKey = localMatch.apiKey
-              p.apiKeyEncrypted = ''
-            }
-          }
-        }
-        if (!silent) showToast(t(I18N.toast.anki.keyOmittedPull, { reason: keyOmitReasonText(anyOmitReason), count: failedCount || normalizedIn.profiles.filter((p) => !p.apiKey && !p.apiKeyEncrypted).length }))
+      if (failedCount > 0) {
+        DBG('gist:pull:anki:blocked', { failedCount, hasPassphrase: Boolean(passphrase) })
+        if (!silent) showToast(I18N.toast.anki.ankiSyncBlocked)
+        return { ok: false, reason: 'anki-sync-blocked', notify: I18N.toast.anki.ankiSyncBlocked }
       }
       parsed.data.ankiSettings = { ...normalizedIn }
     } else if (normalizedIn.profiles.some((p) => p.apiKey && !p.apiKeyEncrypted)) {
       if (!silent) showToast(I18N.toast.anki.plainApiKeyWarning)
       parsed.data.ankiSettings = { ...normalizedIn }
     }
+
+    if (preserveLocalAnkiSettings) parsed.data.ankiSettings = localSettings
   }
 
   // 应用到各 store + 重新渲染

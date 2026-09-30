@@ -164,7 +164,6 @@ async function handleImportFile(file) {
         showToast(I18N.toast.backup.importCancelled)
         return
       }
-      setPassphrase(passphrase)
       const localProfiles = getAnkiProfiles()
       const localById = new Map(localProfiles.map((p) => [p.id, p]))
       let firstFailReason = null
@@ -185,7 +184,6 @@ async function handleImportFile(file) {
           })
           const localMatch = localById.get(p.id) || localProfiles.find((l) => l.name === p.name && l.apiType === p.apiType)
           if (localMatch?.apiKey) p.apiKey = localMatch.apiKey
-          p.apiKeyEncrypted = ''
         }
       }
       if (failedCount > 0) {
@@ -194,7 +192,9 @@ async function handleImportFile(file) {
             ? I18N.toast.anki.cryptoUnavailable
             : t(I18N.toast.anki.decryptFailed, { count: failedCount })
         )
+        return
       }
+      setPassphrase(passphrase)
       ankiIn = { ...normalizedIn }
       parsed.data.ankiSettings = ankiIn
     } else if (normalizedIn.profiles.some((p) => p.apiKey && !p.apiKeyEncrypted)) {
