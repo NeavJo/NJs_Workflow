@@ -15,7 +15,18 @@ import { getSelectedMemoTag, getMemoTags } from '../memo/memo-store.js'
  *  - 卡片级与全局复制 / 导出；卡片按钮走事件委托，DOM 为唯一数据源。
  */
 
-const ANKI_TXT_FILENAME_PREFIX = 'Anki_Import_'
+// 文件名前缀：全量导出标记为可整体导入的合并文件，单分类导出标记为按类拆分。
+const IMPORT_TXT_FILENAME_PREFIX = 'Import_'
+const EXPORT_TXT_FILENAME_PREFIX = 'Export_'
+// "异常词汇"是提示词约定的固定分类名，仅精确匹配，避免误伤含"异常"字样的用户自定义分类。
+const ABNORMAL_CATEGORY_NAME = '异常词汇'
+
+/**
+ * 判断某分类是否为约定中的"异常词汇"分类（精确匹配，非包含匹配）。
+ */
+function isAbnormalCategory(name) {
+  return String(name || '') === ABNORMAL_CATEGORY_NAME
+}
 
 /**
  * 获取当前选中的笔记标签显示名（去 # 前缀）。
@@ -72,11 +83,20 @@ export function composeAnkiOutput(sections) {
   return list.map((s) => `=== ${s.name} ===\n${s.text}`).join('\n')
 }
 
+/**
+ * 文件名清洗：把 Windows / 主流系统文件名不支持的字符统一替换为下划线（而非删除），
+ * 以保留原本的层级可读性（如 `Deutsch/积累` → `Deutsch_积累`，而非误读为 `Deutsch积累`）。
+ */
 function sanitizeFilename(name) {
   const cleaned = String(name || '')
-    .replace(/[\\/:*?"<>|]/g, '')
-    .replace(/[\u0000-\u001f]/g, '')
-    .replace(/^[.\s]+|[.\s]+$/g, '')
+    // 非法字符（\ / : * ? " < > |）一律替换为下划线。
+    .replace(/[\\/:*?"<>|]/g, '_')
+    // 控制字符同样替换为下划线，避免不可见字符污染文件名。
+    .replace(/[\u0000-\u001f]/g, '_')
+    // 合并连续下划线，避免出现 `Deutsch__积累` 这类冗余分隔符。
+    .replace(/_+/g, '_')
+    // 文件名不允许以点、空格或下划线结尾（Windows 会截断或报错）。
+    .replace(/^[.\s_]+|[.\s_]+$/g, '')
     .trim()
   return cleaned || I18N.anki.uncategorized
 }
@@ -118,7 +138,7 @@ function buildActionButton(action, name, icon, label) {
 
 function buildCard(section) {
   const card = document.createElement('article')
-  const isAbnormal = section.name.includes('异常')
+  const isAbnormal = isAbnormalCategory(section.name)
   if (isAbnormal) {
     card.className = 'anki-card anki-card--abnormal'
   } else {
@@ -243,7 +263,9 @@ function exportCategory(name) {
     return
   }
   const tag = getSelectedTagDisplayName()
-  const filename = tag ? `Anki_${sanitizeFilename(tag)}_${sanitizeFilename(name)}_${getTodayDateString()}.txt` : `Anki_${sanitizeFilename(name)}_${getTodayDateString()}.txt`
+  const filename = tag
+    ? `${EXPORT_TXT_FILENAME_PREFIX}${sanitizeFilename(tag)}_${sanitizeFilename(name)}_${getTodayDateString()}.txt`
+    : `${EXPORT_TXT_FILENAME_PREFIX}${sanitizeFilename(name)}_${getTodayDateString()}.txt`
   triggerDownload(filename, text, 'text/plain;charset=utf-8')
   DBG('anki:download:category', { filename, length: text.length })
   showToast(t(I18N.toast.anki.categoryDownloadStarted, { name }))
@@ -261,14 +283,16 @@ export async function copyAllAnkiOutput() {
 }
 
 export function downloadAllAnkiTxt() {
-  const sections = collectSections().filter((s) => !s.name.includes('异常'))
+  const sections = collectSections().filter((s) => !isAbnormalCategory(s.name))
   if (!sections.length) {
     showToast(I18N.toast.anki.outputEmptyDownload)
     return
   }
   const text = sections.map((s) => s.text).join('\n')
   const tag = getSelectedTagDisplayName()
-  const filename = tag ? `${ANKI_TXT_FILENAME_PREFIX}${sanitizeFilename(tag)}_${getTodayDateString()}.txt` : `${ANKI_TXT_FILENAME_PREFIX}${getTodayDateString()}.txt`
+  const filename = tag
+    ? `${IMPORT_TXT_FILENAME_PREFIX}${sanitizeFilename(tag)}_${getTodayDateString()}.txt`
+    : `${IMPORT_TXT_FILENAME_PREFIX}${getTodayDateString()}.txt`
   triggerDownload(filename, text, 'text/plain;charset=utf-8')
   DBG('anki:download:all', { filename, length: text.length, sections: sections.length })
   showToast(I18N.toast.anki.downloadStarted)
