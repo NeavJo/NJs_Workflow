@@ -42,8 +42,28 @@ export {
   renderAnkiCards,
   copyAllAnkiOutput,
   downloadAllAnkiTxt,
+  downloadAllAnkiApkg,
   bindAnkiOutputEvents
 } from './anki-output.js'
+
+export { generateApkg, isAbnormalCategory } from './anki-apkg.js'
+
+export {
+  loadAnkiExportSettings,
+  getAnkiExportSettings,
+  setAnkiExportSettings,
+  persistAnkiExportSettings,
+  commitAnkiExportSettings,
+  getAnkiExportTagConfig,
+  getAnkiExportConfigForTag,
+  onAnkiExportSettingsChange
+} from './anki-export-store.js'
+
+export {
+  renderAnkiExportSettings,
+  saveAnkiExportSettingsFromInputs,
+  bindAnkiExportSettingsEvents
+} from './anki-export-settings.js'
 
 export {
   renderAnkiSettingsInputs,

@@ -25,9 +25,10 @@ function setProcessing(processing) {
   const runBtn = $('anki-run')
   const copyBtn = $('anki-copy')
   const dlBtn = $('anki-download')
+  const apkgBtn = $('anki-apkg')
   const profileSelect = $('anki-profile-select')
   const loadingEl = $('anki-loading')
-  const buttons = [runBtn, copyBtn, dlBtn].filter(Boolean)
+  const buttons = [runBtn, copyBtn, dlBtn, apkgBtn].filter(Boolean)
   document.querySelectorAll('#anki-output-cards button').forEach((btn) => buttons.push(btn))
   for (const btn of buttons) {
     btn.disabled = processing

@@ -6,6 +6,9 @@ import { triggerDownload } from '../backup/snapshot.js'
 import { $ } from '../utils/dom-utils.js'
 import { createGuard } from '../utils/guard.js'
 import { getSelectedMemoTag, getMemoTags } from '../memo/memo-store.js'
+import { generateApkg } from './anki-apkg.js'
+import { getAnkiExportConfigForTag, hasAnkiExportTagConfig } from './anki-export-store.js'
+import { validateAnkiExportFieldNames } from '../config/storage-config.js'
 
 /**
  * Anki 输出区：AI 返回结果解析与分类卡片渲染
@@ -18,6 +21,8 @@ import { getSelectedMemoTag, getMemoTags } from '../memo/memo-store.js'
 // 文件名前缀：全量导出标记为可整体导入的合并文件，单分类导出标记为按类拆分。
 const IMPORT_TXT_FILENAME_PREFIX = 'Import_'
 const EXPORT_TXT_FILENAME_PREFIX = 'Export_'
+// APKG 文件名格式遵循计划约定：Deck_<标签>_YYYYMMDD.apkg
+const APKG_FILENAME_PREFIX = 'Deck_'
 // "异常词汇"是提示词约定的固定分类名，仅精确匹配，避免误伤含"异常"字样的用户自定义分类。
 const ABNORMAL_CATEGORY_NAME = '异常词汇'
 
@@ -101,6 +106,8 @@ function sanitizeFilename(name) {
   return cleaned || I18N.anki.uncategorized
 }
 
+export { sanitizeFilename }
+
 async function copyText(text, sourceEl) {
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -176,6 +183,7 @@ function buildCard(section) {
   
   if (!isAbnormal) {
     toolbar.append(buildActionButton('export', section.name, 'download', I18N.anki.exportCategory))
+    toolbar.append(buildActionButton('export-apkg', section.name, 'library_books', I18N.anki.exportCategoryApkg))
   }
   
   card.append(toolbar)
@@ -213,9 +221,13 @@ function buildFooterCard() {
         <span class="material-symbols" aria-hidden="true">content_copy</span>
         <span data-i18n="anki.copyAll">${I18N.anki.copyAll}</span>
       </button>
-      <button type="button" id="anki-download" class="btn btn--filled anki-footer-card__btn" data-anki-action="download-all">
+      <button type="button" id="anki-download" class="btn btn--tonal anki-footer-card__btn" data-anki-action="download-all">
         <span class="material-symbols" aria-hidden="true">download</span>
         <span data-i18n="anki.exportAllTxt">${I18N.anki.exportAllTxt}</span>
+      </button>
+      <button type="button" id="anki-apkg" class="btn btn--filled anki-footer-card__btn" data-anki-action="download-apkg">
+        <span class="material-symbols" aria-hidden="true">library_books</span>
+        <span data-i18n="anki.exportApkg">${I18N.anki.exportApkg}</span>
       </button>
     </div>
   `
@@ -271,6 +283,65 @@ function exportCategory(name) {
   showToast(t(I18N.toast.anki.categoryDownloadStarted, { name }))
 }
 
+/**
+ * 单分类 APKG 导出：仅把指定分类的内容打包，其余分类不写入。
+ * 与全量导出共享同一份卡组/模型配置与校验逻辑，避免重复维护。
+ * 生成中禁用传入的按钮防止重复触发，结束后恢复。
+ */
+async function exportCategoryApkg(name, btn) {
+  const area = findCategoryArea(name)
+  const text = area ? area.value.trim() : ''
+  if (!text) {
+    showToast(I18N.toast.anki.categoryApkgEmpty)
+    return
+  }
+  const tagId = String(getSelectedMemoTag() || '')
+  const tagConfig = getAnkiExportConfigForTag(tagId)
+  if (!tagConfig?.deckName || !tagConfig?.modelName) {
+    showToast(I18N.toast.anki.apkgConfigRequired)
+    return
+  }
+  const fieldError = validateAnkiExportFieldNames(tagConfig.fieldNames)
+  if (fieldError) {
+    const msg = fieldError.reason === 'duplicate'
+      ? t(I18N.toast.anki.apkgFieldNamesDuplicate, { name: fieldError.name })
+      : I18N.toast.anki.apkgFieldNamesEmpty
+    showToast(msg, { status: 'error' })
+    return
+  }
+  if (tagId && !hasAnkiExportTagConfig(tagId)) {
+    showToast(I18N.settings.ankiExportTagNoneHint, { status: 'info' })
+  }
+  const labelEl = btn?.children?.[1]
+  const prevLabel = labelEl ? labelEl.textContent : ''
+  if (btn) btn.disabled = true
+  if (btn) btn.classList.add('is-busy')
+  if (labelEl) labelEl.textContent = I18N.anki.apkgGenerating
+  try {
+    const sections = [{ name, text }]
+    const bytes = await generateApkg(sections, tagConfig)
+    const tag = getSelectedTagDisplayName()
+    const base = tag
+      ? `${APKG_FILENAME_PREFIX}${sanitizeFilename(tag)}_${sanitizeFilename(name)}_${getTodayDateString()}`
+      : `${APKG_FILENAME_PREFIX}${sanitizeFilename(name)}_${getTodayDateString()}`
+    triggerDownload(`${base}.apkg`, bytes, 'application/apkg')
+    DBG('anki:apkg:download-category', { deck: tagConfig.deckName, model: tagConfig.modelName, name, bytes: bytes.length })
+    showToast(t(I18N.toast.anki.categoryApkgGenerated, { name }), { status: 'success' })
+  } catch (err) {
+    const code = err && err.code
+    DBG('anki:apkg:category-error', { code, message: String(err && err.message || err) })
+    if (code === 'engine-load-failed') {
+      showToast(I18N.toast.anki.apkgEngineLoadFailed, { status: 'error' })
+    } else {
+      showToast(I18N.toast.anki.apkgFailed, { status: 'error' })
+    }
+  } finally {
+    if (btn) btn.disabled = false
+    if (btn) btn.classList.remove('is-busy')
+    if (labelEl && prevLabel) labelEl.textContent = prevLabel
+  }
+}
+
 export async function copyAllAnkiOutput() {
   const sections = collectSections()
   if (!sections.length) {
@@ -298,6 +369,71 @@ export function downloadAllAnkiTxt() {
   showToast(I18N.toast.anki.downloadStarted)
 }
 
+/**
+ * APKG 全量导出：使用当前 memo 标签对应的卡组/模型配置生成 .apkg 二进制并触发下载。
+ *  1. 先过滤异常词汇分类，与 TXT 导出保持一致；空内容直接提示，不加载 sql.js。
+ *  2. 未单独配置的标签回落到默认配置（defaultConfig），并提示"将使用默认卡组"，
+ *     而不是中止导出——默认配置始终存在，保证用户导出路径不会被配置缺失卡死。
+ *  3. 生成中禁用按钮并把文案切换为"正在生成…"，避免重复点击与并发。
+ *  4. 引擎加载失败（WASM 拉取失败）与普通生成失败区分提示，便于用户排查。
+ */
+export async function downloadAllAnkiApkg() {
+  const sections = collectSections().filter((s) => !isAbnormalCategory(s.name))
+  if (!sections.length) {
+    showToast(I18N.toast.anki.apkgEmpty)
+    return
+  }
+  const tagId = String(getSelectedMemoTag() || '')
+  const tagConfig = getAnkiExportConfigForTag(tagId)
+  if (!tagConfig?.deckName || !tagConfig?.modelName) {
+    showToast(I18N.toast.anki.apkgConfigRequired)
+    return
+  }
+  const fieldError = validateAnkiExportFieldNames(tagConfig.fieldNames)
+  if (fieldError) {
+    DBG('anki:apkg:invalid-fieldnames', { reason: fieldError.reason, name: fieldError.name })
+    const msg = fieldError.reason === 'duplicate'
+      ? t(I18N.toast.anki.apkgFieldNamesDuplicate, { name: fieldError.name })
+      : I18N.toast.anki.apkgFieldNamesEmpty
+    showToast(msg, { status: 'error' })
+    return
+  }
+
+  // 未单独配置：回落到默认卡组，给出非阻断提示，避免用户误以为用了标签专属配置。
+  if (tagId && !hasAnkiExportTagConfig(tagId)) {
+    showToast(I18N.settings.ankiExportTagNoneHint, { status: 'info' })
+  }
+  const apkgBtn = $('anki-apkg')
+  const apkgLabel = apkgBtn?.querySelector('[data-i18n="anki.exportApkg"]')
+  const prevLabel = apkgLabel?.textContent
+  if (apkgBtn) apkgBtn.disabled = true
+  if (apkgBtn) apkgBtn.classList.add('is-busy')
+  if (apkgLabel) apkgLabel.textContent = I18N.anki.apkgGenerating
+  try {
+    const bytes = await generateApkg(sections, tagConfig)
+    const tag = getSelectedTagDisplayName()
+    const base = tag
+      ? `${APKG_FILENAME_PREFIX}${sanitizeFilename(tag)}_${getTodayDateString()}`
+      : `${APKG_FILENAME_PREFIX}${getTodayDateString()}`
+    triggerDownload(`${base}.apkg`, bytes, 'application/apkg')
+    DBG('anki:apkg:download', { deck: tagConfig.deckName, model: tagConfig.modelName, bytes: bytes.length })
+    showToast(I18N.toast.anki.apkgGenerated.replace('{count}', String(sections.length)), { status: 'success' })
+  } catch (err) {
+    const code = err && err.code
+    DBG('anki:apkg:error', { code, message: String(err && err.message || err) })
+    // 引擎加载失败单独提示，其余归为生成失败。
+    if (code === 'engine-load-failed') {
+      showToast(I18N.toast.anki.apkgEngineLoadFailed, { status: 'error' })
+    } else {
+      showToast(I18N.toast.anki.apkgFailed, { status: 'error' })
+    }
+  } finally {
+    if (apkgBtn) apkgBtn.disabled = false
+    if (apkgBtn) apkgBtn.classList.remove('is-busy')
+    if (apkgLabel && prevLabel) apkgLabel.textContent = prevLabel
+  }
+}
+
 const guardOutput = createGuard('ankiOutputEventsBound')
 
 export function bindAnkiOutputEvents() {
@@ -315,6 +451,8 @@ export function bindAnkiOutputEvents() {
         copyCategory(name)
       } else if (btn.dataset.action === 'export') {
         exportCategory(name)
+      } else if (btn.dataset.action === 'export-apkg') {
+        exportCategoryApkg(name, btn)
       }
       return
     }
@@ -325,6 +463,8 @@ export function bindAnkiOutputEvents() {
         copyAllAnkiOutput()
       } else if (footerBtn.dataset.ankiAction === 'download-all') {
         downloadAllAnkiTxt()
+      } else if (footerBtn.dataset.ankiAction === 'download-apkg') {
+        downloadAllAnkiApkg()
       }
     }
   })

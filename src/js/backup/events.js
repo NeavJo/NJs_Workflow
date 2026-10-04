@@ -19,6 +19,7 @@ import {
 } from '../workflow/history-store.js'
 import { setUserSettings, persistUserSettings, getUserSettings } from '../core/settings-store.js'
 import { setAnkiSettings, persistAnkiSettings, getAnkiProfiles } from '../anki/anki-store.js'
+import { setAnkiExportSettings } from '../anki/anki-export-store.js'
 import { decryptAnkiSecret } from '../anki/anki-crypto.js'
 import { setPassphrase } from '../anki/anki-passphrase.js'
 import { normalizeAnkiSettings } from '../config/storage-config.js'
@@ -32,11 +33,15 @@ import {
   uploadToGist,
   pullFromGist,
   saveGistSettingsFromInputs,
+  clearGistSettings,
   renderGistSettingsInputs,
   setGistBusy
 } from './gist-sync.js'
 import { renderDailyResetStatus, bindDailyResetEvents } from './daily-reset.js'
 import { registerBackupEvents } from '../settings/index.js'
+import { createGuard } from '../utils/guard.js'
+
+const gistSettingsEventsGuard = createGuard('gistSettingsEventsBound')
 
 /**
  * 备份域事件绑定 + 文件导入流程：
@@ -92,15 +97,25 @@ function resetWorkflowsToDefault() {
  * ==================================================================== */
 
 function bindGistSettingsEvents() {
+  const form = document.getElementById('gist-settings-form')
+  if (!form || gistSettingsEventsGuard.is(form)) return
+  gistSettingsEventsGuard.set(form)
   const tokenEl = document.getElementById('gist-token-input')
   const idEl = document.getElementById('gist-id-input')
   const saveBtn = document.getElementById('btn-gist-save')
+  const clearBtn = document.getElementById('btn-gist-clear')
   const uploadBtn = document.getElementById('btn-gist-upload')
   const pullBtn = document.getElementById('btn-gist-pull')
 
   if (tokenEl) tokenEl.addEventListener('blur', saveGistSettingsFromInputs)
   if (idEl) idEl.addEventListener('blur', saveGistSettingsFromInputs)
   if (saveBtn) saveBtn.addEventListener('click', saveGistSettingsFromInputs)
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if (!confirm(I18N.toast.gist.clearConfirm)) return
+      clearGistSettings()
+    })
+  }
   if (uploadBtn) {
     uploadBtn.addEventListener('click', async () => {
       saveGistSettingsFromInputs()
@@ -230,15 +245,39 @@ async function handleImportFile(file) {
   if (typeof imported.lastResetDate === 'string') setLastResetDate(imported.lastResetDate)
   if (imported.userSettings) setUserSettings(imported.userSettings)
   if (imported.ankiSettings) setAnkiSettings(imported.ankiSettings)
+  if (imported.ankiExportSettings) setAnkiExportSettings(imported.ankiExportSettings, { emit: true, source: 'external:backup-restore' })
 
   // 双保险：把每个 store 的 persist* 跑一遍，让内部状态与 localStorage 完全一致
-  persistWorkflows()
-  persistRotationRules()
-  persistMemos()
-  persistCompletionHistory()
-  persistLastResetDate()
-  persistUserSettings()
-  if (imported.ankiSettings) persistAnkiSettings()
+  // （persist* 会走各自的序列化投影，例如 workflows 的 runtime 字段裁剪、
+  //  ankiSettings 的密钥投影，因此这一步并非冗余）。
+  // 关键：逐项检查返回值。虽然 persistBackupToStorage 已写入过一份合法数据
+  // （失败也不会损坏磁盘），但任一 persist* 失败都意味着投影未落盘，
+  // 必须如实告知用户，不能静默完成。
+  const secondRound = [
+    ['workflows', () => persistWorkflows()],
+    ['rotationRules', () => persistRotationRules()],
+    ['memos', () => persistMemos()],
+    ['completionHistory', () => persistCompletionHistory()],
+    ['lastResetDate', () => persistLastResetDate()],
+    ['userSettings', () => persistUserSettings()],
+    ['ankiSettings', () => (imported.ankiSettings ? persistAnkiSettings() : true)]
+  ]
+  const failedDomains = []
+  for (const [domain, fn] of secondRound) {
+    let ok = false
+    try {
+      ok = fn()
+    } catch (e) {
+      DBG('import:persist:error', { domain, err: String(e) })
+      ok = false
+    }
+    if (!ok) failedDomains.push(domain)
+  }
+  if (failedDomains.length > 0) {
+    // 非阻断提示：数据主体已由 persistBackupToStorage 落盘，此处仅部分投影未写入。
+    DBG('import:persist:partial-fail', { failedDomains })
+    showToast(I18N.toast.backup.importPartialPersistFailed)
+  }
 
   // 跨天判断 + 今日打勾状态恢复（应用历史 today 列表）
   checkDailyReset({ force: true, reason: 'file-import' })
@@ -258,8 +297,7 @@ async function handleImportFile(file) {
     memos: getMemos().length,
     historyDays: Object.keys(getCompletionHistory()).length,
     userSettingsKeys: Object.keys(getUserSettings()).length,
-    ankiProfileCount: Array.isArray(imported.ankiSettings?.profiles) ? imported.ankiSettings.profiles.length : 0,
-    hasAnkiKey: imported.ankiSettings?.profiles?.some((p) => p.apiKey) || false
+    ankiProfileCount: Array.isArray(imported.ankiSettings?.profiles) ? imported.ankiSettings.profiles.length : 0
   })
   showToast(t(I18N.toast.backup.importSuccess, {
     tasks: getWorkflows().length,

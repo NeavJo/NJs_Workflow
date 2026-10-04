@@ -10,6 +10,8 @@ export const USER_SETTINGS_STORAGE_KEY = 'njs-workflow-user-settings'
 
 export const ANKI_SETTINGS_STORAGE_KEY = 'njs-workflow-anki-settings'
 
+export const ANKI_EXPORT_SETTINGS_STORAGE_KEY = 'njs-workflow-anki-export-settings'
+
 export const ANKI_API_TYPES = ['gemini', 'openai']
 
 export const DEFAULT_ANKI_PROFILE = Object.freeze({
@@ -37,6 +39,90 @@ export const DEFAULT_ANKI_SETTINGS = Object.freeze({
   activeProfileId: '',
   prompt: ''
 })
+
+// 笔记类型默认字段名：与 Prompt 约定的 3 字段（F1 | F2 | F3）一一对应。
+// 仅作为未填写时的兜底；实际字段数量由用户在设置里填写，允许目标笔记类型有更多字段
+// （例如第 4 个字段由用户手动补充，导出时留空占位）。
+export const DEFAULT_ANKI_EXPORT_FIELD_NAMES = Object.freeze(['Front', 'Back', 'Example'])
+
+// 默认卡片模板名。Anki 在无数字 ID 时按「模板名」匹配模板，
+// 名称不一致会追加一个新模板从而多生成一张卡，因此同样需要可配置。
+export const DEFAULT_ANKI_EXPORT_TEMPLATE_NAME = 'Card 1'
+
+export const DEFAULT_ANKI_EXPORT_SETTINGS = Object.freeze({
+  tagConfigs: {},
+  defaultConfig: {
+    deckName: 'Import::Anki',
+    modelName: 'Basic',
+    // 手动指定的目标笔记类型 ID（字符串形式的纯数字）：留空则维持旧的自动新建行为。
+    // Anki 导入 APKG 时按内部数字 ID 匹配笔记类型，只有给出同一 ID 才会复用已有类型。
+    modelId: '',
+    // 目标笔记类型的前 3 个字段名，需与 Anki 中已有笔记类型一致才能干净复用（不新增字段）。
+    fieldNames: [...DEFAULT_ANKI_EXPORT_FIELD_NAMES],
+    // 目标笔记类型的模板名，需与已有模板一致，避免 Anki 追加模板导致重复出卡。
+    templateName: DEFAULT_ANKI_EXPORT_TEMPLATE_NAME
+  }
+})
+
+/**
+ * 归一化笔记类型 ID：只接受纯数字字符串，其余一律视为空（未指定）。
+ * Anki 的 NotetypeId 是 i64，写入非数字会在 models JSON 里形成非法 id 导致导入失败。
+ */
+export function normalizeAnkiModelId(value) {
+  const text = typeof value === 'string'
+    ? value.trim()
+    : typeof value === 'number' && Number.isFinite(value)
+      ? String(Math.trunc(value))
+      : ''
+  return /^\d+$/.test(text) ? text : ''
+}
+
+/**
+ * 归一化导出字段名：保留用户填写的字段数量（不再固定 3 个）。
+ *  - 目标笔记类型的字段数必须与之完全一致（Anki 的 equal_schema 逐位按名+数量比对），
+ *    因此这里不能截断或补齐到固定长度，否则字段数不符会触发 Anki 克隆出新类型。
+ *  - 空缺位置（空串）回落到同名位置的默认名；尾部连续空缺直接丢弃，避免生成无名字段。
+ *  - 无有效输入时返回默认三字段的副本。
+ */
+export function normalizeAnkiExportFieldNames(value) {
+  const list = Array.isArray(value) ? value : []
+  const names = []
+  for (let i = 0; i < list.length; i += 1) {
+    const name = typeof list[i] === 'string' ? list[i].trim() : ''
+    names.push(name || DEFAULT_ANKI_EXPORT_FIELD_NAMES[i] || '')
+  }
+  // 仅裁掉尾部空白字段名，保留中间位置以维持与 Prompt 字段顺序的一一对应。
+  while (names.length > 0 && !names[names.length - 1]) names.pop()
+  if (names.length === 0) return [...DEFAULT_ANKI_EXPORT_FIELD_NAMES]
+  return names
+}
+
+/**
+ * 归一化模板名：空串回落到默认模板名，避免出现无名模板导致 Anki 追加模板。
+ */
+export function normalizeAnkiExportTemplateName(value) {
+  const text = typeof value === 'string' ? value.trim() : ''
+  return text || DEFAULT_ANKI_EXPORT_TEMPLATE_NAME
+}
+
+/**
+ * 校验导出字段名列表是否可用于生成目标笔记类型。
+ * Anki 的笔记类型要求字段名唯一且非空：重复名会让模板 `{{字段名}}` 指向多个字段、
+ * 并使 equal_schema 比对失败；空名会写出无名字段，导入后表现为异常卡片。
+ * 返回 null 表示合法，否则返回 { reason, ... } 供调用方提示。
+ */
+export function validateAnkiExportFieldNames(fieldNames) {
+  const list = Array.isArray(fieldNames) ? fieldNames : []
+  if (list.length === 0) return { reason: 'empty-list' }
+  const seen = new Set()
+  for (let i = 0; i < list.length; i += 1) {
+    const name = typeof list[i] === 'string' ? list[i].trim() : ''
+    if (!name) return { reason: 'empty', index: i }
+    if (seen.has(name)) return { reason: 'duplicate', name }
+    seen.add(name)
+  }
+  return null
+}
 
 export const DEFAULT_GIST_SETTINGS = Object.freeze({
   token: '',
@@ -142,6 +228,43 @@ export function createAnkiProfile(partial = {}, index = 0) {
     name: partial?.name || `模型 ${index + 1}`
   }, index)
   return profile
+}
+
+export function normalizeAnkiExportSettings(raw) {
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
+  const tagConfigs = {}
+  const rawTagConfigs = source.tagConfigs && typeof source.tagConfigs === 'object' && !Array.isArray(source.tagConfigs)
+    ? source.tagConfigs
+    : {}
+  for (const key of Object.keys(rawTagConfigs)) {
+    const value = rawTagConfigs[key]
+    if (!value || typeof value !== 'object') continue
+    const deckName = typeof value.deckName === 'string' ? value.deckName.trim() : ''
+    const modelName = typeof value.modelName === 'string' ? value.modelName.trim() : ''
+    if (!deckName || !modelName) continue
+    tagConfigs[key] = {
+      deckName,
+      modelName,
+      modelId: normalizeAnkiModelId(value.modelId),
+      fieldNames: normalizeAnkiExportFieldNames(value.fieldNames),
+      templateName: normalizeAnkiExportTemplateName(value.templateName)
+    }
+  }
+  const rawDefault = source.defaultConfig && typeof source.defaultConfig === 'object' && !Array.isArray(source.defaultConfig)
+    ? source.defaultConfig
+    : {}
+  const defaultDeckName = typeof rawDefault.deckName === 'string' ? rawDefault.deckName.trim() : ''
+  const defaultModelName = typeof rawDefault.modelName === 'string' ? rawDefault.modelName.trim() : ''
+  return {
+    tagConfigs,
+    defaultConfig: {
+      deckName: defaultDeckName || DEFAULT_ANKI_EXPORT_SETTINGS.defaultConfig.deckName,
+      modelName: defaultModelName || DEFAULT_ANKI_EXPORT_SETTINGS.defaultConfig.modelName,
+      modelId: normalizeAnkiModelId(rawDefault.modelId),
+      fieldNames: normalizeAnkiExportFieldNames(rawDefault.fieldNames),
+      templateName: normalizeAnkiExportTemplateName(rawDefault.templateName)
+    }
+  }
 }
 
 export function getActiveAnkiProfile(settings) {

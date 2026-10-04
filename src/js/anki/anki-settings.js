@@ -58,13 +58,14 @@ let _editingProfileId = null
  * 被丢弃、保存时回退到旧值（表现为"点保存被清空"）。
  * 因此这里回退到 active 档案作为编辑目标，保证保存一定写入当前表单内容。
  *
- * 密钥处理（D4）：keyEl.value 有值 → 走 updateAnkiProfileWithKey（有口令则加密为 apiKeyEncrypted，
- * 无口令则失败并保持旧状态）；留空 → 不带 apiKey 字段，store 会保留该档案既有密钥。
- * @returns {Promise<boolean>} 是否成功写回（调用方据此决定是否继续切换/新增）
+ * 密钥处理（D4）：keyEl.value 有值 → 走 updateAnkiProfileWithKey
+ * （有口令则加密为 apiKeyEncrypted，无口令则明文存于本设备）；留空 → 不传该字段，
+ * store 保留原档案密钥。表单以掩码回显既有密钥，保存后不清空。
+ * @returns {Promise<{ok: boolean, reason?: string}>} 是否成功写回及失败原因（调用方据此决定提示语）
  */
 async function _commitEditingProfile() {
   const targetId = _editingProfileId || getActiveProfileId()
-  if (!targetId) return false
+  if (!targetId) return { ok: false, reason: 'no-target' }
   const nameEl = $('anki-profile-name')
   const typeEl = $('anki-api-type')
   const urlEl = $('anki-base-url')
@@ -76,14 +77,17 @@ async function _commitEditingProfile() {
     baseUrl: (urlEl?.value || '').trim(),
     modelId: (modelEl?.value || '').trim()
   }
-  // 密钥仅在用户填写时携带；留空则不传该字段，store 保留原档案密钥。
+  // 密钥仅在输入框有值时携带（表单以掩码回显既有密钥）；留空 → 不传该字段，
+  // store 会保留原档案密钥。store 侧再按"有口令则加密、无口令则明文存本机"处理。
   const keyValue = (keyEl?.value || '').trim()
   if (keyValue) {
     partial.apiKey = keyValue
   }
   const result = await updateAnkiProfileWithKey(targetId, partial)
   _editingProfileId = null
-  return Boolean(result.ok)
+  // 透传 reason（如 'crypto-unavailable' / 'persist-failed'）：供调用方给出准确提示，
+  // 避免把"环境不支持加密"等真实原因误报为"存储权限失败"。
+  return { ok: Boolean(result.ok), reason: result.reason }
 }
 
 /** 在档案列表中查找或创建选中项 */
@@ -203,13 +207,14 @@ export function renderAnkiSettingsInputs() {
       }
     }
     if (modelEl) modelEl.value = editProfile.modelId || ''
-    // 密钥不回显明文（D4）：仅在"已存有密钥"时给出占位提示，输入框留空，
-    // 用户可填写新密钥以覆盖；留空则保存时保留原密钥。
+    // 密钥回显（掩码）：input[type=password] 会把值渲染成圆点，保存后不清空输入框，
+    // 让用户直观确认"密钥已保存、仍然有效"。内存水合出明文 apiKey 时回显其值；
+    // 仅有密文但未解锁时无法解出明文，退回占位提示"已保存，留空则不修改"。
     if (keyEl) {
-      keyEl.value = ''
-      keyEl.placeholder = editProfile.apiKey || editProfile.apiKeyEncrypted
-        ? I18N.settings.apiKeyStoredPlaceholder
-        : ''
+      keyEl.value = editProfile.apiKey || ''
+      keyEl.placeholder = editProfile.apiKey
+        ? ''
+        : (editProfile.apiKeyEncrypted ? I18N.settings.apiKeyStoredPlaceholder : '')
     }
   }
 
@@ -304,15 +309,21 @@ export function deleteCurrentAnkiProfile() {
 }
 
 export async function saveAnkiSettingsFromInputs() {
-  const ok = await _commitEditingProfile()
+  const result = await _commitEditingProfile()
   _editingProfileId = null
   renderAnkiSettingsInputs()
-  if (!ok) {
-    showToast(I18N.toast.anki.configSaveFailed)
+  if (!result.ok) {
+    // 按真实失败原因分流提示：加密不可用与普通存储失败文案不同，
+    // 不再误报为"存储权限"问题（无口令已不再阻断本地保存）。
+    if (result.reason === 'crypto-unavailable') {
+      showToast(I18N.toast.anki.cryptoUnavailable)
+    } else {
+      showToast(I18N.toast.anki.configSaveFailed)
+    }
   } else {
     showToast(I18N.toast.anki.configSaved)
   }
-  DBG('anki:settings:save:ui', { ok })
+  DBG('anki:settings:save:ui', { ok: result.ok, reason: result.reason })
 }
 
 /* ===== 提示词与口令（保持全局语义） ===== */

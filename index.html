@@ -285,6 +285,14 @@
                     </span>
                     <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
                   </button>
+                  <button class="settings-menu-item" type="button" data-settings-page="anki-export">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--anki" aria-hidden="true">library_books</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.ankiExportMenu">APKG 导出配置</strong>
+                      <span data-i18n="settings.ankiExportMenuSub">按标签配置 Anki 卡组和笔记类型，双击导入无需手动选择。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
                   <button class="settings-menu-item" type="button" data-settings-page="workflow">
                     <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--workflow" aria-hidden="true">list_alt</span>
                     <span class="settings-menu-item__copy">
@@ -405,6 +413,10 @@
                           <button id="btn-gist-save" type="button" class="btn btn--tonal gist-actions__btn">
                             <span class="material-symbols" aria-hidden="true">save</span>
                             <span data-i18n="settings.saveConfig">保存配置</span>
+                          </button>
+                          <button id="btn-gist-clear" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">delete</span>
+                            <span data-i18n="settings.clearConfig">清除凭据</span>
                           </button>
                           <button id="btn-gist-upload" type="button" class="btn btn--filled gist-actions__btn">
                             <span class="material-symbols" aria-hidden="true">cloud_upload</span>
@@ -527,7 +539,7 @@
                           <div class="gist-field">
                             <label class="gist-field__label" for="anki-api-key">
                               <span data-i18n="settings.apiKey">API Key</span>
-                              <small data-i18n="settings.apiKeyHint">本地保存，不写入日志；随 Gist 一并同步</small>
+                              <small data-i18n="settings.apiKeyHint">仅保存在本机浏览器；设置加密口令后，上传 Gist / 导出备份时以密文同步</small>
                             </label>
                             <div class="gist-field__control">
                               <input id="anki-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-*** 或 AIza***" data-i18n-placeholder="settings.apiKeyPlaceholder" />
@@ -556,8 +568,8 @@
                         <div class="backup-card__title">
                           <span class="material-symbols backup-icon backup-icon--passphrase" aria-hidden="true">lock</span>
                           <div>
-                            <h3 data-i18n="settings.passphraseTitle">Anki API Key 加密</h3>
-                            <p data-i18n="settings.passphraseSub">设置加密口令，API Key 将以密文形式上传 Gist / 导出备份；拉取或导入时用口令解密还原。</p>
+                            <h3 data-i18n="settings.passphraseTitle">Anki API Key 加密（可选）</h3>
+                            <p data-i18n="settings.passphraseSub">可选：设置加密口令后，API Key 将以密文形式上传 Gist / 导出备份，拉取或导入时用口令解密还原。未设置口令时 API Key 仅保存在本机，不会上传或写入备份。</p>
                           </div>
                         </div>
                       </div>
@@ -636,6 +648,90 @@
                         </div>
                       </footer>
                     </section>
+                  </div>
+                </section>
+
+                <section class="settings-view settings-view--sub" data-settings-view="anki-export" hidden>
+                  <div class="settings-subpage__header">
+                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
+                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
+                      <span data-i18n="common.back">返回</span>
+                    </button>
+                    <h3 data-i18n="settings.ankiExportTitle">APKG 导出配置</h3>
+                  </div>
+                  <div class="settings-subpage__content">
+                    <p class="settings-subpage__hero-sub" data-i18n="settings.ankiExportSub">按笔记标签配置目标卡组与笔记类型；未配置的标签使用默认值。</p>
+
+                    <!-- 默认配置 -->
+                    <section class="anki-export-card">
+                      <h4 data-i18n="settings.ankiExportDefaultTitle">默认配置</h4>
+                      <p class="anki-export-card__desc" data-i18n="settings.ankiExportDefaultSub">未配置标签的兜底卡组与笔记类型。</p>
+                      <div class="anki-export-card__row">
+                        <label class="anki-export-label" for="anki-export-deck-default">
+                          <span data-i18n="settings.ankiExportDeckLabel">卡组名</span>
+                          <small data-i18n="settings.ankiExportDeckHint">支持 :: 分层，如 德语::词汇</small>
+                        </label>
+                        <input type="text" id="anki-export-deck-default" class="anki-export-input" placeholder="Import::Anki" autocomplete="off" />
+                      </div>
+                      <div class="anki-export-card__row">
+                        <label class="anki-export-label" for="anki-export-model-default">
+                          <span data-i18n="settings.ankiExportModelLabel">笔记类型名</span>
+                          <small data-i18n="settings.ankiExportModelHint">仅用于显示与新建时的命名；导入时 Anki 按内部 ID 匹配，不按名称</small>
+                        </label>
+                        <input type="text" id="anki-export-model-default" class="anki-export-input" placeholder="Basic" autocomplete="off" />
+                      </div>
+                      <div class="anki-export-card__row">
+                        <label class="anki-export-label" for="anki-export-modelid-default">
+                          <span data-i18n="settings.ankiExportModelIdLabel">笔记类型 ID</span>
+                          <small data-i18n="settings.ankiExportModelIdHint">导出包中的笔记类型 ID；必须与导入目标集合中已有类型的内部 ID 和 schema 匹配，名称相同不足以复用</small>
+                        </label>
+                        <input type="text" id="anki-export-modelid-default" class="anki-export-input" placeholder="如 1700000000000" inputmode="numeric" autocomplete="off" />
+                      </div>
+                      <div class="anki-export-card__row">
+                        <label class="anki-export-label" for="anki-export-fieldnames-default">
+                          <span data-i18n="settings.ankiExportFieldNamesLabel">字段名</span>
+                          <small data-i18n="settings.ankiExportFieldNamesHint">按顺序填写目标笔记类型的全部字段名（逗号分隔），数量与名称都须一致；不依赖处理机、手动补充的字段也要列上（导出时留空）</small>
+                        </label>
+                        <input type="text" id="anki-export-fieldnames-default" class="anki-export-input" placeholder="Front, Back, Example" autocomplete="off" />
+                      </div>
+                      <div class="anki-export-card__row">
+                        <label class="anki-export-label" for="anki-export-templatename-default">
+                          <span data-i18n="settings.ankiExportTemplateNameLabel">模板名</span>
+                          <small data-i18n="settings.ankiExportTemplateNameHint">须与目标笔记类型的卡片模板名一致，否则会多出一张卡</small>
+                        </label>
+                        <input type="text" id="anki-export-templatename-default" class="anki-export-input" placeholder="Card 1" autocomplete="off" />
+                      </div>
+                    </section>
+
+                    <!-- 按标签配置 -->
+                    <section class="anki-export-card">
+                      <h4 data-i18n="settings.ankiExportTagsTitle">按标签配置</h4>
+                      <p class="anki-export-card__desc" data-i18n="settings.ankiExportTagsSub">为每个笔记标签独立设置卡组名和笔记类型。</p>
+                      <div id="anki-export-tag-configs" class="anki-export-tag-configs"></div>
+                    </section>
+
+                    <!-- 保存 -->
+                    <div class="anki-export-actions">
+                      <button type="button" id="btn-anki-export-save" class="btn btn--filled">
+                        <span class="material-symbols" aria-hidden="true">save</span>
+                        <span data-i18n="settings.ankiExportSaveBtn">保存配置</span>
+                      </button>
+                    </div>
+
+                    <!-- 教程 -->
+                    <details class="anki-export-tutorial" id="anki-export-tutorial">
+                      <summary data-i18n="settings.ankiExportTutorial">APKG 导出教程</summary>
+                      <div class="anki-export-tutorial__body">
+                        <h5 data-i18n="settings.ankiExportTutorialWhat">1. 获取笔记类型 ID</h5>
+                        <p data-i18n="settings.ankiExportTutorialWhatBody">在 Anki 主界面按 Ctrl+Shift+;（macOS 为 ⌘+Shift+;）打开控制台，逐行输入以下内容后按 Ctrl+Enter（macOS 为 ⌘+Enter）执行。执行后会列出所有笔记类型的 ID 和名称。</p>
+                        <pre class="anki-export-code" data-i18n="settings.ankiExportTutorialWhatCode">for m in mw.col.models.all():
+    print(f"ID: {m['id']}  |  模板名称: {m['name']}")</pre>
+                        <h5 data-i18n="settings.ankiExportTutorialConfig">2. 填写信息</h5>
+                        <p data-i18n="settings.ankiExportTutorialConfigBody">根据控制台输出，在上方表单填写：卡组名、笔记类型 ID、字段名（按顺序全部列出，逗号分隔）、模板名，然后点击「保存配置」。</p>
+                        <h5 data-i18n="settings.ankiExportTutorialFields">3. 导出</h5>
+                        <p data-i18n="settings.ankiExportTutorialFieldsBody">回到 Anki 处理机页面，点击「导出 APKG」，下载 .apkg 文件后在 Anki 中导入即可。</p>
+                      </div>
+                    </details>
                   </div>
                 </section>
 

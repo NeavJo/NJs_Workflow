@@ -10,6 +10,7 @@ import { normalizeCompletionHistory } from '../config/storage-config.js'
 import { getUserSettings } from '../core/settings-store.js'
 import { getAnkiSettings, getActiveProfile } from '../anki/anki-store.js'
 import { getMemoTags } from '../memo/memo-store.js'
+import { getAnkiExportSettings } from '../anki/anki-export-store.js'
 
 import { getTodayDateString } from '../core/date.js'
 import { showToast } from '../ui.js'
@@ -165,6 +166,7 @@ export async function buildExportPayload() {
   }
   const userSettingsSnapshot = { ...getUserSettings() }
   const ankiSettingsSnapshot = { ...getAnkiSettings() }
+  const ankiExportSettingsSnapshot = JSON.parse(JSON.stringify(getAnkiExportSettings()))
   const memoTagsSnapshot = []
   try {
     const memoTags = getMemoTags()
@@ -183,8 +185,7 @@ export async function buildExportPayload() {
     historyDays: Object.keys(completionHistorySnapshot).length,
     hasLastResetDate: Boolean(lastReset),
     userSettingsKeys: Object.keys(userSettingsSnapshot).length,
-    hasAnkiKey: Boolean(ankiSettingsSnapshot.apiKey),
-    hasAnkiEncrypted: Boolean(prepared.settings.apiKeyEncrypted),
+    ankiProfileCount: ankiProfiles.length,
     ankiKeyOmitted: Boolean(prepared.keyOmitted),
     ankiOmitReason: prepared.omitReason || null
   })
@@ -201,6 +202,7 @@ export async function buildExportPayload() {
         lastResetDate: lastReset,
         userSettings: userSettingsSnapshot,
         ankiSettings: prepared.settings,
+        ankiExportSettings: ankiExportSettingsSnapshot,
         memoTags: memoTagsSnapshot,
 
       }

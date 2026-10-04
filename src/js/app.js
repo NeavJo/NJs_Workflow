@@ -72,7 +72,9 @@ import {
   renderAnkiSettingsInputs,
   bindAnkiSettingsEvents,
   bindAnkiProcessorEvents,
-  autoHydrateOnStartup
+  autoHydrateOnStartup,
+  loadAnkiExportSettings,
+  bindAnkiExportSettingsEvents
 } from './anki/index.js'
 import {
   unlockFromRemembered,
@@ -100,6 +102,7 @@ try {
   loadMemos()
   loadMemoTags()
   loadAnkiSettings()
+  loadAnkiExportSettings()
   unlockFromRemembered()
   
   DBG('init:storage', 'All persistent state loaded successfully')
@@ -195,6 +198,7 @@ const EVENT_BINDS = [
   { name: 'modal', fn: bindGlobalModalEvents },
   { name: 'anki-settings', fn: bindAnkiSettingsEvents },
   { name: 'anki-processor', fn: bindAnkiProcessorEvents },
+  { name: 'anki-export', fn: bindAnkiExportSettingsEvents },
   { name: 'memo-subscribe', fn: subscribeMemoChanges },
   { name: 'memo-tag-subscribe', fn: subscribeMemoTagChanges },
   {

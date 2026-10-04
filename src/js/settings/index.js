@@ -13,6 +13,7 @@ export { bindTaskFormEvents }
 import { renderGistSettingsInputs } from '../backup/gist-sync.js'
 import { renderDailyResetStatus } from '../backup/daily-reset.js'
 import { renderGermanFontSizeSettings, renderTtsKeyInput } from '../german/german-settings.js'
+import { renderAnkiExportSettings } from '../anki/index.js'
 /**
  * 设置域事件绑定集合 + 顶级页面进入钩子。
  *  - bindNavigationEvents()：顶部主导航（flow / memo / settings）
@@ -142,6 +143,8 @@ export function bindSettingsEvents() {
       } else if (item.dataset.settingsPage === 'german') {
         renderGermanFontSizeSettings()
         renderTtsKeyInput()
+      } else if (item.dataset.settingsPage === 'anki-export') {
+        renderAnkiExportSettings()
       }
     })
   })

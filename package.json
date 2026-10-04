@@ -12,6 +12,10 @@
     "check": "npm run lint && npm run build",
     "build:german-dictionary": "node scripts/build-german-dictionary.mjs"
   },
+  "dependencies": {
+    "fflate": "^0.8.2",
+    "sql.js": "^1.12.0"
+  },
   "devDependencies": {
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "vite": "^7.1.3"

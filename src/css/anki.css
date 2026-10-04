@@ -479,3 +479,192 @@
   .anki-profile-item__summary { font-size: 11px; }
   .anki-profile-actions .btn { flex: 1 1 auto; justify-content: center; }
 }
+
+/* ===== APKG 导出配置设置子页 ===== */
+.anki-export-card {
+  padding: 18px 20px;
+  border-radius: var(--md-radius-large);
+  background: var(--md-surface);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 16%, transparent);
+  margin-bottom: 14px;
+}
+.anki-export-card h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--md-on-surface);
+}
+.anki-export-card__desc {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--md-on-surface-variant);
+  line-height: 1.5;
+}
+.anki-export-card__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.anki-export-card__row:last-child { margin-bottom: 0; }
+.anki-export-label {
+  flex: 0 0 120px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--md-on-surface-variant);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.anki-export-label small {
+  font-weight: 400;
+  font-size: 11px;
+  opacity: 0.8;
+}
+.anki-export-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: var(--md-radius-medium, 12px);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 28%, transparent);
+  background: var(--md-surface-container, var(--md-surface));
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 13px;
+  transition: border-color var(--md-motion-standard), box-shadow var(--md-motion-standard);
+}
+.anki-export-input:focus {
+  outline: 0;
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent);
+}
+.anki-export-input::placeholder { color: var(--md-on-surface-variant); opacity: 0.55; }
+
+/* 标签配置区块 */
+.anki-export-tag-configs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.anki-export-tag-configs__empty {
+  margin: 0;
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--md-on-surface-variant);
+  border: 1px dashed color-mix(in srgb, var(--md-outline) 32%, transparent);
+  border-radius: var(--md-radius-medium);
+}
+.anki-export-tag-item {
+  padding: 14px 16px;
+  border-radius: var(--md-radius-large, 16px);
+  background: var(--md-surface-container, var(--md-surface));
+  border: 1px solid color-mix(in srgb, var(--md-outline) 16%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.anki-export-tag-item.is-selected {
+  border-color: color-mix(in srgb, var(--md-primary) 44%, transparent);
+  background: color-mix(in srgb, var(--md-primary-container) 18%, var(--md-surface-container));
+}
+.anki-export-tag-item__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--md-on-surface);
+}
+.anki-export-tag-item__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--md-on-primary-container);
+  background: var(--md-primary-container);
+}
+.anki-export-tag-item__hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--md-on-surface-variant);
+  opacity: 0.85;
+}
+/* 标签配置项内的输入行：紧凑排布，避免列布局下的纵向空隙 */
+.anki-export-tag-item .anki-export-card__row {
+  margin: 0;
+  gap: 8px;
+}
+.anki-export-tag-item .anki-export-card__row + .anki-export-card__row {
+  margin-top: 10px;
+}
+/* 标签名/提示与输入区之间加分隔线，层级更清晰 */
+.anki-export-tag-item .anki-export-card__row:first-of-type {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--md-outline) 14%, transparent);
+}
+
+/* 操作按钮区 */
+.anki-export-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
+}
+.anki-export-actions .btn { min-height: 42px; }
+
+/* 教程折叠区 */
+.anki-export-tutorial {
+  margin-top: 14px;
+  padding: 0 4px;
+}
+.anki-export-tutorial summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--md-primary);
+  user-select: none;
+  padding: 8px 0;
+}
+.anki-export-tutorial__body {
+  padding: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--md-on-surface-variant);
+  line-height: 1.55;
+}
+.anki-export-tutorial__body h5 {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--md-on-surface);
+}
+.anki-export-tutorial__body p {
+  margin: 0;
+}
+
+/* 控制台代码块：等宽展示，避免教程中的 Anki 脚本被普通字体吞掉缩进。 */
+.anki-export-code {
+  margin: 8px 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 24%, transparent);
+  border-radius: var(--md-radius-medium, 8px);
+  background: color-mix(in srgb, var(--md-surface-container-lowest, var(--md-surface)) 80%, var(--md-primary) 4%);
+  color: var(--md-on-surface);
+  font-family: 'Inter', 'Noto Sans SC', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: var(--njs-font-sm, 12px);
+  line-height: 1.45;
+}
+
+@media (max-width: 680px) {
+  .anki-export-card__row { flex-direction: column; align-items: stretch; gap: 6px; }
+  .anki-export-label { flex: 0 0 auto; }
+  .anki-export-actions .btn { flex: 1 1 100%; justify-content: center; }
+}

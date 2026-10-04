@@ -20,8 +20,9 @@ import { getEffectivePassphrase, hasRememberedPassphrase, unlockFromRemembered }
  * 设计约束（与项目规范对齐）：
  *  - 严格一致性（D2）：所有写操作走 commitAnkiSettings —— 先持久化成功，再提交内存并 emit；
  *    持久化失败则内存回滚到旧状态且不发布事件，杜绝"虚假成功刷新"。
- *  - 密钥保护（D4）：任何落盘路径都经过 toPersistableSettings，剔除明文 apiKey，仅保留密文。
- *    明文 apiKey 仅存在于内存，运行时用于请求；启动/解锁/保存后通过 hydrateAnkiSecrets 回填。
+ *  - 密钥保护（D4）：任何落盘路径都经过 toPersistableSettings。已加密档案仅保留密文；
+ *    未加密（无口令）档案保留明文，仅存本设备浏览器，不会随 Gist / 备份外泄。
+ *    明文 apiKey 供运行时请求使用；设置口令后通过 hydrateAnkiSecrets 迁移为密文。
  */
 
 let ankiSettings = normalizeAnkiSettings(safeStorageGet(ANKI_SETTINGS_STORAGE_KEY, DEFAULT_ANKI_SETTINGS))
@@ -86,14 +87,20 @@ export function setAnkiSettings(next, { emit = true, source = 'settings:set' } =
 }
 
 /**
- * 生成写入 localStorage 的投影：剔除明文 apiKey，仅保留密文与其它字段。
- * 这是 D4 的强制约束——任何持久化路径都必须经过本函数，禁止直接序列化含明文的对象。
- * 保留内存中的明文（内存仍用于运行时请求），只影响落盘内容。
+ * 生成写入 localStorage 的投影（D4 密钥保护）：
+ *  - 已加密档案（apiKeyEncrypted 非空）→ 剔除明文 apiKey，仅保留密文；
+ *  - 未加密档案（无口令时保存）→ 保留明文 apiKey，仅存于本设备浏览器。
+ * 明文仅用于本机运行时与保存；上传 Gist / 导出备份走 prepareAnkiSettingsForExport，
+ * 由该函数统一剔除或加密，二者互不干扰。
  */
 function toPersistableSettings(settings) {
   return {
     ...settings,
-    profiles: settings.profiles.map((profile) => ({ ...profile, apiKey: '' }))
+    profiles: settings.profiles.map((profile) => (
+      profile.apiKeyEncrypted
+        ? { ...profile, apiKey: '' }
+        : { ...profile }
+    ))
   }
 }
 
@@ -132,12 +139,12 @@ function commitAnkiSettings(next, { reason, external = false } = {}) {
 
 /**
  * 密钥保存专用提交（D4 加密优先 + D2 严格一致性）：
- *  入参 next 的 profiles 中，目标档案可能携带内存明文 apiKey（由调用方在内存侧构造，
- *  用于立即运行与 Gist 上传加密）。本函数负责：
- *   - 该档案有明文 apiKey 且已有口令 → 加密为 apiKeyEncrypted；
- *   - 有明文 apiKey 但无口令 → 中止（ok:false, reason:'no-passphrase'），保持旧状态；
- *   - 落盘前经 toPersistableSettings 剔除所有明文 apiKey。
- *  其余档案的明文 apiKey 不会被本函数加密（保持原状，仅落盘剔除）。
+ *  入参 next 的 profiles 中，目标档案可能携带内存明文 apiKey（由调用方在内存侧构造）。
+ *  本函数负责：
+ *   - 该档案有明文 apiKey 且已有口令 → 加密为 apiKeyEncrypted，落盘仅密文；
+ *   - 该档案有明文 apiKey 但无口令 → 明文照常落盘（仅本设备），并清除该档案陈旧密文，
+ *     避免旧密文残留导致新明文被 toPersistableSettings 判定为"已加密"而剔除；
+ *   - 其余档案的明文 apiKey 保持原状。
  */
 async function commitAnkiSettingsWithKey(next, targetProfileId, { reason, external = false } = {}) {
   const prev = ankiSettings
@@ -145,22 +152,33 @@ async function commitAnkiSettingsWithKey(next, targetProfileId, { reason, extern
   const target = next.profiles.find((p) => p.id === targetProfileId)
   const hasPlaintext = target && Boolean(target.apiKey)
 
-  if (hasPlaintext && !passphrase) {
-    // 无口令时拒绝把明文密钥写入档案（避免落盘明文、避免上传未加密 Key）
-    DBG('anki:commit:no-passphrase', { profileId: targetProfileId })
-    return { ok: false, reason: 'no-passphrase', settings: prev }
-  }
-
   let candidate
   if (hasPlaintext && passphrase) {
     // 仅设置目标档案的密文（加密），其余档案原样引用（保留各自内存明文）。
     // 内存保留明文 apiKey 是刻意的：运行时请求与 Gist 上传加密都依赖它；
     // 落盘时才由 toPersistableSettings 统一剔除明文，二者互不干扰。
     // 加密是 async 且必须在 map 回调之外 await（Node 同步 .map 回调无法 await）。
-    const encrypted = await encryptAnkiSecret(target.apiKey, passphrase)
+    let encrypted
+    try {
+      encrypted = await encryptAnkiSecret(target.apiKey, passphrase)
+    } catch (err) {
+      // 加密失败（如 crypto-unavailable / 派生失败）必须中止并回滚，
+      // 不能抛出未捕获异常导致调用方拿不到结果、界面无任何提示。
+      const reason = err && err.code === 'crypto-unavailable' ? 'crypto-unavailable' : 'encrypt-failed'
+      DBG('anki:commit:key:encrypt-fail', { profileId: targetProfileId, reason })
+      return { ok: false, reason, settings: prev }
+    }
     candidate = {
       ...next,
       profiles: next.profiles.map((p) => (p.id === targetProfileId ? { ...p, apiKeyEncrypted: encrypted } : p))
+    }
+  } else if (hasPlaintext) {
+    // 无口令：明文直接落盘（仅本设备浏览器），并清除目标档案陈旧密文，
+    // 否则 toPersistableSettings 会因残留密文剔除新明文，导致"保存后密钥丢失"。
+    DBG('anki:commit:key:plaintext', { profileId: targetProfileId })
+    candidate = {
+      ...next,
+      profiles: next.profiles.map((p) => (p.id === targetProfileId ? { ...p, apiKeyEncrypted: '' } : p))
     }
   } else {
     candidate = next

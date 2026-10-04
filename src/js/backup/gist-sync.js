@@ -12,7 +12,11 @@ import {
 import { normalizeGistSettings, normalizeCompletionHistory } from '../config/storage-config.js'
 import { gistApiRequest, gistErrorMessage, GIST_FILENAME } from './gist-api.js'
 import { buildExportPayload, keyOmitReasonText } from './snapshot.js'
-import { validateBackupPayload } from './json.js'
+import {
+  validateBackupPayload,
+  captureImportStorageSnapshot,
+  restoreImportStorageSnapshot
+} from './json.js'
 import { errorHandler, ErrorTypes, ErrorSeverity } from '../core/error-handler.js'
 import { renderWorkflow } from '../workflow/workflow-renderer.js'
 import { renderMemos, updateMemoCounters, renderTagSelector } from '../memo/memo-renderer.js'
@@ -21,16 +25,20 @@ import {
   setLastResetDate,
   persistCompletionHistory,
   persistLastResetDate,
-  restoreTodayCompletedFromHistory
+  restoreTodayCompletedFromHistory,
+  getCompletionHistory,
+  getLastResetDate
 } from '../workflow/history-store.js'
 import {
   setWorkflows,
-  persistWorkflows
+  persistWorkflows,
+  getWorkflows
 } from '../workflow/workflow-store.js'
-import { setRotationRules, persistRotationRules } from '../workflow/rotation-store.js'
-import { replaceMemos, persistMemos, setMemoTags, persistMemoTags } from '../memo/memo-store.js'
-import { setUserSettings, persistUserSettings } from '../core/settings-store.js'
+import { setRotationRules, persistRotationRules, getRotationRules } from '../workflow/rotation-store.js'
+import { replaceMemos, persistMemos, setMemoTags, persistMemoTags, getMemos, getMemoTags } from '../memo/memo-store.js'
+import { setUserSettings, persistUserSettings, getUserSettings } from '../core/settings-store.js'
 import { setAnkiSettings, persistAnkiSettings, getAnkiProfiles, getAnkiSettings } from '../anki/anki-store.js'
+import { setAnkiExportSettings, persistAnkiExportSettings, getAnkiExportSettings } from '../anki/anki-export-store.js'
 import { normalizeAnkiSettings } from '../config/storage-config.js'
 import { renderAnkiSettingsInputs } from '../anki/anki-settings.js'
 import { decryptAnkiSecret } from '../anki/anki-crypto.js'
@@ -55,8 +63,57 @@ import { registerAutoUploadHandler, suspendAutoUpload, resumeAutoUpload } from '
  *  - 触发跨天判断，确认最后重置日一致
  *  - 重新拉取 task / rotation / memo / tag 状态并重新渲染
  */
-function applyImportedState({ workflows, rotationRules, memos, completionHistory, lastResetDate, userSettings, ankiSettings, memoTags }) {
+function snapshotMemoryStores() {
+  // 深拷贝各 store 当前状态：setXxx 会重建对象/数组，但为防御未来实现就地修改，
+  // 回滚快照必须与运行时对象解耦，避免回滚时把被污染后的引用再写回去。
+  return {
+    workflows: JSON.parse(JSON.stringify(getWorkflows() || [])),
+    rotationRules: JSON.parse(JSON.stringify(getRotationRules() || [])),
+    memos: JSON.parse(JSON.stringify(getMemos() || [])),
+    completionHistory: JSON.parse(JSON.stringify(getCompletionHistory() || {})),
+    lastResetDate: getLastResetDate() || '',
+    userSettings: JSON.parse(JSON.stringify(getUserSettings() || {})),
+    ankiSettings: JSON.parse(JSON.stringify(getAnkiSettings() || {})),
+    ankiExportSettings: JSON.parse(JSON.stringify(getAnkiExportSettings() || {})),
+    memoTags: JSON.parse(JSON.stringify(getMemoTags() || []))
+  }
+}
+
+function restoreMemoryStores(snapshot) {
+  if (!snapshot) return
+  // 逐个独立 try/catch：任一 store 的 setter 异常不得阻断其余 store 回滚。
+  const steps = [
+    ['workflows', () => setWorkflows(snapshot.workflows)],
+    ['rotationRules', () => setRotationRules(snapshot.rotationRules)],
+    ['memos', () => replaceMemos(snapshot.memos)],
+    ['completionHistory', () => setCompletionHistory(snapshot.completionHistory)],
+    ['lastResetDate', () => { if (typeof snapshot.lastResetDate === 'string') setLastResetDate(snapshot.lastResetDate) }],
+    ['userSettings', () => setUserSettings(snapshot.userSettings)],
+    ['ankiSettings', () => setAnkiSettings(snapshot.ankiSettings)],
+    ['ankiExportSettings', () => setAnkiExportSettings(snapshot.ankiExportSettings, { emit: false, source: 'external:gist-pull-rollback' })],
+    ['memoTags', () => setMemoTags(snapshot.memoTags)]
+  ]
+  for (const [name, fn] of steps) {
+    try {
+      fn()
+    } catch (err) {
+      DBG('gist-pull:rollback:error', { store: name, err: String(err) })
+    }
+  }
+}
+
+/**
+ * 事务式应用导入状态：
+ *  1. 先快照 localStorage 与全部 store 内存；
+ *  2. 写内存 setter + 逐个 persist*，任一持久化返回 false 即视为失败；
+ *  3. 失败时同时回滚 localStorage 与内存，返回 { ok:false, reason }，绝不留下半写状态。
+ *
+ * 返回 { ok:true } 或 { ok:false, reason }。调用方据此决定是否标记同步成功 / 提示失败。
+ */
+function applyImportedState({ workflows, rotationRules, memos, completionHistory, lastResetDate, userSettings, ankiSettings, ankiExportSettings, memoTags }) {
   suspendAutoUpload()
+  const prevStorage = captureImportStorageSnapshot()
+  const prevMemory = snapshotMemoryStores()
   try {
     setWorkflows(workflows)
     setRotationRules(rotationRules)
@@ -65,15 +122,38 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     if (typeof lastResetDate === 'string') setLastResetDate(lastResetDate)
     if (userSettings) setUserSettings(userSettings)
     if (ankiSettings) setAnkiSettings(ankiSettings)
+    if (ankiExportSettings) setAnkiExportSettings(ankiExportSettings, { emit: true, source: 'external:gist-pull' })
     if (Array.isArray(memoTags)) setMemoTags(memoTags)
-    persistWorkflows()
-    persistRotationRules()
-    persistMemos()
-    persistCompletionHistory()
-    persistLastResetDate()
-    persistUserSettings()
-    if (ankiSettings) persistAnkiSettings()
-    if (Array.isArray(memoTags)) persistMemoTags()
+
+    // 持久化结果必须逐项校验：任一写入失败都意味着磁盘与内存不一致，
+    // 必须整体回滚，否则刷新页面后会出现"部分新、部分旧"的损坏数据。
+    const writes = [
+      ['workflows', () => persistWorkflows()],
+      ['rotationRules', () => persistRotationRules()],
+      ['memos', () => persistMemos()],
+      ['completionHistory', () => persistCompletionHistory()],
+      ['lastResetDate', () => persistLastResetDate()],
+      ['userSettings', () => persistUserSettings()],
+      ['ankiSettings', () => (ankiSettings ? persistAnkiSettings() : true)],
+      // ankiExportSettings 走纯内存 setter，必须在此显式落盘，否则刷新后配置丢失
+      ['ankiExportSettings', () => (ankiExportSettings ? persistAnkiExportSettings() : true)],
+      ['memoTags', () => (Array.isArray(memoTags) ? persistMemoTags() : true)]
+    ]
+    for (const [name, fn] of writes) {
+      let ok = false
+      try {
+        ok = fn()
+      } catch (err) {
+        DBG('gist-pull:persist:error', { domain: name, err: String(err) })
+        ok = false
+      }
+      if (!ok) {
+        DBG('gist-pull:persist:fail', { domain: name })
+        restoreImportStorageSnapshot(prevStorage)
+        restoreMemoryStores(prevMemory)
+        return { ok: false, reason: `persist-failed:${name}` }
+      }
+    }
   } finally {
     resumeAutoUpload()
   }
@@ -83,24 +163,38 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     memos: memos.length,
     historyDays: Object.keys(completionHistory).length,
     ankiProfileCount: Array.isArray(ankiSettings?.profiles) ? ankiSettings.profiles.length : 0,
-    hasAnkiKey: ankiSettings?.profiles?.some((p) => p.apiKey) || false,
     memoTags: Array.isArray(memoTags) ? memoTags.length : 0
   })
+  return { ok: true }
 }
 
 /**
  * 上传前冲突检测：
  * 读取 Gist 的 updated_at，若比本地 lastSyncTime 更新则认为云端有新数据。
  * 冲突时静默拉取一次（不弹提示），然后返回 { conflict: true }，调用方应中止上传。
- * 无凭证或网络错误时直接返回 { conflict: false } 放行上传（避免阻断正常流程）。
+ *
+ * 返回值语义（三态，调用方必须区分）：
+ *  - { conflict: true }            云端确有新数据，需中止上传
+ *  - { conflict: false }           已确认无冲突，可安全覆盖
+ *  - { checkFailed: true }         无法确认（网络/鉴权/字段缺失）——**不可当作无冲突**
+ *                                  直接覆盖，否则网络错误时会盲目覆盖云端新数据
  */
 export async function checkForGistConflict() {
   if (!hasGistCredentials()) return { conflict: false }
   const settings = getGistSettings()
   const res = await gistApiRequest(`gists/${settings.gistId}`)
-  if (!res.ok) return { conflict: false }
+  // 网络/服务端失败时绝不能返回"无冲突"：那会在无法确认云端状态的情况下覆盖写，
+  // 一旦云端比本地新就会造成不可逆的数据丢失。改为显式 checkFailed 让调用方决定。
+  if (!res.ok) {
+    DBG('gist:conflict:check-failed', { status: res.status })
+    return { conflict: false, checkFailed: true, status: res.status }
+  }
   const gistUpdatedAt = res.data?.updated_at
-  if (!gistUpdatedAt) return { conflict: false }
+  // 响应缺少 updated_at 同样视为无法确认，而非"无冲突"。
+  if (!gistUpdatedAt) {
+    DBG('gist:conflict:check-failed', { reason: 'missing-updated_at' })
+    return { conflict: false, checkFailed: true, status: res.status }
+  }
   const localLastSync = settings.lastSyncTime || ''
   if (new Date(gistUpdatedAt) > new Date(localLastSync)) {
     DBG('gist:conflict:detected', { gistUpdatedAt, localLastSync })
@@ -148,6 +242,13 @@ export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
       DBG('gist:upload:blocked:conflict')
       showToast(t(I18N.toast.gist.conflictResolved))
       return { ok: false, reason: 'conflict-resolved' }
+    }
+    // 冲突检测无法完成时中止覆盖写：手动上传提示用户重试，自动上传静默跳过本轮。
+    // 宁可这一轮不传（下次 persist* 会再次触发），也不能在云端状态未知时盲目覆盖。
+    if (conflict.checkFailed) {
+      DBG('gist:upload:blocked:check-failed', { status: conflict.status })
+      if (notifyKeyOmitted) showToast(I18N.toast.gist.conflictCheckFailed)
+      return { ok: false, reason: 'conflict-check-failed' }
     }
     showGistUploading()
     indicatorShown = true
@@ -211,7 +312,10 @@ export async function pullFromGist({ silent = false } = {}) {
     return { ok: false, reason: 'http-error', status: res.status, notify: msg }
   }
   const files = res.data?.files || {}
-  const file = files[GIST_FILENAME] || Object.values(files)[0]
+  // 只认约定的备份文件名，绝不再回落到「任意首个文件」。
+  // Gist 里可能存在用户其它文件，回落到首个文件会把无关 JSON 当备份解析，
+  // 甚至覆盖本地数据，后果不可控。
+  const file = files[GIST_FILENAME]
   if (!file || !file.content) {
     const msg = I18N.toast.gist.noBackup
     if (!silent) showToast(msg)
@@ -289,38 +393,40 @@ export async function pullFromGist({ silent = false } = {}) {
     if (preserveLocalAnkiSettings) parsed.data.ankiSettings = localSettings
   }
 
-  // 应用到各 store + 重新渲染
-  // 注意：实际写入由 backup/events.js 在用户确认后调用 persistBackupToStorage
-  // 这里只把内存中的引用同步好
-  // 整个应用阶段挂起自动上传：拉取刚把云端数据写到本地，
-  // 期间触发的 persist* 不应立刻把同一份数据反向传回 Gist。
-  suspendAutoUpload()
-  try {
-    // 云端可能仍是旧数组格式；统一清洗为新对象规范，避免 setCompletionHistory 后持久化结构不合法
-    applyImportedState({
-      workflows: parsed.data.workflows,
-      rotationRules: parsed.data.rotationRules,
-      memos: parsed.data.memos,
-      completionHistory: normalizeCompletionHistory(parsed.data.completionHistory),
-      lastResetDate: parsed.data.lastResetDate,
-      userSettings: parsed.data.userSettings,
-      ankiSettings: parsed.data.ankiSettings,
-      memoTags: parsed.data.memoTags
-    })
+  // 应用阶段挂起自动上传由 applyImportedState 内部自行 suspend/resume，
+  // 此处不再重复嵌套，避免 resume 计数错配导致自动上传被永久挂起。
+  // 云端可能仍是旧数组格式；统一清洗为新对象规范，避免 setCompletionHistory 后持久化结构不合法
+  const applied = applyImportedState({
+    workflows: parsed.data.workflows,
+    rotationRules: parsed.data.rotationRules,
+    memos: parsed.data.memos,
+    completionHistory: normalizeCompletionHistory(parsed.data.completionHistory),
+    lastResetDate: parsed.data.lastResetDate,
+    userSettings: parsed.data.userSettings,
+    ankiSettings: parsed.data.ankiSettings,
+    ankiExportSettings: parsed.data.ankiExportSettings,
+    memoTags: parsed.data.memoTags
+  })
 
-    // 今日打勾状态恢复：直接用云端 completionHistory[today] 覆盖本地完成态
-    // 不走 checkDailyReset(force)，否则 archiveTodayToHistory 会把本地旧打勾状态
-    // 并入刚拉取的云端历史，导致"取消打勾"无法跨设备同步
-    restoreTodayCompletedFromHistory()
-
-    renderWorkflow()
-    renderMemos()
-    updateMemoCounters()
-    renderTagSelector()
-    renderAnkiSettingsInputs()
-  } finally {
-    resumeAutoUpload()
+  // 事务式应用失败：已回滚内存与 localStorage，此处必须中止流程，
+  // 不得刷新 UI、不得标记同步成功，否则用户会误以为拉取已生效。
+  if (!applied.ok) {
+    DBG('gist:pull:apply-failed', { reason: applied.reason })
+    const msg = I18N.toast.gist.applyFailed
+    if (!silent) showToast(msg)
+    return { ok: false, reason: applied.reason, notify: msg }
   }
+
+  // 今日打勾状态恢复：直接用云端 completionHistory[today] 覆盖本地完成态
+  // 不走 checkDailyReset(force)，否则 archiveTodayToHistory 会把本地旧打勾状态
+  // 并入刚拉取的云端历史，导致"取消打勾"无法跨设备同步
+  restoreTodayCompletedFromHistory()
+
+  renderWorkflow()
+  renderMemos()
+  updateMemoCounters()
+  renderTagSelector()
+  renderAnkiSettingsInputs()
 
   markGistSyncSuccess('pull')
   if (!silent) showToast(I18N.toast.gist.pulled)
@@ -334,17 +440,28 @@ export async function pullFromGist({ silent = false } = {}) {
  *  - 存在明文 API Key 但会话无加密口令时静默跳过，防止自动上传反复弹窗（手动上传仍会提示）
  *  - 同一时刻只允许一个上传任务运行
  *  - 内容未变（与上次成功上传一致）时直接跳过，避免冗余网络请求与多余 Gist revision
+ *  - 变更代次（changeGeneration）：上传在途期间产生的新变更不会被丢弃，
+ *    本轮结束后若代次已前进则自动补传一次，保证"最后一次编辑"一定被同步
  */
 let gistAutoUploadPending = null
 let gistAutoUploadRunning = false
 // 记录上一次成功自动上传的 Gist 文件内容（PATCH body 的 GIST_FILENAME content）。
 // 自动上传前若当前内容与此完全一致则直接跳过，避免数据未变时的冗余网络请求与 Gist 版本变更。
 let lastAutoUploadedContent = null
+// 变更代次：每次 scheduleAutoUpload 自增。上传在途时若有新变更，
+// 本轮结束后据此判断是否需要补传，避免"上传期间的最后一次编辑"永久丢失。
+let gistChangeGeneration = 0
 
 // 使用防抖优化的自动上传
 const debouncedAutoUpload = debounce(async () => {
-  if (gistAutoUploadRunning) return
+  // 已在途：仅登记代次变化，由在途任务结束后自行补传。
+  // 不能在此直接 return 了事，否则上传期间发生的编辑会被永久丢弃。
+  if (gistAutoUploadRunning) {
+    gistAutoUploadPending = true
+    return
+  }
   gistAutoUploadRunning = true
+  const generationAtStart = gistChangeGeneration
   try {
     const built = await buildExportPayload()
     if (built.ok) {
@@ -371,11 +488,20 @@ const debouncedAutoUpload = debounce(async () => {
     })
   } finally {
     gistAutoUploadRunning = false
+    // 补传判定：仅当上传期间确有新变更（代次前进）或运行期间收到过 pending 标记时才重排，
+    // 否则会陷入"无变更也反复空转"的循环。
+    const hasNewChange = gistChangeGeneration !== generationAtStart
+    if (hasNewChange || gistAutoUploadPending) {
+      gistAutoUploadPending = null
+      DBG('gist:auto-upload:rerun', { changed: hasNewChange })
+      scheduleAutoUpload()
+    }
   }
 }, 1200)
 
 export function scheduleAutoUpload() {
   if (!hasGistCredentials()) return
+  gistChangeGeneration += 1
   debouncedAutoUpload()
 }
 
@@ -410,6 +536,20 @@ export function saveGistSettingsFromInputs() {
   } else if (changed) {
     showToast(I18N.toast.gist.configSaved)
   }
+}
+
+export function clearGistSettings() {
+  const prev = getGistSettings()
+  setGistSettings({ ...prev, token: '', gistId: '', lastSyncAction: '', lastSyncTime: '' })
+  cancelPendingAutoUpload()
+  const persisted = persistGistSettings()
+  renderGistSettingsInputs()
+  if (!persisted) {
+    showToast(I18N.toast.gist.configSaveFailed)
+  } else {
+    showToast(I18N.toast.gist.configCleared)
+  }
+  DBG('gist:settings:cleared', { persisted })
 }
 
 /**
