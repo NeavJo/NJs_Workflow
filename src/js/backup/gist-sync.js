@@ -198,7 +198,15 @@ export async function checkForGistConflict() {
   const localLastSync = settings.lastSyncTime || ''
   if (new Date(gistUpdatedAt) > new Date(localLastSync)) {
     DBG('gist:conflict:detected', { gistUpdatedAt, localLastSync })
-    await pullFromGist({ silent: true })
+    // pullFromGist 内部有 UI 渲染和事务逻辑，异常可能冒泡到 uploadToGist 的 catch，
+    // 导致用户看到"上传失败{msg}"。这里加保护：拉取失败时返回 checkFailed 而非抛出，
+    // 调用方会中止本次上传并提示"无法确认云端状态"，语义更准确。
+    try {
+      await pullFromGist({ silent: true })
+    } catch (err) {
+      DBG('gist:conflict:pull-error', { err: String(err) })
+      return { conflict: false, checkFailed: true, status: 0, reason: 'pull-exception' }
+    }
     return { conflict: true }
   }
   return { conflict: false }
@@ -246,8 +254,13 @@ export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
     // 冲突检测无法完成时中止覆盖写：手动上传提示用户重试，自动上传静默跳过本轮。
     // 宁可这一轮不传（下次 persist* 会再次触发），也不能在云端状态未知时盲目覆盖。
     if (conflict.checkFailed) {
-      DBG('gist:upload:blocked:check-failed', { status: conflict.status })
-      if (notifyKeyOmitted) showToast(I18N.toast.gist.conflictCheckFailed)
+      DBG('gist:upload:blocked:check-failed', { status: conflict.status, reason: conflict.reason })
+      if (notifyKeyOmitted) {
+        const msg = conflict.reason === 'pull-exception'
+          ? I18N.toast.gist.conflictPullFailed
+          : I18N.toast.gist.conflictCheckFailed
+        showToast(msg)
+      }
       return { ok: false, reason: 'conflict-check-failed' }
     }
     showGistUploading()
@@ -285,7 +298,7 @@ export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
       severity: ErrorSeverity.MEDIUM,
       source: 'gist.uploadToGist'
     })
-    if (notifyKeyOmitted) showToast(I18N.toast.gist.uploadFailed)
+    if (notifyKeyOmitted) showToast(t(I18N.toast.gist.uploadFailed, { msg: err.message || String(err) }))
     return { ok: false, reason: 'exception' }
   } finally {
     if (indicatorShown) hideGistIndicator()
@@ -533,8 +546,13 @@ export function saveGistSettingsFromInputs() {
   renderGistSettingsInputs()
   if (!persisted) {
     showToast(I18N.toast.gist.configSaveFailed)
-  } else if (changed) {
+  } else {
     showToast(I18N.toast.gist.configSaved)
+    if (changed && hasGistCredentials()) {
+      // 首次配置或更换凭据后，立即补传一次当前快照，
+      // 避免用户以为保存配置只保存凭据、不同步数据。
+      scheduleAutoUpload()
+    }
   }
 }
 

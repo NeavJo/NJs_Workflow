@@ -664,6 +664,7 @@ export const I18N = {
       pullHttp: '拉取失败（HTTP {status}）',
       conflictResolved: '检测到云端有新数据，已自动拉取并刷新。',
       conflictCheckFailed: '无法确认云端状态（网络异常），已取消本次上传以避免覆盖云端数据，请稍后重试。',
+      conflictPullFailed: '检测到云端有新数据，但自动拉取失败，本次上传已取消。请稍后重试。',
       applyFailed: '已从 Gist 读取备份，但写入本地失败，已回滚为原数据。请检查浏览器存储权限。'
     },
 
