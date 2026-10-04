@@ -185,7 +185,7 @@ export async function buildExportPayload() {
     historyDays: Object.keys(completionHistorySnapshot).length,
     hasLastResetDate: Boolean(lastReset),
     userSettingsKeys: Object.keys(userSettingsSnapshot).length,
-    ankiProfileCount: ankiProfiles.length,
+    ankiProfileCount: Array.isArray(ankiSettingsSnapshot.profiles) ? ankiSettingsSnapshot.profiles.length : 0,
     ankiKeyOmitted: Boolean(prepared.keyOmitted),
     ankiOmitReason: prepared.omitReason || null
   })
