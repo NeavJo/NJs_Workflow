@@ -9,7 +9,7 @@
  */
 
 import { escapeHtml } from '../utils/dom-utils.js'
-import { I18N } from '../locales.js'
+import { I18N, t } from '../locales.js'
 import { DBG } from '../core/debug.js'
 import { getActiveProfile } from '../anki/anki-store.js'
 
@@ -280,12 +280,18 @@ export function renderDetail(detail) {
         label.className = 'german-collocations__label'
         label.textContent = g.collocationsLabel || '搭配：'
         wrap.appendChild(label)
-        for (const col of d.collocations) {
-          const badge = document.createElement('span')
-          badge.className = 'german-collocations__item'
-          badge.textContent = String(col.template || '')
+        d.collocations.forEach((col) => {
+          const template = String(col.template || '').trim()
+          if (!template) return
+          const badge = document.createElement('button')
+          badge.type = 'button'
+          badge.className = 'german-collocations__item german-collocation-add'
+          const ariaText = t(I18N.german.collocationAddAria, { collocation: template })
+          badge.textContent = template
+          badge.setAttribute('aria-label', ariaText)
+          badge.setAttribute('title', ariaText)
           wrap.appendChild(badge)
-        }
+        })
         meta.appendChild(wrap)
       }
       if (meta.childNodes.length > 0) li.appendChild(meta)

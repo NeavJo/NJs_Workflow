@@ -284,6 +284,12 @@ function addCurrentToMemo() {
   if (!word) return
   const currentTag = getSelectedMemoTag()
   const result = appendOrDailyMemo(word, currentTag)
+  if (result && result.mode === 'duplicate') {
+    // 当日生词本已收录该词：仅轻提示，不重复加入。
+    showToast(t(I18N.german.toasts.memoDuplicate, { word }), { status: 'info' })
+    DBG('german:memo:duplicate', { word, tag: currentTag })
+    return
+  }
   if (result) {
     showToast(
       t(I18N.german.toasts.memoAdded, { word, tag: currentTag, category: result.category }),
@@ -293,6 +299,34 @@ function addCurrentToMemo() {
   } else {
     showToast(I18N.german.toasts.memoFailed, { status: 'error' })
     DBG('german:memo:failed', { word })
+  }
+}
+
+// 搭配按钮单独保存“单词 — 搭配”这一组合，避免普通单词按钮与搭配按钮共用查重语义。
+function addCurrentCollocationToMemo(btn) {
+  const word = getDetailWord()
+  const template = btn?.textContent?.trim() || ''
+  if (!word || !template) {
+    DBG('german:collocation:memo-invalid', { word })
+    return
+  }
+  const note = `${word} — ${template}`
+  const currentTag = getSelectedMemoTag()
+  const result = appendOrDailyMemo(note, currentTag)
+  if (result && result.mode === 'duplicate') {
+    showToast(t(I18N.german.toasts.collocationDuplicate, { word, collocation: template }), { status: 'info' })
+    DBG('german:collocation:memo-duplicate', { word, collocation: template, tag: currentTag })
+    return
+  }
+  if (result) {
+    showToast(
+      t(I18N.german.toasts.collocationAdded, { word, collocation: template, tag: currentTag, category: result.category }),
+      { status: 'success' }
+    )
+    DBG('german:collocation:memo-added', { word, collocation: template, mode: result.mode, tag: currentTag, category: result.category })
+  } else {
+    showToast(I18N.german.toasts.collocationFailed, { status: 'error' })
+    DBG('german:collocation:memo-failed', { word, collocation: template })
   }
 }
 
@@ -385,6 +419,11 @@ function bindDetailActions() {
   const rootEl = getDetailRoot()
   if (!rootEl) return
   rootEl.addEventListener('click', (event) => {
+    const collocationBtn = event.target.closest('.german-collocation-add')
+    if (collocationBtn) {
+      addCurrentCollocationToMemo(collocationBtn)
+      return
+    }
     if (event.target.closest('.german-speak')) {
       speakWord(getDetailWord())
       return

@@ -292,6 +292,15 @@ export function bindMemoEvents() {
     const explicitCategory = (categoryInput?.value || '').trim() || I18N.memo.defaultCategory
     setSelectedMemoCategory(explicitCategory)
     const r = appendOrDailyMemo(word, getSelectedMemoTag(), explicitCategory)
+    if (r && r.mode === 'duplicate') {
+      // 当日同标签卡片已收录该词：轻提示且保留输入内容，方便用户修改后重试。
+      showToast(
+        t(I18N.toast.memo.duplicateWord, { word, tag: getSelectedMemoTag() }),
+        { status: 'info' }
+      )
+      focusMemoInput()
+      return
+    }
     if (r) {
       const tagName = getSelectedMemoTag()
       showToast(

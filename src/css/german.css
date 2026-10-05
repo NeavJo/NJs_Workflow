@@ -371,12 +371,26 @@
 .german-collocations__item {
   display: inline-block;
   padding: 2px 8px;
+  border: 0;
   border-radius: 999px;
   background: color-mix(in srgb, var(--md-primary) 14%, transparent);
   color: var(--md-primary);
   font-weight: 600;
   font-size: calc(var(--german-font-scale, 1) * 12px);
+  line-height: 1.4;
   white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, transform .15s ease;
+}
+.german-collocations__item:hover {
+  background: color-mix(in srgb, var(--md-primary) 22%, transparent);
+}
+.german-collocations__item:active {
+  transform: scale(.97);
+}
+.german-collocations__item:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
 }
 
 /* 缺失数据提示 */

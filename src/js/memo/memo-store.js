@@ -5,7 +5,7 @@ import { safeStorageGet, safeStorageSet } from '../core/storage.js'
 import { MEMO_TAGS_STORAGE_KEY, DEFAULT_MEMO_TAGS, normalizeMemoTagList } from '../config/memo-tags.js'
 import { getTodayDateString, getFullTimestamp } from '../core/date.js'
 import { cleanExpiredMemos } from './memo-retention.js'
-import { appendToCategory } from './memo-parser.js'
+import { appendToCategory, parseMemoContentToMap } from './memo-parser.js'
 import { requestAutoUpload } from '../core/sync-hooks.js'
 import { createPubSub } from '../utils/pubsub.js'
 
@@ -158,8 +158,19 @@ export function renameMemoTag(id, newName) {
 }
 
 /**
+ * 查重归一化：去首尾空白 + 忽略大小写 + NFC 归一化。
+ * 德语名词首字母大写（Tusche / tusche）不应被视为两个不同词，
+ * 因此比较时统一转小写；NFC 规避不同 Unicode 组合形式导致的"看似相同却不等"。
+ */
+function normalizeForDedupe(text) {
+  return String(text || '').trim().normalize('NFC').toLowerCase()
+}
+
+/**
  * 快速追加：若当日同 Tag 的卡片存在则追加到指定分类块；否则新建并置顶。
- * @returns {{ mode: 'append'|'create', memo: object, word: string, category: string } | null}
+ * 若当日同 Tag 卡片中已存在相同内容（跨全部分类块、忽略大小写），
+ * 则不做任何变更，返回 mode='duplicate' 交由调用方提示。
+ * @returns {{ mode: 'append'|'create'|'duplicate', memo: object, word: string, category: string } | null}
  */
 export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.defaultCategory) {
   const word = (inputWord || '').trim()
@@ -176,6 +187,22 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
   const targetMemo = memos.find(
     (m) => m.tag === tag && String(m.timestamp || '').startsWith(todayStr)
   )
+
+  if (targetMemo) {
+    // 查重范围：当日该标签卡片的"全部分类块"；
+    // 匹配规则：忽略大小写 + 去首尾空白 + NFC 归一化。
+    const wordMap = parseMemoContentToMap(targetMemo.content)
+    const needle = normalizeForDedupe(word)
+    const exists = Object.values(wordMap).some((list) =>
+      list.some((w) => normalizeForDedupe(w) === needle)
+    )
+    if (exists) {
+      DBG('memo:append:duplicate', { tag, word, category: cat })
+      // 关键约束：重复分支在任何内存变更（含 appendToCategory / cleanExpiredMemosInPlace）
+      // 之前返回，保证"未加入"语义真实，且不触发无谓的持久化与刷新事件。
+      return { mode: 'duplicate', word, tag, category: cat, memo: targetMemo }
+    }
+  }
 
   let mode
   if (targetMemo) {

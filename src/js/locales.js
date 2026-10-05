@@ -225,6 +225,7 @@ export const I18N = {
     speakAria: '朗读德语单词',
     sourceLabel: '数据源',
     collocationsLabel: '搭配：',
+    collocationAddAria: '把搭配「{collocation}」加入生词本',
     godicLabel: '德语助手',
     sourceLabels: {
       godic: 'godic 代理',
@@ -238,6 +239,10 @@ export const I18N = {
       noData: '公开数据源未返回该词信息。',
       memoAdded: '「{word}」已加入生词本（{tag} / {category}）。',
       memoFailed: '添加生词本失败，请检查本地存储。',
+      memoDuplicate: '「{word}」已存在于今日生词本中，未重复添加。',
+      collocationAdded: '「{word} — {collocation}」已加入生词本（{tag} / {category}）。',
+      collocationDuplicate: '「{word} — {collocation}」已存在于今日生词本中，未重复添加。',
+      collocationFailed: '添加搭配到生词本失败，请检查本地存储。',
       speakNetworkFailed: '网络发音加载失败',
       refetchDone: '「{word}」已重新获取最新释义。'
     }
@@ -552,6 +557,7 @@ export const I18N = {
       inputEmpty: '先在输入框里写下一个单词吧～',
       appendedTo: '已追加到今日 {tag} · {category}。',
       createdToday: '已新建今日 {tag} · {category} 卡片。',
+      duplicateWord: '「{word}」已存在于今日 {tag} 的笔记中，未重复添加。',
       deleteNoteConfirm: '确认删除这条笔记？',
       tagNameEmpty: '标签名称不能为空。',
       tagExists: '该标签已存在，请勿重复添加。',
