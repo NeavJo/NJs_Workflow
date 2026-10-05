@@ -518,6 +518,52 @@ export function scheduleAutoUpload() {
   debouncedAutoUpload()
 }
 
+/**
+ * 立即上传当前快照，用于用户点击“保存配置”这类明确动作。
+ * 不走 1.2s 去抖，并保证即使内容未变也会给出成功反馈。
+ */
+export async function uploadGistNow() {
+  if (!hasGistCredentials()) return
+  gistChangeGeneration += 1
+  debouncedAutoUpload.cancel()
+  gistAutoUploadPending = false
+  if (gistAutoUploadRunning) return
+  gistAutoUploadRunning = true
+  const generationAtStart = gistChangeGeneration
+  try {
+    const built = await buildExportPayload()
+    if (built.ok) {
+      const fingerprint = JSON.stringify({
+        version: built.payload.version,
+        data: built.payload.data
+      })
+      if (lastAutoUploadedContent !== null && fingerprint === lastAutoUploadedContent) {
+        DBG('gist:upload-now:skip-unchanged')
+        showGistUploading()
+        showGistUploaded()
+        return
+      }
+      const result = await uploadToGist({ notifyKeyOmitted: false })
+      if (result && result.ok) lastAutoUploadedContent = fingerprint
+    }
+  } catch (err) {
+    DBG('gist:upload-now:exception', String(err))
+    errorHandler.handleError(err, {
+      type: ErrorTypes.NETWORK,
+      severity: ErrorSeverity.LOW,
+      source: 'gist.uploadGistNow'
+    })
+  } finally {
+    gistAutoUploadRunning = false
+    const hasNewChange = gistChangeGeneration !== generationAtStart
+    if (hasNewChange || gistAutoUploadPending) {
+      gistAutoUploadPending = false
+      DBG('gist:upload-now:rerun', { changed: hasNewChange })
+      scheduleAutoUpload()
+    }
+  }
+}
+
 registerAutoUploadHandler(scheduleAutoUpload)
 
 /**
@@ -540,20 +586,29 @@ export function saveGistSettingsFromInputs() {
     token: (tokenEl?.value || '').trim(),
     gistId: (idEl?.value || '').trim()
   })
-  const changed = prev.token !== next.token || prev.gistId !== next.gistId
   setGistSettings(next)
   const persisted = persistGistSettings()
   renderGistSettingsInputs()
   if (!persisted) {
     showToast(I18N.toast.gist.configSaveFailed)
-  } else {
-    showToast(I18N.toast.gist.configSaved)
-    if (changed && hasGistCredentials()) {
-      // 首次配置或更换凭据后，立即补传一次当前快照，
-      // 避免用户以为保存配置只保存凭据、不同步数据。
-      scheduleAutoUpload()
-    }
+    return
   }
+  showToast(I18N.toast.gist.configSaved)
+  if (!hasGistCredentials()) return
+  // 保存配置是用户明确动作：只要凭据完整就立即上传一次，
+  // 不依赖 token/gistId 是否变化，避免“保存成功但没看到上传动画”。
+  const saveBtn = document.getElementById('btn-gist-save')
+  if (saveBtn) {
+    saveBtn.disabled = true
+    saveBtn.classList.add('is-busy')
+  }
+  // fire-and-forget：保存按钮点击不需要等待上传完成。
+  uploadGistNow().finally(() => {
+    if (saveBtn) {
+      saveBtn.disabled = false
+      saveBtn.classList.remove('is-busy')
+    }
+  })
 }
 
 export function clearGistSettings() {

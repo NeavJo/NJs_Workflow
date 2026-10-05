@@ -74,6 +74,51 @@
   align-items: center;
   gap: 10px;
 }
+
+/* ===== 输入区"来源 + APKG 配置"状态条 =====
+ *  在输入框与工具栏之间，导出前即可预见内容来自哪个标签、将用哪套卡组/模型。
+ *  三态：is-tagged（有来源标签）/ is-follow（无来源、跟随生词本）；已编辑时追加 .anki-source-status__edited。 */
+.anki-source-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--md-radius-medium);
+  background: color-mix(in srgb, var(--md-primary-container) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--md-primary) 22%, transparent);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.anki-source-status:empty { display: none; }
+.anki-source-status__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: var(--md-on-primary-container);
+  background: var(--md-primary-container);
+}
+.anki-source-status__chip.is-follow {
+  color: var(--md-on-surface-variant);
+  background: color-mix(in srgb, var(--md-surface-container-high) 60%, transparent);
+}
+.anki-source-status__chip .material-symbols { font-size: 16px; }
+.anki-source-status__config {
+  color: var(--md-on-surface-variant);
+  font-weight: 600;
+}
+.anki-source-status__edited {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  color: var(--md-warning, var(--md-on-surface-variant));
+  background: color-mix(in srgb, var(--md-warning, var(--md-primary)) 14%, transparent);
+}
+
 .anki-toolbar .btn { min-height: 44px; }
 .anki-toolbar .btn--filled { margin-left: auto; }
 
@@ -323,6 +368,7 @@
 @media (max-width: 680px) {
   .view--anki .hero-section + .anki-panel { margin-top: 42px; }
   .anki-panel { margin-top: 20px; padding: 18px; gap: 14px; }
+  .anki-source-status__edited { margin-left: 0; }
   .anki-toolbar .btn { flex: 1 1 100%; justify-content: center; margin-left: 0; }
   .anki-profile-picker { flex: 1 1 100%; }
   .anki-profile-select { flex: 1 1 100%; max-width: none; }

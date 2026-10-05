@@ -246,6 +246,45 @@ export function hasAnkiCredentials() {
   return hasAnkiProfileCredentials(getActiveAnkiProfile(ankiSettings))
 }
 
+/**
+ * Anki 输入框内容的"来源标签"：记录本次生词文本究竟来自哪个 memo 标签，
+ * 供 APKG 导出解析对应的按标签卡组/模型配置（getAnkiExportConfigForTag）。
+ *
+ * 设计约束：
+ *  - 不落盘、不持久化：它只是"当前会话内刚填充的输入内容"的临时标记，
+ *    刷新后清空，导出时若为空则回退到生词本当前选中标签（getSelectedMemoTag）。
+ *  - 只在"从某条 memo 复制进 Anki 输入框"时写入（processInAnki），
+ *    手动粘贴/编辑输入框不改变它，因此导出始终跟随最近一次填充的来源，
+ *    而非被生词本筛选标签意外影响——这正是"标签2内容误用标签1配置"的根因。
+ */
+let ankiSourceTag = ''
+
+export function setAnkiSourceTag(tagId) {
+  ankiSourceTag = String(tagId || '')
+}
+
+export function getAnkiSourceTag() {
+  return ankiSourceTag
+}
+
+/**
+ * "输入框是否被手动编辑"标记：与 ankiSourceTag 配套，供输入区状态条提示。
+ *  设计约束：
+ *  - 不落盘。它只在"用户真正在输入框里敲字/粘贴改动"时置位（input 事件），
+ *    程序化填充（processInAnki 回写 value）不触发，因此不会被输出回写污染标记。
+ *  - 每次 processInAnki 重新填充内容时复位为 false，表示"当前内容与来源标签一致"；
+ *    一旦被手动改动则置 true，UI 据此追加"已编辑"提示，提醒来源标签可能已漂移。
+ */
+let ankiInputEdited = false
+
+export function setAnkiInputEdited(edited) {
+  ankiInputEdited = Boolean(edited)
+}
+
+export function getAnkiInputEdited() {
+  return ankiInputEdited
+}
+
 export function hasAnyAnkiCredentials() {
   return ankiSettings.profiles.some((profile) => hasAnkiProfileCredentials(profile))
 }

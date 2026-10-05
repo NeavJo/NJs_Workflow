@@ -4,7 +4,8 @@ import { I18N } from '../locales.js'
 import { hasAnkiCredentials, getActiveProfile } from './anki-store.js'
 import { loadAnkiPrompt } from './anki-prompt.js'
 import { requestGemini, requestOpenAI } from './anki-api.js'
-import { renderAnkiCards, bindAnkiOutputEvents } from './anki-output.js'
+import { renderAnkiCards, bindAnkiOutputEvents, refreshAnkiSourceStatus } from './anki-output.js'
+import { setAnkiInputEdited } from './anki-store.js'
 import { initAnkiProfileSelect } from './anki-profile-select.js'
 import { $ } from '../utils/dom-utils.js'
 import { createGuard } from '../utils/guard.js'
@@ -104,6 +105,14 @@ export function bindAnkiProcessorEvents() {
   guardProcessor.set()
   const runBtn = $('anki-run')
   runBtn?.addEventListener('click', runAnkiProcessing)
+  // 输入框被手动改动时标记"已编辑"并刷新来源状态条：
+  //  - input 事件只在用户真实敲字/粘贴时触发，程序化回写 value（processInAnki）不会触发，
+  //    因此输出回写不会污染该标记。
+  //  - 标记置位后来源标签仍保留，仅提示"内容可能与来源标签已漂移"。
+  $('anki-input')?.addEventListener('input', () => {
+    setAnkiInputEdited(true)
+    refreshAnkiSourceStatus()
+  })
   bindAnkiOutputEvents()
   // 主处理页档案选择器：渲染 + 幂等绑定 + 变更订阅
   initAnkiProfileSelect()

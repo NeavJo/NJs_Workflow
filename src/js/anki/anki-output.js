@@ -6,8 +6,9 @@ import { triggerDownload } from '../backup/snapshot.js'
 import { $ } from '../utils/dom-utils.js'
 import { createGuard } from '../utils/guard.js'
 import { getSelectedMemoTag, getMemoTags } from '../memo/memo-store.js'
+import { getAnkiSourceTag, getAnkiInputEdited } from './anki-store.js'
 import { generateApkg } from './anki-apkg.js'
-import { getAnkiExportConfigForTag, hasAnkiExportTagConfig } from './anki-export-store.js'
+import { getAnkiExportConfigForTag, hasAnkiExportTagConfig, onAnkiExportSettingsChange } from './anki-export-store.js'
 import { validateAnkiExportFieldNames } from '../config/storage-config.js'
 
 /**
@@ -34,11 +35,22 @@ function isAbnormalCategory(name) {
 }
 
 /**
- * 获取当前选中的笔记标签显示名（去 # 前缀）。
+ * 解析本次 Anki 导出应使用的"来源标签"：
+ *  优先取"最近一次从某条 memo 填充进输入框时记录的来源标签"（getAnkiSourceTag），
+ *  它精确对应"正在处理的这批生词真正属于哪个标签"；
+ *  若用户是手动粘贴/编辑输入框（从未填充过来源），则回退到生词本当前选中标签，
+ *  保持旧行为不变，避免空标签导致配置解析失败。
+ */
+function getCurrentSourceTagId() {
+  return String(getAnkiSourceTag() || getSelectedMemoTag() || '')
+}
+
+/**
+ * 获取当前来源标签的显示名（去 # 前缀），用于拼接导出文件名。
  * 未配置或无法匹配时返回空字符串，由调用方做兜底。
  */
-function getSelectedTagDisplayName() {
-  const tagId = String(getSelectedMemoTag() || '')
+function getSourceTagDisplayName() {
+  const tagId = getCurrentSourceTagId()
   if (!tagId) return ''
   const tags = getMemoTags()
   const found = tags.find((t) => t.id === tagId)
@@ -46,7 +58,9 @@ function getSelectedTagDisplayName() {
 }
 
 function getCurrentExportConfig() {
-  const tagId = String(getSelectedMemoTag() || '')
+  // 关键：按"内容来源标签"而非"生词本当前筛选标签"解析配置，
+  // 修复"标签2内容误用标签1配置"的根因。
+  const tagId = getCurrentSourceTagId()
   return {
     tagId,
     tagConfig: getAnkiExportConfigForTag(tagId),
@@ -58,6 +72,78 @@ function notifyDefaultTagConfig(tagId, hasTagConfig) {
   if (tagId && !hasTagConfig) {
     showToast(I18N.settings.ankiExportTagNoneHint, { status: 'info' })
   }
+}
+
+/**
+ * 渲染输入区"内容来源 + APKG 配置"状态条：
+ *  让导出前即可预见"这批内容来自哪个标签、将使用哪套卡组/模型"，
+ *  避免用户导出后才发现配置被误带偏（标签2误用标签1配置）。
+ *
+ *  设计约束（与项目状态链路对齐）：
+ *  - 纯渲染、幂等：DOM 元素不存在时安全返回，可被反复调用（processInAnki、
+ *    input 事件、导出配置变更都会触发）。
+ *  - 数据来源 = getAnkiSourceTag（来源标签）+ getAnkiInputEdited（是否手动改动）。
+ *    两者都不落盘，刷新后回到"跟随生词本选中标签"的兜底语义。
+ */
+export function refreshAnkiSourceStatus() {
+  const el = $('anki-source-status')
+  if (!el) return
+  const { tagId, hasTagConfig } = getCurrentExportConfig()
+  const sourceTag = getAnkiSourceTag()
+  const name = getSourceTagDisplayName()
+  const edited = getAnkiInputEdited()
+
+  el.replaceChildren()
+
+  // 来源标签 chip：无来源时提示"将跟随生词本当前筛选标签"。
+  const chip = document.createElement('span')
+  chip.className = 'anki-source-status__chip'
+  const chipIcon = document.createElement('span')
+  chipIcon.className = 'material-symbols'
+  chipIcon.setAttribute('aria-hidden', 'true')
+  chipIcon.textContent = 'sell'
+  chip.append(chipIcon)
+
+  if (sourceTag && name) {
+    chip.append(Object.assign(document.createElement('span'), { textContent: name }))
+    chip.classList.add('is-tagged')
+  } else if (sourceTag) {
+    // 标签 ID 存在但查不到显示名（标签可能已删除）：仍按来源标签解析配置。
+    chip.append(Object.assign(document.createElement('span'), { textContent: tagId.replace(/^#/, '') || tagId }))
+    chip.classList.add('is-tagged')
+  } else {
+    chip.append(Object.assign(document.createElement('span'), { textContent: I18N.anki.sourceTagFollowsMemo }))
+    chip.classList.add('is-follow')
+  }
+  el.append(chip)
+
+  // 配置去向说明：区分"按标签配置"与"回落默认"。
+  const cfg = document.createElement('span')
+  cfg.className = 'anki-source-status__config'
+  const tagConfig = getAnkiExportConfigForTag(tagId)
+  const deck = tagConfig?.deckName || ''
+  if (!tagId || !hasTagConfig) {
+    cfg.textContent = t(I18N.anki.sourceUsesDefault, { deck })
+  } else {
+    cfg.textContent = t(I18N.anki.sourceUsesTagConfig, { name, deck })
+  }
+  el.append(cfg)
+
+  // 手动改动标记：提醒来源标签可能已漂移，但仍按最近填充来源导出。
+  if (edited) {
+    const warn = document.createElement('span')
+    warn.className = 'anki-source-status__edited'
+    warn.textContent = I18N.anki.sourceEdited
+    el.append(warn)
+  }
+}
+
+/** 幂等订阅导出配置变更 → 重渲染来源状态条（标签配置增删改后立即反映）。 */
+const guardSourceStatus = createGuard('ankiSourceStatusSubscribed')
+function subscribeAnkiSourceStatus() {
+  if (guardSourceStatus.is()) return
+  guardSourceStatus.set()
+  onAnkiExportSettingsChange(() => refreshAnkiSourceStatus())
 }
 
 export function parseAnkiOutput(rawText) {
@@ -289,7 +375,7 @@ function exportCategory(name) {
     showToast(I18N.toast.anki.outputEmptyDownload)
     return
   }
-  const tag = getSelectedTagDisplayName()
+  const tag = getSourceTagDisplayName()
   const filename = tag
     ? `${EXPORT_TXT_FILENAME_PREFIX}${sanitizeFilename(tag)}_${sanitizeFilename(name)}_${getTodayDateString()}.txt`
     : `${EXPORT_TXT_FILENAME_PREFIX}${sanitizeFilename(name)}_${getTodayDateString()}.txt`
@@ -332,7 +418,7 @@ async function exportCategoryApkg(name, btn) {
   try {
     const sections = [{ name, text }]
     const bytes = await generateApkg(sections, tagConfig)
-    const tag = getSelectedTagDisplayName()
+    const tag = getSourceTagDisplayName()
     const base = tag
       ? `${APKG_FILENAME_PREFIX}${sanitizeFilename(tag)}_${sanitizeFilename(name)}_${getTodayDateString()}`
       : `${APKG_FILENAME_PREFIX}${sanitizeFilename(name)}_${getTodayDateString()}`
@@ -372,7 +458,7 @@ export function downloadAllAnkiTxt() {
     return
   }
   const text = sections.map((s) => s.text).join('\n')
-  const tag = getSelectedTagDisplayName()
+  const tag = getSourceTagDisplayName()
   const filename = tag
     ? `${IMPORT_TXT_FILENAME_PREFIX}${sanitizeFilename(tag)}_${getTodayDateString()}.txt`
     : `${IMPORT_TXT_FILENAME_PREFIX}${getTodayDateString()}.txt`
@@ -419,7 +505,7 @@ export async function downloadAllAnkiApkg() {
   if (apkgLabel) apkgLabel.textContent = I18N.anki.apkgGenerating
   try {
     const bytes = await generateApkg(sections, tagConfig)
-    const tag = getSelectedTagDisplayName()
+    const tag = getSourceTagDisplayName()
     const base = tag
       ? `${APKG_FILENAME_PREFIX}${sanitizeFilename(tag)}_${getTodayDateString()}`
       : `${APKG_FILENAME_PREFIX}${getTodayDateString()}`
@@ -450,6 +536,9 @@ export function bindAnkiOutputEvents() {
   const container = $('anki-output-cards')
   if (!container) return
   guardOutput.set()
+  // 输入区"来源 + 配置"状态条：首次渲染 + 订阅导出配置变更即时刷新（幂等）。
+  subscribeAnkiSourceStatus()
+  refreshAnkiSourceStatus()
   container.addEventListener('click', (event) => {
     // 分类级按钮
     const btn = event.target?.closest?.('button[data-action]')

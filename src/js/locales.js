@@ -316,7 +316,11 @@ export const I18N = {
     openaiLabel: '通用 OpenAI 兼容接口',
     profileSelectLabel: '选择模型',
     profileSelectPlaceholder: '暂无模型档案',
-    profileSelectAriaLabel: '选择 Anki 处理机使用的模型档案'
+    profileSelectAriaLabel: '选择 Anki 处理机使用的模型档案',
+    sourceTagFollowsMemo: '将跟随生词本当前筛选标签',
+    sourceUsesDefault: 'APKG 导出将使用默认卡组 {deck}',
+    sourceUsesTagConfig: 'APKG 导出按「{name}」配置，卡组 {deck}',
+    sourceEdited: '内容已手动编辑'
   },
 
   /* ========================================================================

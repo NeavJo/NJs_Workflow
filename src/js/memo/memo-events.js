@@ -8,6 +8,8 @@ import { switchView } from '../settings/navigation.js'
 import { bindBatch, bindOnce } from '../utils/event-manager.js'
 import { once } from '../utils/dom-utils.js'
 import { uploadToGist } from '../backup/gist-sync.js'
+import { setAnkiSourceTag, setAnkiInputEdited } from '../anki/anki-store.js'
+import { refreshAnkiSourceStatus } from '../anki/anki-output.js'
 import { createGuard } from '../utils/guard.js'
 
 /**
@@ -253,6 +255,14 @@ async function processInAnki(card) {
     }
 
     inputEl.value = text
+    // 记录本条笔记所属标签为 Anki 来源标签，让后续 APKG 导出按"内容真正来自的标签"
+    // 解析卡组/模型配置，而非被生词本当前筛选标签误带偏。
+    const memos = getMemos()
+    const memo = memos.find((m) => m.id === Number(card.dataset.id))
+    setAnkiSourceTag(memo ? memo.tag : '')
+    // 刚填充的内容与来源标签一致：复位"已编辑"标记，输入区状态条随之刷新。
+    setAnkiInputEdited(false)
+    refreshAnkiSourceStatus()
     showToast(I18N.toast.anki.ankiCopied)
 
     switchView('anki')

@@ -16,7 +16,11 @@ export {
   deleteAnkiProfile,
   setActiveProfile,
   hydrateAnkiSecrets,
-  autoHydrateOnStartup
+  autoHydrateOnStartup,
+  setAnkiSourceTag,
+  getAnkiSourceTag,
+  setAnkiInputEdited,
+  getAnkiInputEdited
 } from './anki-store.js'
 
 export { loadAnkiPrompt, getCachedAnkiPrompt } from './anki-prompt.js'
