@@ -75,6 +75,35 @@ function notifyDefaultTagConfig(tagId, hasTagConfig) {
 }
 
 /**
+ * APKG 业务级生成互斥锁：全量导出与单分类导出共享同一把锁。
+ * 按钮级 disabled 只覆盖各自按钮，无法阻止"全量生成中再点单分类"，因此必须
+ * 在业务层拒绝并发——否则会同时建两份 SQLite 并同步 ZIP，造成内存峰值与卡顿。
+ * 策略：已有导出进行时直接拒绝新请求（不排队、不取消），并由 finally 释放。
+ */
+let apkgGenerating = false
+
+/**
+ * 将 APKG 生成错误的稳定 code 映射为中文提示；未知 code 归为通用失败。
+ * 仅按 code 分支，不解析错误文本，也不输出输入内容 / 敏感配置。
+ */
+function resolveApkgErrorToast(code) {
+  switch (code) {
+    case 'engine-load-failed':
+      return I18N.toast.anki.apkgEngineLoadFailed
+    case 'input-too-large':
+      return I18N.toast.anki.apkgInputTooLarge
+    case 'note-limit-exceeded':
+      return I18N.toast.anki.apkgNoteLimitExceeded
+    case 'empty-export':
+      return I18N.toast.anki.apkgEmptyExport
+    case 'invalid-model-id':
+      return I18N.toast.anki.apkgInvalidModelId
+    default:
+      return I18N.toast.anki.apkgFailed
+  }
+}
+
+/**
  * 渲染输入区"内容来源 + APKG 配置"状态条：
  *  让导出前即可预见"这批内容来自哪个标签、将使用哪套卡组/模型"，
  *  避免用户导出后才发现配置被误带偏（标签2误用标签1配置）。
@@ -410,6 +439,12 @@ async function exportCategoryApkg(name, btn) {
     return
   }
   notifyDefaultTagConfig(tagId, hasTagConfig)
+  // 业务级互斥：全量/单分类共享同一把锁，已有导出进行时直接拒绝，避免并发建库与压缩。
+  if (apkgGenerating) {
+    showToast(I18N.toast.anki.apkgBusy, { status: 'info' })
+    return
+  }
+  apkgGenerating = true
   const labelEl = btn?.children?.[1]
   const prevLabel = labelEl ? labelEl.textContent : ''
   if (btn) btn.disabled = true
@@ -417,23 +452,20 @@ async function exportCategoryApkg(name, btn) {
   if (labelEl) labelEl.textContent = I18N.anki.apkgGenerating
   try {
     const sections = [{ name, text }]
-    const bytes = await generateApkg(sections, tagConfig)
+    const { bytes, noteCount, cardCount } = await generateApkg(sections, tagConfig)
     const tag = getSourceTagDisplayName()
     const base = tag
       ? `${APKG_FILENAME_PREFIX}${sanitizeFilename(tag)}_${sanitizeFilename(name)}_${getTodayDateString()}`
       : `${APKG_FILENAME_PREFIX}${sanitizeFilename(name)}_${getTodayDateString()}`
     triggerDownload(`${base}.apkg`, bytes, 'application/apkg')
-    DBG('anki:apkg:download-category', { deck: tagConfig.deckName, model: tagConfig.modelName, name, bytes: bytes.length })
-    showToast(t(I18N.toast.anki.categoryApkgGenerated, { name }), { status: 'success' })
+    DBG('anki:apkg:download-category', { deck: tagConfig.deckName, model: tagConfig.modelName, name, bytes: bytes.length, noteCount, cardCount })
+    showToast(t(I18N.toast.anki.categoryApkgGenerated, { name, count: String(noteCount) }), { status: 'success' })
   } catch (err) {
     const code = err && err.code
     DBG('anki:apkg:category-error', { code, message: String(err && err.message || err) })
-    if (code === 'engine-load-failed') {
-      showToast(I18N.toast.anki.apkgEngineLoadFailed, { status: 'error' })
-    } else {
-      showToast(I18N.toast.anki.apkgFailed, { status: 'error' })
-    }
+    showToast(resolveApkgErrorToast(code), { status: 'error' })
   } finally {
+    apkgGenerating = false
     if (btn) btn.disabled = false
     if (btn) btn.classList.remove('is-busy')
     if (labelEl && prevLabel) labelEl.textContent = prevLabel
@@ -497,6 +529,12 @@ export async function downloadAllAnkiApkg() {
   }
 
   notifyDefaultTagConfig(tagId, hasTagConfig)
+  // 业务级互斥：与单分类导出共享同一把锁，已有导出进行时直接拒绝。
+  if (apkgGenerating) {
+    showToast(I18N.toast.anki.apkgBusy, { status: 'info' })
+    return
+  }
+  apkgGenerating = true
   const apkgBtn = $('anki-apkg')
   const apkgLabel = apkgBtn?.querySelector('[data-i18n="anki.exportApkg"]')
   const prevLabel = apkgLabel?.textContent
@@ -504,24 +542,21 @@ export async function downloadAllAnkiApkg() {
   if (apkgBtn) apkgBtn.classList.add('is-busy')
   if (apkgLabel) apkgLabel.textContent = I18N.anki.apkgGenerating
   try {
-    const bytes = await generateApkg(sections, tagConfig)
+    const { bytes, noteCount, cardCount } = await generateApkg(sections, tagConfig)
     const tag = getSourceTagDisplayName()
     const base = tag
       ? `${APKG_FILENAME_PREFIX}${sanitizeFilename(tag)}_${getTodayDateString()}`
       : `${APKG_FILENAME_PREFIX}${getTodayDateString()}`
     triggerDownload(`${base}.apkg`, bytes, 'application/apkg')
-    DBG('anki:apkg:download', { deck: tagConfig.deckName, model: tagConfig.modelName, bytes: bytes.length })
-    showToast(I18N.toast.anki.apkgGenerated.replace('{count}', String(sections.length)), { status: 'success' })
+    DBG('anki:apkg:download', { deck: tagConfig.deckName, model: tagConfig.modelName, bytes: bytes.length, noteCount, cardCount })
+    // 使用真实导出条数（而非分类数），让用户核对实际写入 Anki 的笔记量。
+    showToast(t(I18N.toast.anki.apkgGenerated, { count: String(noteCount) }), { status: 'success' })
   } catch (err) {
     const code = err && err.code
     DBG('anki:apkg:error', { code, message: String(err && err.message || err) })
-    // 引擎加载失败单独提示，其余归为生成失败。
-    if (code === 'engine-load-failed') {
-      showToast(I18N.toast.anki.apkgEngineLoadFailed, { status: 'error' })
-    } else {
-      showToast(I18N.toast.anki.apkgFailed, { status: 'error' })
-    }
+    showToast(resolveApkgErrorToast(code), { status: 'error' })
   } finally {
+    apkgGenerating = false
     if (apkgBtn) apkgBtn.disabled = false
     if (apkgBtn) apkgBtn.classList.remove('is-busy')
     if (apkgLabel && prevLabel) apkgLabel.textContent = prevLabel

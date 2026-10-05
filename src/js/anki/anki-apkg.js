@@ -13,6 +13,23 @@ import {
 
 const ABNORMAL_CATEGORY_NAME = '异常词汇'
 
+// 正式版规模上限：APKG 生成与 ZIP 打包都在主线程同步执行，超限会让页面长时间无响应，
+// 因此在生成前/生成中显式拦截，而不是把风险留给浏览器。
+//  - MAX_INPUT_CHARS：原始输入文本总字符数上限（2 MB），尽早拦截，避免解析和建库。
+//  - MAX_EXPORT_NOTES：有效笔记条数上限（2000 条），在插入循环中到达即中止。
+const MAX_INPUT_CHARS = 2 * 1024 * 1024
+const MAX_EXPORT_NOTES = 2000
+
+/**
+ * 创建带稳定 code 的错误：上层 anki-output 依据 code 映射为具体中文提示，
+ * 避免解析错误文本。code 同时作为 message，保持日志可读。
+ */
+function createCodedError(code) {
+  const err = new Error(code)
+  err.code = code
+  return err
+}
+
 // 懒加载缓存：sql.js 初始化是异步且可重复调用的，统一收敛到 Promise 避免并发初始化。
 let sqlJsPromise = null
 
@@ -36,10 +53,17 @@ function normalizeTagConfig(tagConfig) {
   const deckName = String(tagConfig.deckName || '').trim()
   const modelName = String(tagConfig.modelName || '').trim()
   if (!deckName || !modelName) return null
+  const modelId = normalizeAnkiModelId(tagConfig.modelId)
+  // Anki 内部 ID 为 i64，而 JS Number 只对 < 2^53 的整数精确；超范围会在写入
+  // models JSON / notes.mid 时发生舍入，导致 key 与 mid 不一致、无法复用目标笔记类型。
+  // 因此这里显式拒绝，而不是静默生成错误 ID。
+  if (modelId && !Number.isSafeInteger(Number(modelId))) {
+    throw createCodedError('invalid-model-id')
+  }
   return {
     deckName,
     modelName,
-    modelId: normalizeAnkiModelId(tagConfig.modelId),
+    modelId,
     fieldNames: normalizeAnkiExportFieldNames(tagConfig.fieldNames),
     templateName: normalizeAnkiExportTemplateName(tagConfig.templateName)
   }
@@ -429,40 +453,17 @@ async function loadSqlJs() {
 
 /**
  * 构建 Anki 2.1 的 collection.anki2 字节流；返回数据库内容与统计信息。
+ * 资源生命周期用 try/finally 兜底：sql.js 的 Database/Statement 是 WASM 侧资源，
+ * 任意一步（建库、建表、插入、导出）抛错都必须释放，否则连续失败会累积内存压力。
  */
 async function buildCollectionBytes(sections, tagConfig) {
   const SQL = await loadSqlJs()
-  const db = new SQL.Database()
-  // Anki 按内部数字 ID 匹配笔记类型：用户填了目标 ID 就用它，从而复用已有类型；
-  // 未填时才生成新 ID（保持旧行为，Anki 会新建一个类型）。
-  // i64 在 JS 里用 Number 表达：Anki ID 为毫秒级时间戳（约 13 位），远小于 2^53，精度安全。
-  const manualModelId = normalizeAnkiModelId(tagConfig.modelId)
-  const modelId = manualModelId ? Number(manualModelId) : createAnkiIdGenerator().take()
-  const preserveExistingModel = Boolean(manualModelId)
-  const deckId = createAnkiIdGenerator().take()
-  db.run(buildSchemaSql())
-  db.run(
-    `INSERT INTO col (id, crt, mod, scm, ver, dty, usn, ls, conf, models, decks, dconf, tags)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      1,
-      nowSeconds(),
-      nowMs(),
-      nowMs(),
-      11,
-      0,
-      0,
-      0,
-      buildCollectionConfJson(modelId, deckId),
-      JSON.stringify(buildModelJson(modelId, tagConfig.modelName, tagConfig.fieldNames, tagConfig.templateName, preserveExistingModel)),
-      JSON.stringify(buildDeckJson(deckId, tagConfig.deckName)),
-      // dconf 必须是完整的 DeckConfSchema11，缺 maxTaken 等必填字段会被 Anki 拒绝导入。
-      JSON.stringify(buildDeckConfigJson()),
-      // col.tags 是「标签名 -> 使用次数」的映射（JSON object），不是数组；
-      // 写成 [] 会报 "invalid type: sequence, expected a map"。Anki 官方 schema11.sql 也以 '{}' 初始化。
-      '{}'
-    ]
-  )
+  let db = null
+  let noteStmt = null
+  let cardStmt = null
+  // 同一批导出共用秒级时间戳：notes/cards 的 mod 单位为秒；统一取值可减少循环内调用，
+  // 并保证整批数据修改时间一致、可预期。
+  const exportNowSeconds = nowSeconds()
   const noteIds = createAnkiIdGenerator()
   const cardIds = createAnkiIdGenerator()
   // 每条笔记的字段数必须与笔记类型字段数一致；以用户配置的字段名为准（默认 3）。
@@ -470,82 +471,132 @@ async function buildCollectionBytes(sections, tagConfig) {
   let noteCount = 0
   let cardCount = 0
 
-  const noteStmt = db.prepare(`INSERT INTO notes (id, guid, mid, mod, usn, tags, flds, sfld, csum, flags, data)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-  const cardStmt = db.prepare(`INSERT INTO cards (id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+  try {
+    db = new SQL.Database()
+    // Anki 按内部数字 ID 匹配笔记类型：用户填了目标 ID 就用它，从而复用已有类型；
+    // 未填时才生成新 ID（保持旧行为，Anki 会新建一个类型）。
+    // i64 在 JS 里用 Number 表达：Anki ID 为毫秒级时间戳（约 13 位），远小于 2^53，精度安全。
+    const manualModelId = normalizeAnkiModelId(tagConfig.modelId)
+    const modelId = manualModelId ? Number(manualModelId) : createAnkiIdGenerator().take()
+    const preserveExistingModel = Boolean(manualModelId)
+    const deckId = createAnkiIdGenerator().take()
+    db.run(buildSchemaSql())
+    db.run(
+      `INSERT INTO col (id, crt, mod, scm, ver, dty, usn, ls, conf, models, decks, dconf, tags)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        1,
+        exportNowSeconds,
+        nowMs(),
+        nowMs(),
+        11,
+        0,
+        0,
+        0,
+        buildCollectionConfJson(modelId, deckId),
+        JSON.stringify(buildModelJson(modelId, tagConfig.modelName, tagConfig.fieldNames, tagConfig.templateName, preserveExistingModel)),
+        JSON.stringify(buildDeckJson(deckId, tagConfig.deckName)),
+        // dconf 必须是完整的 DeckConfSchema11，缺 maxTaken 等必填字段会被 Anki 拒绝导入。
+        JSON.stringify(buildDeckConfigJson()),
+        // col.tags 是「标签名 -> 使用次数」的映射（JSON object），不是数组；
+        // 写成 [] 会报 "invalid type: sequence, expected a map"。Anki 官方 schema11.sql 也以 '{}' 初始化。
+        '{}'
+      ]
+    )
+    // sql.js 的 Statement 只有 free()（释放 finalize），没有 close()；close() 是 Database 的方法。
+    // 误用 close() 会抛 "noteStmt.close is not a function"，被上层捕获后统一显示为导出失败。
+    // run() 内部已自动 step + reset，循环复用同一语句是安全的，此处仅需在结束时释放。
+    noteStmt = db.prepare(`INSERT INTO notes (id, guid, mid, mod, usn, tags, flds, sfld, csum, flags, data)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    cardStmt = db.prepare(`INSERT INTO cards (id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 
-  for (const section of normalizeSections(sections)) {
-    if (section?.name && section.name === ABNORMAL_CATEGORY_NAME) continue
-    const notes = parseNoteLines(section, fieldCount)
-    for (const fields of notes) {
-      const noteId = noteIds.take()
-      const cardId = cardIds.take()
-      const flds = fields.join('\u001f')
-      const guid = toAnkiGuid(fields[0])
-      noteStmt.run([
-        noteId,
-        guid,
-        modelId,
-        // notes.mod 为 TimestampSecs（秒）；写毫秒会落在数万年后且被 Anki 原样保留。
-        nowSeconds(),
-        0,
-        '',
-        flds,
-        fields[0],
-        0,
-        0,
-        ''
-      ])
-      cardStmt.run([
-        cardId,
-        noteId,
-        deckId,
-        0,
-        nowSeconds(),
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        ''
-      ])
-      noteCount += 1
-      cardCount += 1
+    for (const section of normalizeSections(sections)) {
+      if (section?.name && section.name === ABNORMAL_CATEGORY_NAME) continue
+      const notes = parseNoteLines(section, fieldCount)
+      for (const fields of notes) {
+        // 规模上限：主线程建库 + 同步 ZIP 会随条目数线性变慢，到达上限立即中止，
+        // 避免整批写完后才失败、白耗内存与 CPU。
+        if (noteCount >= MAX_EXPORT_NOTES) {
+          throw createCodedError('note-limit-exceeded')
+        }
+        const noteId = noteIds.take()
+        const cardId = cardIds.take()
+        const flds = fields.join('\u001f')
+        const guid = toAnkiGuid(fields[0])
+        noteStmt.run([
+          noteId,
+          guid,
+          modelId,
+          // notes.mod 为 TimestampSecs（秒）；写毫秒会落在数万年后且被 Anki 原样保留。
+          exportNowSeconds,
+          0,
+          '',
+          flds,
+          fields[0],
+          0,
+          0,
+          ''
+        ])
+        cardStmt.run([
+          cardId,
+          noteId,
+          deckId,
+          0,
+          exportNowSeconds,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          ''
+        ])
+        noteCount += 1
+        cardCount += 1
+      }
     }
+    return { dbBytes: db.export(), noteCount, cardCount }
+  } finally {
+    // 清理异常不得覆盖原始生成异常：逐个隔离并仅记录调试日志。
+    try { noteStmt?.free() } catch (err) { DBG('anki:apkg:cleanup:noteStmt', String(err && err.message || err)) }
+    try { cardStmt?.free() } catch (err) { DBG('anki:apkg:cleanup:cardStmt', String(err && err.message || err)) }
+    try { db?.close() } catch (err) { DBG('anki:apkg:cleanup:db', String(err && err.message || err)) }
   }
-  // sql.js 的 Statement 只有 free()（释放 finalize），没有 close()；close() 是 Database 的方法。
-  // 误用 close() 会抛 "noteStmt.close is not a function"，被上层捕获后统一显示为导出失败。
-  // run() 内部已自动 step + reset，循环复用同一语句是安全的，此处仅需在结束时释放。
-  noteStmt.free()
-  cardStmt.free()
-  const dbBytes = db.export()
-  db.close()
-  return { dbBytes, noteCount, cardCount }
 }
 
 /**
  * 生成 APKG 二进制（ZIP 容器）：
  *  - collection.anki2：SQLite 数据库
  *  - media：空 JSON（当前无媒体）
- * 返回 Uint8Array，调用方可直接交给 triggerDownload。
+ * 返回 { bytes, noteCount, cardCount }：字节可直接交给 triggerDownload，
+ * 统计信息用于上层展示真实导出数量（而非分类数量）。
+ * 失败时抛出带稳定 code 的错误：invalid-tag-config / input-too-large /
+ * invalid-model-id / note-limit-exceeded / empty-export / engine-load-failed。
  */
 export async function generateApkg(sections, tagConfig) {
   const config = normalizeTagConfig(tagConfig)
   if (!config) {
-    throw new Error('anki-apkg:invalid-tag-config')
+    throw createCodedError('invalid-tag-config')
   }
-  const { dbBytes, noteCount, cardCount } = await buildCollectionBytes(normalizeSections(sections), config)
+  const normalizedSections = normalizeSections(sections)
+  // 规模门槛前置：在解析/建库之前先估算原始文本量，超限直接失败，避免无谓的 CPU 与内存开销。
+  const inputChars = normalizedSections.reduce((sum, section) => sum + String(section?.text || '').length, 0)
+  if (inputChars > MAX_INPUT_CHARS) {
+    DBG('anki:apkg:input-too-large', { inputChars, limit: MAX_INPUT_CHARS, sections: normalizedSections.length })
+    throw createCodedError('input-too-large')
+  }
+  const { dbBytes, noteCount, cardCount } = await buildCollectionBytes(normalizedSections, config)
+  // 空导出拦截：没有有效词条时不再打包，避免下载一个空 APKG 让用户误以为导出成功。
   if (noteCount === 0 || cardCount === 0) {
-    // 空结果也要能正常打包（调用方应在调用前检查）；这里仅记录便于调试。
     DBG('anki:apkg:empty', { noteCount, cardCount })
+    throw createCodedError('empty-export')
   }
   const fflate = await import('fflate')
   const apkgBytes = fflate.zipSync(
@@ -566,7 +617,7 @@ export async function generateApkg(sections, tagConfig) {
     fieldNames: config.fieldNames,
     templateName: config.templateName
   })
-  return apkgBytes
+  return { bytes: apkgBytes, noteCount, cardCount }
 }
 
 /**

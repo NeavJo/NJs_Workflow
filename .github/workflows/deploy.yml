@@ -38,6 +38,7 @@ jobs:
         run: |
           test -d dist || { echo 'dist not generated'; exit 1; }
           test -f dist/index.html || { echo 'dist/index.html missing'; exit 1; }
+          test -f dist/sql-wasm.wasm || { echo 'dist/sql-wasm.wasm missing'; exit 1; }
           ls -la dist
   deploy:
     needs: build

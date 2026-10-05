@@ -607,16 +607,21 @@ export const I18N = {
       keyOmitReasonError: '加密 / 解密失败',
       importPassphrasePrompt: '该备份中的 API Key 已加密，请输入加密口令以解密：',
       apkgConfigRequired: '请先在设置中配置此标签的 APKG 导出目标。',
-      apkgGenerated: 'APKG 已生成（{count} 个分类），双击文件导入 Anki。',
+      apkgGenerated: 'APKG 已生成（{count} 条词条），双击文件导入 Anki。',
       apkgFailed: 'APKG 生成失败，请稍后重试。',
       apkgEmpty: '输出区为空，无可导出内容。',
+      apkgEmptyExport: '没有可导出的有效词条，请检查内容格式（每行至少两列，用 | 分隔）。',
+      apkgBusy: '正在生成 APKG，请等待当前导出完成。',
+      apkgInputTooLarge: '待导出文本过大（超过约 2 MB），请减少词条后重试。',
+      apkgNoteLimitExceeded: '有效词条超过 2000 条上限，请分批导出。',
+      apkgInvalidModelId: '笔记类型 ID 超出安全范围或格式无效，请在设置中检查。',
       apkgEngineLoadFailed: 'APKG 引擎加载失败，请检查网络后重试。',
       apkgSettingsSaved: 'APKG 导出配置已保存。',
       apkgSettingsSaveFailed: 'APKG 导出配置保存失败，请检查浏览器存储权限。',
       apkgFieldNamesEmpty: '字段名不能为空，请检查「字段名」输入（逗号分隔，按顺序对应）。',
       apkgFieldNamesDuplicate: '字段名不能重复：「{name}」出现了多次，请修改后再保存。',
       categoryApkgEmpty: '该分类内容为空，无法导出 APKG。',
-      categoryApkgGenerated: '「{name}」分类 APKG 已生成，双击文件导入 Anki。'
+      categoryApkgGenerated: '「{name}」分类 APKG 已生成（{count} 条词条），双击文件导入 Anki。'
     },
 
     backup: {
