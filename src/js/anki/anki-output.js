@@ -45,6 +45,21 @@ function getSelectedTagDisplayName() {
   return found?.name ? found.name.replace(/^#/, '') : tagId.replace(/^#/, '')
 }
 
+function getCurrentExportConfig() {
+  const tagId = String(getSelectedMemoTag() || '')
+  return {
+    tagId,
+    tagConfig: getAnkiExportConfigForTag(tagId),
+    hasTagConfig: hasAnkiExportTagConfig(tagId)
+  }
+}
+
+function notifyDefaultTagConfig(tagId, hasTagConfig) {
+  if (tagId && !hasTagConfig) {
+    showToast(I18N.settings.ankiExportTagNoneHint, { status: 'info' })
+  }
+}
+
 export function parseAnkiOutput(rawText) {
   const raw = typeof rawText === 'string' ? rawText : ''
   const re = /^===\s*(.*?)\s*===$/gm
@@ -295,8 +310,7 @@ async function exportCategoryApkg(name, btn) {
     showToast(I18N.toast.anki.categoryApkgEmpty)
     return
   }
-  const tagId = String(getSelectedMemoTag() || '')
-  const tagConfig = getAnkiExportConfigForTag(tagId)
+  const { tagId, tagConfig, hasTagConfig } = getCurrentExportConfig()
   if (!tagConfig?.deckName || !tagConfig?.modelName) {
     showToast(I18N.toast.anki.apkgConfigRequired)
     return
@@ -309,9 +323,7 @@ async function exportCategoryApkg(name, btn) {
     showToast(msg, { status: 'error' })
     return
   }
-  if (tagId && !hasAnkiExportTagConfig(tagId)) {
-    showToast(I18N.settings.ankiExportTagNoneHint, { status: 'info' })
-  }
+  notifyDefaultTagConfig(tagId, hasTagConfig)
   const labelEl = btn?.children?.[1]
   const prevLabel = labelEl ? labelEl.textContent : ''
   if (btn) btn.disabled = true
@@ -370,7 +382,7 @@ export function downloadAllAnkiTxt() {
 }
 
 /**
- * APKG 全量导出：使用当前 memo 标签对应的卡组/模型配置生成 .apkg 二进制并触发下载。
+ * APKG 全量导出：使用本次导出来源（当前生词标签）对应的卡组/模型配置生成 .apkg。
  *  1. 先过滤异常词汇分类，与 TXT 导出保持一致；空内容直接提示，不加载 sql.js。
  *  2. 未单独配置的标签回落到默认配置（defaultConfig），并提示"将使用默认卡组"，
  *     而不是中止导出——默认配置始终存在，保证用户导出路径不会被配置缺失卡死。
@@ -383,8 +395,7 @@ export async function downloadAllAnkiApkg() {
     showToast(I18N.toast.anki.apkgEmpty)
     return
   }
-  const tagId = String(getSelectedMemoTag() || '')
-  const tagConfig = getAnkiExportConfigForTag(tagId)
+  const { tagId, tagConfig, hasTagConfig } = getCurrentExportConfig()
   if (!tagConfig?.deckName || !tagConfig?.modelName) {
     showToast(I18N.toast.anki.apkgConfigRequired)
     return
@@ -399,10 +410,7 @@ export async function downloadAllAnkiApkg() {
     return
   }
 
-  // 未单独配置：回落到默认卡组，给出非阻断提示，避免用户误以为用了标签专属配置。
-  if (tagId && !hasAnkiExportTagConfig(tagId)) {
-    showToast(I18N.settings.ankiExportTagNoneHint, { status: 'info' })
-  }
+  notifyDefaultTagConfig(tagId, hasTagConfig)
   const apkgBtn = $('anki-apkg')
   const apkgLabel = apkgBtn?.querySelector('[data-i18n="anki.exportApkg"]')
   const prevLabel = apkgLabel?.textContent

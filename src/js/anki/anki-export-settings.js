@@ -1,7 +1,7 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
 import { I18N, t } from '../locales.js'
-import { getSelectedMemoTag, getMemoTags, onMemoTagsChange } from '../memo/memo-store.js'
+import { getMemoTags, onMemoTagsChange } from '../memo/memo-store.js'
 import {
   getAnkiExportSettings,
   commitAnkiExportSettings,
@@ -72,9 +72,9 @@ export function renderAnkiExportSettings() {
   if (!tagContainer) return
 
   const tags = getMemoTags()
-  const selectedTagId = String(getSelectedMemoTag() || '')
 
-  // 清空旧内容，重建标签配置区块
+  // 标签配置是独立的覆盖项，不与生词记事本当前筛选标签绑定。
+  // 设置页只显示每个标签自身是否已配置，避免把当前筛选状态误解为导出使用状态。
   tagContainer.innerHTML = ''
 
   if (!tags.length) {
@@ -93,21 +93,18 @@ export function renderAnkiExportSettings() {
     const item = document.createElement('div')
     item.className = 'anki-export-tag-item'
     item.dataset.tagId = tagId
-    item.classList.toggle('is-selected', tagId === selectedTagId)
 
-    // 标签名 + 是否选中
+    // 标签名 + 配置状态；状态只由该标签是否存在独立配置决定。
     const nameRow = document.createElement('div')
     nameRow.className = 'anki-export-tag-item__name'
     nameRow.textContent = tagLabel
-    if (tagId === selectedTagId) {
-      const badge = document.createElement('span')
-      badge.className = 'anki-export-tag-item__badge'
-      badge.textContent = I18N.settings.profileActiveBadge
-      nameRow.appendChild(badge)
-    }
+    const badge = document.createElement('span')
+    badge.className = 'anki-export-tag-item__badge'
+    badge.textContent = config ? I18N.settings.ankiExportTagConfigured : I18N.settings.ankiExportTagNotConfigured
+    nameRow.appendChild(badge)
     item.appendChild(nameRow)
 
-    // 未单独配置的标签：提示将回落到默认卡组，避免用户误以为已生效。
+    // 未单独配置的标签：提示导出时将回落到默认配置。
     if (!config) {
       const hint = document.createElement('p')
       hint.className = 'anki-export-tag-item__hint'
