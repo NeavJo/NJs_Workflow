@@ -7,6 +7,7 @@ import {
   setGistSettings,
   persistGistSettings,
   markGistSyncSuccess,
+  getLastGistUpdatedAt,
   hasGistCredentials
 } from '../core/settings-store.js'
 import { normalizeGistSettings, normalizeCompletionHistory } from '../config/storage-config.js'
@@ -169,43 +170,77 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
 }
 
 /**
- * 上传前冲突检测：
- * 读取 Gist 的 updated_at，若比本地 lastSyncTime 更新则认为云端有新数据。
- * 冲突时静默拉取一次（不弹提示），然后返回 { conflict: true }，调用方应中止上传。
+ * Gist 操作串行队列：
+ * 上传 / 拉取（含冲突检测触发的拉取）都必须排队执行。若允许并发，两个操作会
+ * 同时读取同一份本地版本基线并各自发起请求，导致「反复判定冲突 → 反复撤销用户操作」。
  *
- * 返回值语义（三态，调用方必须区分）：
- *  - { conflict: true }            云端确有新数据，需中止上传
- *  - { conflict: false }           已确认无冲突，可安全覆盖
- *  - { checkFailed: true }         无法确认（网络/鉴权/字段缺失）——**不可当作无冲突**
- *                                  直接覆盖，否则网络错误时会盲目覆盖云端新数据
+ * 注意：队列是 promise 链，任务内部若再次入队会造成死锁，因此内部流程一律调用
+ * 不带队列的 *Internal 版本，只有对外的 uploadToGist / pullFromGist 才入队。
  */
-export async function checkForGistConflict() {
+let gistOperationChain = Promise.resolve()
+
+function enqueueGistOperation(task) {
+  const result = gistOperationChain.then(task, task)
+  gistOperationChain = result.then(() => {}, () => {})
+  return result
+}
+
+/**
+ * 上传前冲突检测（内部版，必须在队列内调用）。
+ *
+ * 版本比对改用 GitHub 返回的 updated_at：本地记录的是「上一次同步时服务端返回的
+ * updated_at」，与本次 GET 到的 updated_at 比较。两端同为服务端时间且同为 UTC
+ * ISO 格式，彻底规避设备时钟偏差 / 时区差异导致的误判（此前用本地 lastSyncTime
+ * 与 UTC 时间比较，跨时区时必然误判为「云端更新」）。
+ *
+ * 返回值语义（调用方必须区分）：
+ *  - { conflict: true }    云端确有新数据，已自动拉取，调用方需中止上传
+ *  - { conflict: false }   已确认无冲突，可安全覆盖
+ *  - { checkFailed: true } 无法确认（网络 / 鉴权 / 字段缺失 / 拉取失败）
+ *                          —— 绝不可当作「无冲突」，否则会盲目覆盖云端数据
+ */
+async function checkForGistConflictInternal() {
   if (!hasGistCredentials()) return { conflict: false }
   const settings = getGistSettings()
   const res = await gistApiRequest(`gists/${settings.gistId}`)
-  // 网络/服务端失败时绝不能返回"无冲突"：那会在无法确认云端状态的情况下覆盖写，
-  // 一旦云端比本地新就会造成不可逆的数据丢失。改为显式 checkFailed 让调用方决定。
   if (!res.ok) {
     DBG('gist:conflict:check-failed', { status: res.status })
     return { conflict: false, checkFailed: true, status: res.status }
   }
   const gistUpdatedAt = res.data?.updated_at
-  // 响应缺少 updated_at 同样视为无法确认，而非"无冲突"。
   if (!gistUpdatedAt) {
     DBG('gist:conflict:check-failed', { reason: 'missing-updated_at' })
     return { conflict: false, checkFailed: true, status: res.status }
   }
-  const localLastSync = settings.lastSyncTime || ''
-  if (new Date(gistUpdatedAt) > new Date(localLastSync)) {
-    DBG('gist:conflict:detected', { gistUpdatedAt, localLastSync })
-    // pullFromGist 内部有 UI 渲染和事务逻辑，异常可能冒泡到 uploadToGist 的 catch，
-    // 导致用户看到"上传失败{msg}"。这里加保护：拉取失败时返回 checkFailed 而非抛出，
-    // 调用方会中止本次上传并提示"无法确认云端状态"，语义更准确。
-    try {
-      await pullFromGist({ silent: true })
-    } catch (err) {
-      DBG('gist:conflict:pull-error', { err: String(err) })
-      return { conflict: false, checkFailed: true, status: 0, reason: 'pull-exception' }
+  const lastSynced = getLastGistUpdatedAt()
+  const remoteHasBackup = Boolean(res.data?.files?.[GIST_FILENAME]?.content)
+
+  // 本地尚无基线版本（例如首次配置、或启动拉取失败）：
+  //  - 远端没有备份文件：不存在可被覆盖的数据，放行上传，成功后再建立基线
+  //  - 远端已有备份：无法确认归属，先拉取一次，避免盲目覆盖其它设备的数据
+  if (!lastSynced) {
+    if (!remoteHasBackup) {
+      DBG('gist:conflict:baseline-unset:no-remote-backup', { gistUpdatedAt })
+      return { conflict: false, baselineUnset: true, gistUpdatedAt }
+    }
+    const pulled = await pullFromGistInternal({ silent: true })
+    if (!pulled.ok) {
+      DBG('gist:conflict:baseline-pull-failed', { reason: pulled.reason })
+      return { conflict: false, checkFailed: true, reason: 'pull-failed', pullReason: pulled.reason }
+    }
+    DBG('gist:conflict:baseline-unset:remote-wins', { gistUpdatedAt })
+    return { conflict: true, baselineUnset: true }
+  }
+
+  // 服务端版本与本地基线不一致 → 云端在本地最后一次同步之后被修改过
+  if (gistUpdatedAt !== lastSynced) {
+    DBG('gist:conflict:detected', { gistUpdatedAt, lastSynced })
+    // pullFromGist 内部有 UI 渲染和事务逻辑，异常可能冒泡到调用方的 catch，
+    // 导致用户看到"上传失败{msg}"。这里保护：拉取失败返回 checkFailed 而非抛出。
+    const pulled = await pullFromGistInternal({ silent: true })
+    if (!pulled.ok) {
+      DBG('gist:conflict:pull-failed', { reason: pulled.reason })
+      return { conflict: false, checkFailed: true, reason: 'pull-failed', pullReason: pulled.reason }
     }
     return { conflict: true }
   }
@@ -227,7 +262,11 @@ export async function checkForGistConflict() {
  *  4. 手动上传/拉取由用户操作触发，重试意义有限且会反复弹 toast。
  * 因此网络错误直接吞掉并上报 errorHandler，由上层数据流在合适时机（用户编辑 / 手动点同步）重新上传。
  */
-export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
+export function uploadToGist({ notifyKeyOmitted = true } = {}) {
+  return enqueueGistOperation(() => uploadToGistInternal({ notifyKeyOmitted }))
+}
+
+async function uploadToGistInternal({ notifyKeyOmitted = true } = {}) {
   let indicatorShown = false
   try {
     if (!hasGistCredentials()) {
@@ -245,7 +284,7 @@ export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
       description: 'NJW daily backup',
       files: { [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) } }
     }
-    const conflict = await checkForGistConflict()
+    const conflict = await checkForGistConflictInternal()
     if (conflict.conflict) {
       DBG('gist:upload:blocked:conflict')
       showToast(t(I18N.toast.gist.conflictResolved))
@@ -254,9 +293,9 @@ export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
     // 冲突检测无法完成时中止覆盖写：手动上传提示用户重试，自动上传静默跳过本轮。
     // 宁可这一轮不传（下次 persist* 会再次触发），也不能在云端状态未知时盲目覆盖。
     if (conflict.checkFailed) {
-      DBG('gist:upload:blocked:check-failed', { status: conflict.status, reason: conflict.reason })
+      DBG('gist:upload:blocked:check-failed', { reason: conflict.reason, pullReason: conflict.pullReason })
       if (notifyKeyOmitted) {
-        const msg = conflict.reason === 'pull-exception'
+        const msg = conflict.reason === 'pull-failed'
           ? I18N.toast.gist.conflictPullFailed
           : I18N.toast.gist.conflictCheckFailed
         showToast(msg)
@@ -280,8 +319,13 @@ export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
       } else {
         showGistUploaded()
       }
-      markGistSyncSuccess('upload')
-      DBG('gist:upload:ok', { status: res.status, keyOmitted: built.keyOmitted, omitReason: built.keyOmitReason })
+      // 用 PATCH 响应里的 updated_at 作为新基线：这是本次写入后服务端的真实版本，
+      // 下次冲突检测以它比较即可精确识别「别的设备是否又改过」，不依赖设备时钟。
+      // 响应偶发缺少该字段时退回冲突检测阶段已确认的版本（baselineUnset 场景下可能为空，
+      // 此时下次上传会重新走一次安全检测，不会误覆盖）。
+      const uploadedVersion = res.data?.updated_at || conflict.gistUpdatedAt || ''
+      markGistSyncSuccess('upload', { gistUpdatedAt: uploadedVersion })
+      DBG('gist:upload:ok', { status: res.status, keyOmitted: built.keyOmitted, omitReason: built.keyOmitReason, gistUpdatedAt: uploadedVersion })
       return { ok: true, keyOmitted: built.keyOmitted }
     }
     hideGistIndicator()
@@ -310,7 +354,11 @@ export async function uploadToGist({ notifyKeyOmitted = true } = {}) {
  *  - silent = true 时不弹任何中间提示（仅返回结果），供启动自动拉取使用
  *  - 拉取成功后会调用 applyImportedState 把数据装载到各 store 并刷新 UI
  */
-export async function pullFromGist({ silent = false } = {}) {
+export function pullFromGist({ silent = false } = {}) {
+  return enqueueGistOperation(() => pullFromGistInternal({ silent }))
+}
+
+async function pullFromGistInternal({ silent = false } = {}) {
   if (!hasGistCredentials()) {
     const msg = I18N.toast.gist.needCredentials
     if (!silent) showToast(msg)
@@ -441,9 +489,11 @@ export async function pullFromGist({ silent = false } = {}) {
   renderTagSelector()
   renderAnkiSettingsInputs()
 
-  markGistSyncSuccess('pull')
+  // 拉取已把本地覆盖为与云端一致，用本次 GET 到的服务端版本作为新基线：
+  // 此后别的设备再改动，其 updated_at 必然与此值不同，可被精确识别。
+  markGistSyncSuccess('pull', { gistUpdatedAt: res.data?.updated_at || '' })
   if (!silent) showToast(I18N.toast.gist.pulled)
-  DBG('gist:pull:ok')
+  DBG('gist:pull:ok', { gistUpdatedAt: res.data?.updated_at || '' })
   return { ok: true }
 }
 
@@ -613,7 +663,7 @@ export function saveGistSettingsFromInputs() {
 
 export function clearGistSettings() {
   const prev = getGistSettings()
-  setGistSettings({ ...prev, token: '', gistId: '', lastSyncAction: '', lastSyncTime: '' })
+  setGistSettings({ ...prev, token: '', gistId: '', lastSyncAction: '', lastSyncTime: '', lastGistUpdatedAt: '' })
   cancelPendingAutoUpload()
   const persisted = persistGistSettings()
   renderGistSettingsInputs()

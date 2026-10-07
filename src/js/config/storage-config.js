@@ -128,7 +128,10 @@ export const DEFAULT_GIST_SETTINGS = Object.freeze({
   token: '',
   gistId: '',
   lastSyncAction: '',
-  lastSyncTime: ''
+  lastSyncTime: '',
+  // 最近一次已同步的 Gist 服务端版本号（GitHub 返回的 updated_at）。
+  // 冲突检测用它做「服务端版本 vs 服务端版本」比较，避免依赖设备时钟 / 时区。
+  lastGistUpdatedAt: ''
 })
 
 export const DEFAULT_USER_SETTINGS = Object.freeze({})
@@ -304,11 +307,13 @@ export function normalizeGistSettings(raw) {
   const validActions = new Set(['', 'upload', 'pull'])
   const action = validActions.has(safe.lastSyncAction) ? safe.lastSyncAction : ''
   const time = typeof safe.lastSyncTime === 'string' ? safe.lastSyncTime : ''
+  const gistUpdatedAt = typeof safe.lastGistUpdatedAt === 'string' ? safe.lastGistUpdatedAt : ''
   return {
     token: typeof safe.token === 'string' ? safe.token : '',
     gistId: typeof safe.gistId === 'string' ? safe.gistId : '',
     lastSyncAction: action,
-    lastSyncTime: time
+    lastSyncTime: time,
+    lastGistUpdatedAt: gistUpdatedAt
   }
 }
 

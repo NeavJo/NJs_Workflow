@@ -47,16 +47,35 @@ export function persistGistSettings() {
     gistId: gistSettings.gistId,
     lastSyncAction: gistSettings.lastSyncAction,
     lastSyncTime: gistSettings.lastSyncTime,
+    lastGistUpdatedAt: gistSettings.lastGistUpdatedAt,
     ok
   })
   return ok
 }
 
-export function markGistSyncSuccess(action) {
+/**
+ * 记录一次成功同步。
+ *  - lastSyncTime 用设备本地时间，仅用于 UI 展示「上次同步时间」
+ *  - lastGistUpdatedAt 记录本次操作对应的 Gist 服务端版本（updated_at），
+ *    作为下一次冲突检测的比较基准。写入时必须与本次请求实际观察到的
+ *    服务端版本一致，否则会误判（写旧值→下次重复触发冲突）。
+ */
+export function markGistSyncSuccess(action, { gistUpdatedAt = '' } = {}) {
   gistSettings.lastSyncAction = action
   gistSettings.lastSyncTime = getFullTimestamp()
+  if (typeof gistUpdatedAt === 'string' && gistUpdatedAt) {
+    gistSettings.lastGistUpdatedAt = gistUpdatedAt
+  }
   persistGistSettings()
-  DBG('gist:sync:mark', { action, time: gistSettings.lastSyncTime })
+  DBG('gist:sync:mark', {
+    action,
+    time: gistSettings.lastSyncTime,
+    gistUpdatedAt: gistSettings.lastGistUpdatedAt
+  })
+}
+
+export function getLastGistUpdatedAt() {
+  return gistSettings.lastGistUpdatedAt || ''
 }
 
 export function hasGistCredentials() {
