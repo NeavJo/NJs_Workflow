@@ -105,8 +105,10 @@ export class MonthlyView {
           : getTrackableTasks(date).length
       }
 
+      // x>y（完成数超过分母）时完成率超 100% 会误触 isFull 绿色态与满格透明度，
+      // 统一兜底钳制到 100%：既保证满格视觉，也避免后续 rate/100 产生 >1 的非法透明度
       const rate = dailyTotalTasks > 0
-        ? Math.round((completedCount / dailyTotalTasks) * 100)
+        ? Math.min(100, Math.round((completedCount / dailyTotalTasks) * 100))
         : 0
 
       data.push({
@@ -156,7 +158,9 @@ export class MonthlyView {
   }
 
   createCell(day) {
-    const opacity = Math.max(0.15, day.rate / 100)
+    // 透明度曲线：rate^(1/3) 前期递增快、后期放缓，让 50% 以下完成度的格子明显可辨；
+    // 0% 完成度保持 0.15 下限（避免纯白/接近不可见），与 CSS 双重使用相乘后视觉更实
+    const opacity = day.rate === 0 ? 0.15 : Math.pow(day.rate / 100, 1 / 3)
     const isFull = day.rate === 100
     const isToday = day.isToday
     const cellClass = [
