@@ -30,11 +30,22 @@ import {
   startLookup,
   resolveLookup,
   failLookup,
-  getGermanState
+  getGermanState,
+  getGermanLookupChannel
 } from './german-store.js'
 import { appendOrDailyMemo, getSelectedMemoTag } from '../memo/memo-store.js'
+// 常规查词在文章阅读子模式下触发时，自动切回查词模式（复用 closeArticleMode，避免循环引用）。
+// 文章侧事件层与本层互相 import，ESM 允许这种环（函数声明提升 + 调用在运行期发生）。
+let _switchToDictionaryFn = null
+export function registerDictionarySwitcher(fn) { _switchToDictionaryFn = fn }
+function switchToDictionaryIfInArticleMode() {
+  if (_switchToDictionaryFn) _switchToDictionaryFn()
+}
 
 const guard = createGuard('germanEventsBound')
+// 详情区操作按钮的事件委托守卫：以「容器元素」为 host，
+// 使普通详情区 #german-detail 与文章阅读查词层容器可各自绑定一次，互不干扰。
+const detailGuard = createGuard('germanDetailActionsBound')
 const SUGGEST_DEBOUNCE_MS = 200
 let suggestTimer = null
 
@@ -45,14 +56,19 @@ function getSuggestionsEl() { return document.getElementById('german-suggestions
 function getRetryBtn() { return document.getElementById('german-retry') }
 function getDetailRoot() { return document.getElementById('german-detail') }
 
-/** 获取当前详情卡显示的单词（用于发音和加词本）。 */
-function getDetailWord() {
-  const wordEl = getDetailRoot()?.querySelector('.german-detail-card__word')
+/** 获取当前详情卡显示的单词（用于发音和加词本）。
+ *  scopeEl 可选：文章查词层把详情渲染到独立容器时，从该容器内读取词形，
+ *  避免误取到普通详情区的词。 */
+function getDetailWord(scopeEl) {
+  const scope = scopeEl || getDetailRoot()
+  const wordEl = scope?.querySelector?.('.german-detail-card__word')
   return wordEl?.textContent?.trim() || getInput()?.value?.trim() || ''
 }
 
 // ── 本地联想（0 延迟） ──
 function runSuggest(query) {
+  // 在文章阅读子模式下触发本地联想 = 用户回到常规查词，自动切回查词模式
+  switchToDictionaryIfInArticleMode()
   const q = (query || '').trim()
   if (!q) {
     resetInput()
@@ -65,19 +81,28 @@ function runSuggest(query) {
 }
 
 // ── LLM 详情查询 ──
-async function runLookup(word, options) {
+/**
+ * 通过现有德语查询管线查询一个词形。
+ * 这是德语助手**唯一**的查词入口：普通搜索框、候选词、重试、文章切词
+ * 全部走这里，不复制任何请求/Store 逻辑。
+ * @param {string} word 原始词形（文章模式直接使用文章中的原词，不做词形还原）
+ * @param {{refetch?:boolean, scopeEl?:HTMLElement, channel?:'assistant'|'article'}} [options]
+ *   refetch=true 强制刷新缓存；scopeEl 指定详情渲染/读取所属容器
+ * @returns {Promise<{ok:boolean, detail?:object}|undefined>} 结果对象，空词时返回 undefined
+ */
+export async function runLookup(word, options) {
   const w = (word || '').trim()
   if (!w) {
     showToast(t(I18N.german.toasts.searchEmpty))
     return
   }
 
-  const seq = startLookup(w)
+  const seq = startLookup(w, options?.channel)
 
   const result = await lookupWordViaLLM(w, options)
   if (!result.ok) {
     failLookup(result.message || I18N.german.toasts.searchFailed, seq)
-    return
+    return { ok: false }
   }
 
   // 缓存命中提示
@@ -89,14 +114,15 @@ async function runLookup(word, options) {
   }
 
   resolveLookup(result.detail, seq)
+  return { ok: true, detail: result.detail, cached: Boolean(result.cached) }
 }
 
 /** 重新获取按钮：清除本地缓存并强制重新蒸馏。 */
-function runRefetch() {
-  const w = getDetailWord()
+function runRefetch(scopeEl) {
+  const w = getDetailWord(scopeEl)
   if (!w) return
   removeCachedDetail(w)
-  runLookup(w, { refetch: true })
+  runLookup(w, { refetch: true, scopeEl })
 }
 
 // ── 发音 ──
@@ -279,8 +305,8 @@ function speakWord(word) {
 // 标签和分类都继承生词本记事本页面当前的选择状态（memo-store 单例）：
 // 用户先在生词本页面切换标签 / 填写分类，再回到德语助手点按钮，
 // 单词就会落到对应标签下的对应分类块里；未操作过分类输入框则回退到"常规"。
-function addCurrentToMemo() {
-  const word = getDetailWord()
+function addCurrentToMemo(scopeEl) {
+  const word = getDetailWord(scopeEl)
   if (!word) return
   const currentTag = getSelectedMemoTag()
   const result = appendOrDailyMemo(word, currentTag)
@@ -303,8 +329,8 @@ function addCurrentToMemo() {
 }
 
 // 搭配按钮单独保存“单词 — 搭配”这一组合，避免普通单词按钮与搭配按钮共用查重语义。
-function addCurrentCollocationToMemo(btn) {
-  const word = getDetailWord()
+function addCurrentCollocationToMemo(btn, scopeEl) {
+  const word = getDetailWord(scopeEl)
   const template = btn?.textContent?.trim() || ''
   if (!word || !template) {
     DBG('german:collocation:memo-invalid', { word })
@@ -348,6 +374,8 @@ function bindGermanSearch() {
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
       event.preventDefault()
+      // 回车查询 = 常规查词，若在文章阅读子模式下则自动切回查词模式
+      switchToDictionaryIfInArticleMode()
       if (suggestTimer) { clearTimeout(suggestTimer); suggestTimer = null }
       // 关闭候选下拉
       const list = getSuggestionsEl()
@@ -377,6 +405,8 @@ function bindSuggestionSelect() {
   list.addEventListener('click', (event) => {
     const item = event.target.closest('.german-suggestion')
     if (!item) return
+    // 点候选 = 常规查词，若在文章阅读子模式下则自动切回查词模式
+    switchToDictionaryIfInArticleMode()
     const word = item.dataset.word || ''
     const input = getInput()
     if (input) input.value = word
@@ -394,6 +424,8 @@ function bindRetry() {
   const btn = getRetryBtn()
   if (!btn) return
   btn.addEventListener('click', () => {
+    // 重试 = 常规查词，若在文章阅读子模式下则自动切回查词模式
+    switchToDictionaryIfInArticleMode()
     runLookup(getInput()?.value)
   })
 }
@@ -414,26 +446,30 @@ function bindOutsideClick() {
   })
 }
 
-/** 详情区内动态按钮（发音 / 加词）：事件委托。 */
-function bindDetailActions() {
-  const rootEl = getDetailRoot()
+/** 详情区内动态按钮（发音 / 加词 / 重取 / 搭配）：事件委托。
+ *  scopeEl 为目标容器（普通详情区或文章查词层容器）。
+ *  以容器为 host 做幂等守卫，实现同一容器只绑一次、多个容器各绑一次。 */
+export function bindDetailActions(scopeEl) {
+  const rootEl = scopeEl || getDetailRoot()
   if (!rootEl) return
+  if (detailGuard.is(rootEl)) return
+  detailGuard.set(rootEl)
   rootEl.addEventListener('click', (event) => {
     const collocationBtn = event.target.closest('.german-collocation-add')
     if (collocationBtn) {
-      addCurrentCollocationToMemo(collocationBtn)
+      addCurrentCollocationToMemo(collocationBtn, rootEl)
       return
     }
     if (event.target.closest('.german-speak')) {
-      speakWord(getDetailWord())
+      speakWord(getDetailWord(rootEl))
       return
     }
     if (event.target.closest('.german-refetch')) {
-      runRefetch()
+      runRefetch(rootEl)
       return
     }
     if (event.target.closest('.german-add-memo')) {
-      addCurrentToMemo()
+      addCurrentToMemo(rootEl)
     }
   })
 }

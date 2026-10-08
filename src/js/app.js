@@ -87,6 +87,7 @@ import { onGermanStateChange } from './german/german-store.js'
 import { renderGermanAssistant } from './german/german-renderer.js'
 import { initGermanFontScale } from './german/german-font-size.js'
 import { bindGermanSettingsEvents, subscribeGermanFontSizeForReflow, bindTtsKeyEvents, bindAnkiJumpButton } from './german/german-settings.js'
+import { bindGermanArticleEvents, initGermanArticle } from './german/german-article-events.js'
 
 /* ============================================================================
  * 1. 装载持久化状态
@@ -214,6 +215,10 @@ const EVENT_BINDS = [
     fn: bindGermanAssistantEvents
   },
   {
+    name: 'german-article',
+    fn: bindGermanArticleEvents
+  },
+  {
     name: 'german-subscribe',
     fn: () => {
       onGermanStateChange((state) => {
@@ -277,6 +282,19 @@ try {
     severity: ErrorSeverity.LOW,
     source: 'init',
     context: { stage: 'init_german_font_scale' }
+  })
+}
+
+// 启动德语文章阅读模块：恢复持久化文章 + 订阅状态驱动渲染（失败只降级该模块）
+try {
+  initGermanArticle()
+  DBG('init:german-article', 'ok')
+} catch (error) {
+  errorHandler.handleError(error, {
+    type: ErrorTypes.SYSTEM,
+    severity: ErrorSeverity.LOW,
+    source: 'init',
+    context: { stage: 'init_german_article' }
   })
 }
 

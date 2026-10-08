@@ -12,6 +12,7 @@ import { escapeHtml } from '../utils/dom-utils.js'
 import { I18N, t } from '../locales.js'
 import { DBG } from '../core/debug.js'
 import { getActiveProfile } from '../anki/anki-store.js'
+import { getGermanLookupChannel } from './german-store.js'
 
 /** 视图根选择器 */
 function root() {
@@ -89,8 +90,8 @@ export function renderStatus(kind, message) {
 /**
  * 渲染骨架屏（LLM 调用等待期间）。
  */
-export function renderSkeleton() {
-  const el = getDetailRoot()
+export function renderSkeleton(targetEl) {
+  const el = targetEl || getDetailRoot()
   if (!el) return
   el.hidden = false
   el.innerHTML =
@@ -166,8 +167,8 @@ function renderExampleWithTerms(el, rawText, allowedPrepositions = []) {
  * 保留全部 class 与 DOM 结构不变。
  * @param {object} detail — { word, ipa, grammar, definitions, source }
  */
-export function renderDetail(detail) {
-  const el = getDetailRoot()
+export function renderDetail(detail, targetEl) {
+  const el = targetEl || getDetailRoot()
   if (!el) return
   if (!detail) {
     el.replaceChildren()
@@ -361,7 +362,14 @@ function isSameRenderSnapshot(prev, next) {
 }
 
 export function renderGermanAssistant(state) {
-  if (!root()) return
+  const viewRoot = root()
+  if (!viewRoot) return
+  // 文章阅读子模式下，查词详情由文章查词层渲染（见 german-article-renderer），
+  // 此处直接跳过，避免文章内的查询污染普通详情区、破坏查词模式原有展示。
+  // 不更新 _lastRendered：切回查词模式时仍需全量渲染恢复被隐藏期间的状态。
+  if (viewRoot.classList.contains('is-article-mode') || getGermanLookupChannel() === 'article') {
+    return
+  }
   // 子页不可见（如字号订阅回调在其它视图触发）时强制渲染，绕过脏检查
   const visible = document.querySelector('.view--german') !== null
 

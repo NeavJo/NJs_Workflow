@@ -245,6 +245,37 @@
               </div>
 
               <div id="german-detail" class="german-detail" aria-live="polite"></div>
+
+              <!-- 文章阅读子模式：查词 / 文章阅读 双模式切换 -->
+              <div class="german-mode-switch" role="tablist" aria-label="德语助手模式" data-i18n-aria="german.article.modeSwitchAria">
+                <button id="german-mode-dictionary" type="button" role="tab" class="is-active" aria-selected="true" data-i18n="german.article.modeDictionary">查词</button>
+                <button id="german-mode-article" type="button" role="tab" aria-selected="false" data-i18n="german.article.modeArticle">文章阅读</button>
+              </div>
+
+              <!-- 文章阅读容器：输入区（粘贴载入）+ 阅读区（保真切词 + 逐段译文） -->
+              <div id="german-article" class="german-article" aria-label="德语文章阅读" data-article-mode="input">
+                <div class="german-article__card german-article__card--input">
+                  <div class="german-article__card-header">
+                    <h3 data-i18n="german.article.inputTitle">载入文章</h3>
+                    <p data-i18n="german.article.inputHint">粘贴德语文章，按段落阅读并逐段翻译。</p>
+                  </div>
+                  <textarea id="german-article-input" class="german-article__textarea" rows="10" placeholder="在此粘贴德语文章…" spellcheck="false" data-i18n-placeholder="german.article.inputPlaceholder"></textarea>
+                  <div class="german-article__actions">
+                    <button id="german-article-load" class="btn btn--filled" type="button" data-i18n="german.article.load">载入文章</button>
+                    <button id="german-article-clear" class="btn btn--text" type="button" aria-label="清空当前文章及其译文" data-i18n="german.article.clear" data-i18n-aria="german.article.clearAria">清空文章</button>
+                  </div>
+                </div>
+
+                <div class="german-article__card german-article__card--reading" hidden>
+                  <div class="german-article__card-header german-article__card-header--reading">
+                    <h3 data-i18n="german.article.readingTitle">阅读正文</h3>
+                    <div class="german-article__reading-actions">
+                      <button id="german-article-translate" class="btn btn--tonal" type="button" data-i18n="german.article.translateAll">翻译全文</button>
+                    </div>
+                  </div>
+                  <div id="german-article-body" class="german-article__body" aria-live="polite"></div>
+                </div>
+              </div>
             </section>
           </section>
 
@@ -957,6 +988,21 @@
       </div>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <!-- 德语文章查词层：桌面为受视口约束的锚点浮窗，移动端为全屏层。
+         挂载于 .app-shell 内（#toast 之后），规避 .view 的 transform 包含块，
+         position:fixed 相对视口。z-index 高于 .german-suggestions(20)、低于 modal(99)/toast(100)。 -->
+    <div id="german-article-lookup" class="german-article-lookup" role="dialog" aria-modal="true" aria-label="查词结果" data-i18n-aria="german.article.lookupTitle" aria-hidden="true" hidden>
+      <div class="german-article-lookup__inner">
+        <div class="german-article-lookup__header">
+          <span class="german-article-lookup__title" data-i18n="german.article.lookupTitle">查词结果</span>
+          <button id="german-article-lookup-close" class="icon-button german-article-lookup__close" type="button" aria-label="关闭查词" data-i18n-aria="german.article.closeLookupAria">
+            <span class="material-symbols" aria-hidden="true">close</span>
+          </button>
+        </div>
+        <div id="german-article-lookup-content" class="german-article-lookup__content"></div>
+      </div>
+    </div>
 
     <!-- Memo Tag Picker Sheet: 移动端标签选择底部弹出 -->
     <div id="memo-tag-picker-modal" class="modal modal--sheet" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="memo-tag-picker-title" hidden>

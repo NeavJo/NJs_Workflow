@@ -13,6 +13,8 @@ import { DBG } from '../core/debug.js'
 
 const pubsub = createPubSub()
 
+let lookupChannel = 'assistant'
+
 let state = {
   query: '',              // 当前搜索输入
   suggestions: [],        // 本地匹配到的候选词列表
@@ -27,6 +29,10 @@ let state = {
  */
 export function setSuggestions(list) {
   const items = Array.isArray(list) ? list : []
+  // 候选词只来自普通搜索框输入，出现候选即代表当前处于查词通道；
+  // 归位 channel，避免上一次文章点词留下的 'article' 粘住，导致
+  // renderGermanAssistant 误判并跳过渲染（候选框不显示的根因）。
+  lookupChannel = 'assistant'
   state = { ...state, suggestions: items, query: items.length ? state.query : '' }
   pubsub.emit(state)
   DBG('german:store:suggestions', { count: items.length })
@@ -36,8 +42,17 @@ export function setSuggestions(list) {
  * 清空候选词和搜索输入。
  */
 export function resetInput() {
+  lookupChannel = 'assistant'
   state = { ...state, query: '', suggestions: [] }
   pubsub.emit(state)
+}
+
+/**
+ * 显式设置查词通道（'assistant' 普通查词 / 'article' 文章点词）。
+ * 用于子模式切换时归位，避免文章通道粘住导致普通渲染被跳过。
+ */
+export function setLookupChannel(channel) {
+  lookupChannel = channel === 'article' ? 'article' : 'assistant'
 }
 
 /**
@@ -50,7 +65,8 @@ export function resetInput() {
  * @param {string} word — 要查询的单词
  * @returns {number} 本轮序号
  */
-export function startLookup(word) {
+export function startLookup(word, channel = 'assistant') {
+  setLookupChannel(channel)
   state.detailSeq += 1
   state = {
     ...state,
@@ -108,6 +124,10 @@ export function failLookup(message, seq) {
  */
 export function getGermanState() {
   return state
+}
+
+export function getGermanLookupChannel() {
+  return lookupChannel
 }
 
 /**
