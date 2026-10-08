@@ -537,9 +537,22 @@
 /* ===== 文章模式：仅隐藏普通查词的状态行 / 详情卡，避免文章查词结果污染普通区、
  *  以及页面布局跳动。大标题、副标题、查词搜索框保持可见（用户可在文章阅读
  *  时直接常规查词，并借此自动切回查词模式）。 ===== */
-.view--german.is-article-mode .german-status,
-.view--german.is-article-mode .german-detail {
+/* 文章模式保留状态/详情占位高度，只遮罩内容：display:none 会让上方高度消失，
+ * 下方“查词 / 文章阅读”菜单被顶上去，切换时产生纵向跳动。 */
+.view--german.is-article-mode .german-status {
+  overflow: hidden;
+  color: transparent;
+  user-select: none;
+  pointer-events: none;
+  visibility: visible;
+}
+.view--german.is-article-mode .german-status .german-retry {
   display: none;
+}
+.view--german.is-article-mode .german-detail {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
 }
 
 /* 文章容器 */
