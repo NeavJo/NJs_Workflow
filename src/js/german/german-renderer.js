@@ -13,6 +13,7 @@ import { I18N, t } from '../locales.js'
 import { DBG } from '../core/debug.js'
 import { getActiveProfile } from '../anki/anki-store.js'
 import { getGermanLookupChannel } from './german-store.js'
+import { cleanCollocationTemplate } from './german-llm.js'
 
 /** 视图根选择器 */
 function root() {
@@ -282,7 +283,9 @@ export function renderDetail(detail, targetEl) {
         label.textContent = g.collocationsLabel || '搭配：'
         wrap.appendChild(label)
         d.collocations.forEach((col) => {
-          const template = String(col.template || '').trim()
+          // 最终显示兜底：历史缓存或绕过数据层的脏数据在此清洗，
+          // 避免 {etwa} / [etwas] / <mit> 等标记出现在搭配徽章里。
+          const template = cleanCollocationTemplate(col.template)
           if (!template) return
           const badge = document.createElement('button')
           badge.type = 'button'

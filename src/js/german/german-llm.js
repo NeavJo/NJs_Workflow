@@ -90,9 +90,9 @@ const SYSTEM_PROMPT = `你是一个专业的德语词典助手。请为用户提
 3. 名词在 grammar 中标注冠词和复数；动词标注现在时第三人称单数、过去时、完成时；形容词标注比较级和最高级。
 4. 动词先提取当前词在现代日常德语中最高频、最实用的固定句型、功能结构和动介搭配，再生成普通日常义，最后才考虑低频、书面、专业或纯字面义；无人称、代词、反身和可分动词结构都要考虑。固定句型若表达独立意义，必须单独成义项；不得套用其他动词的搭配或例句。
 5. 每个义项的 meaning、collocations、example_de、example_cn 必须表达同一个用法；不同搭配若表达不同中文意义，拆成不同义项。固定句型的 meaning 翻译完整结构，不要只翻译动词。
-6. 动词义项的 collocations 只列该义项真实存在、最常用且最有代表性的 1—3 个搭配；不确定或不存在的搭配不要臆造，非动词返回 []。template 保留完整句型结构，prepositions 只填实际固定介词本身。
+6. 动词义项的 collocations 只列该义项真实存在、最常用且最有代表性的 1—3 个搭配；不确定或不存在的搭配不要臆造，非动词返回 []。template 是"可直接展示给学习者"的德语搭配文本：保留完整句型结构和格标注（如 + Akk. / + Dat. / + Gen.），但禁止包含花括号 {…}、方括号 […]、尖括号 <…> 以及 Markdown/代码标记；占位名词若必须表达，直接用德语词（例如 mit etwas jonglieren、sich um jemanden kümmern），不要用 {etwas} / [etwas] 这类占位符。prepositions 只填实际固定介词本身（如 ["mit"]），不含格标注和包裹标记。
 7. 先确定 meaning 和 example_collocation_index 指向的搭配，再生成贴近日常场景的例句；例句必须实际使用该搭配，并与 example_cn 对应，不得先写普通例句后强行添加标记。没有搭配时 index 固定为 0。
-8. 目标词及其变位、可分部分或变格形式用 {…} 标记；当前例句实际使用且属于所选搭配的介词用 <…> 标记。只包介词本身，不包冠词、宾语、补语或 + Akk.；标记不得嵌套，其他介词不得使用 <…>。`
+8. 例句（example_de）里目标词及其变位、可分部分或变格形式用 {…} 标记；当前例句实际使用且属于所选搭配的介词用 <…> 标记。只包介词本身，不包冠词、宾语、补语或 + Akk.；标记不得嵌套，其他介词不得使用 <…>。collocations 字段的 template 与 prepositions 严禁使用 {…}、[…]、<…> 标记——那类标记只允许出现在 example_de 里。`
 
 /**
  * 读取缓存中的词条详情（命中时刷新 ts，作为 LRU 触点的近似实现）。
@@ -313,6 +313,21 @@ function normalizeDetail(raw) {
 }
 
 /**
+ * 清洗搭配模板中偶发的占位符/提示标记，只保留可展示的德语搭配文本。
+ * 保留合法德语连字符、撇号和句尾标点；去掉包裹词面的花括号、方括号和尖括号。
+ */
+export function cleanCollocationTemplate(template) {
+  return String(template || '')
+    .replace(/\s+/g, ' ')
+    .replace(/\{([^{}]*)\}/g, '$1')
+    .replace(/\[[^\[\]]*\]/g, '')
+    .replace(/<([^<>]*)>/g, '$1')
+    .replace(/[*_#`~^]+/g, '')
+    .replace(/\s+([,.;:])/g, '$1')
+    .trim()
+}
+
+/**
  * 规范化 collocations 数组，兼容旧缓存和异常输入。
  * 每个条目仅保留合法 template 字符串和非空 prepositions 数组。
  */
@@ -321,9 +336,11 @@ function normalizeCollocations(raw) {
   return raw
     .filter((c) => c && typeof c === 'object')
     .map((c) => {
-      const template = String(c.template || '')
+      const template = cleanCollocationTemplate(c.template)
       const prepositions = Array.isArray(c.prepositions)
-        ? c.prepositions.filter((p) => typeof p === 'string' && p.length > 0)
+        ? c.prepositions
+          .map((p) => cleanCollocationTemplate(p))
+          .filter((p) => p.length > 0)
         : []
       if (!template || prepositions.length === 0) return null
       return { template, prepositions }
