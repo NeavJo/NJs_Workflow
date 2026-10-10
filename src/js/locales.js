@@ -717,8 +717,15 @@ export const I18N = {
       uploadHttp: '上传失败（HTTP {status}）',
       pullHttp: '拉取失败（HTTP {status}）',
       conflictResolved: '检测到云端有新数据，已自动拉取并刷新。',
+      conflictMerged: '检测到云端有新数据，已自动合并（保留本机改动）并上传。',
       conflictCheckFailed: '无法确认云端状态（网络异常），已取消本次上传以避免覆盖云端数据，请稍后重试。',
-      conflictPullFailed: '检测到云端有新数据，但自动拉取失败，本次上传已取消。请稍后重试。',
+      conflictPullFailed: '检测到云端有新数据，但自动合并失败，本次上传已取消。请稍后重试。',
+      uploadVerifyFailed: '上传后校验未通过：云端在此期间被其它设备修改，已停止以避免覆盖。请稍后重试。',
+      uploadVerifyUnknown: '上传请求已发送，但无法确认云端最终内容（回读失败）。本地修改仍标记为未同步，请检查网络后手动重试。',
+      pullOverwriteTitle: '云端与本地不一致',
+      pullOverwriteMessage: '云端备份与本地数据存在差异。继续将从云端覆盖本地数据，本地尚未同步的修改会丢失。是否继续？',
+      pullOverwriteConfirm: '从云端覆盖本地',
+      pullCanceled: '已取消拉取，本地数据保持不变。',
       applyFailed: '已从 Gist 读取备份，但写入本地失败，已回滚为原数据。请检查浏览器存储权限。'
     },
 

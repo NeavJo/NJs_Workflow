@@ -40,6 +40,20 @@ export function setGistSettings(next) {
   return gistSettings
 }
 
+/**
+ * 从 localStorage 重新载入 Gist 设置（尤其是 lastGistUpdatedAt 基线）。
+ * 场景：同一浏览器的多个标签页共享 localStorage，但各自持有独立的内存副本。
+ * 另一个标签页完成同步后会更新共享的 lastGistUpdatedAt；本标签页若不重读，
+ * 就会用陈旧基线做冲突检测，可能把「对方已写入」误判为无冲突而盲目覆盖。
+ * 因此在跨标签页锁内、真正操作前调用本函数，保证基线取到共享的最新值。
+ */
+export function reloadGistSyncBaselineFromStorage() {
+  const stored = normalizeGistSettings(safeStorageGet(GIST_SETTINGS_STORAGE_KEY, DEFAULT_GIST_SETTINGS))
+  gistSettings.lastGistUpdatedAt = stored.lastGistUpdatedAt || ''
+  DBG('gist:settings:baseline-reloaded', { lastGistUpdatedAt: gistSettings.lastGistUpdatedAt })
+  return gistSettings.lastGistUpdatedAt
+}
+
 export function persistGistSettings() {
   const ok = safeStorageSet(GIST_SETTINGS_STORAGE_KEY, gistSettings)
   DBG('persist:gistSettings', {

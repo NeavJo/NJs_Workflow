@@ -25,6 +25,10 @@ export function gistApiRequest(path, opts = {}) {
   }
   if (settings.token) headers.Authorization = `Bearer ${settings.token}`
   const init = { method, headers }
+  // GET 一律禁用浏览器缓存：GitHub API 会下发 Cache-Control: private, max-age=60，
+  // 若命中缓存，冲突检测 / 上传后校验会读到「PATCH 之前」的旧 updated_at，
+  // 从而把真实存在的冲突误判为无冲突（或反之），破坏同步正确性。
+  if (method === 'GET') init.cache = 'no-store'
   if (opts.body !== undefined) {
     headers['Content-Type'] = 'application/json'
     init.body = typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body)
