@@ -55,6 +55,20 @@
               0 0 32px color-mix(in srgb, var(--md-success) 30%, transparent);
 }
 
+/* 搁置橙色态：优先级高于完成率色阶（含满格绿），降低透明度以区分。 */
+.monthly-view__cell--snoozed .monthly-view__cell-inner {
+  background: color-mix(in srgb, var(--md-warning) 70%, var(--md-surface));
+  opacity: calc(var(--cell-opacity) * 0.6);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--md-warning) 35%, transparent);
+}
+.monthly-view__cell--snoozed:hover .monthly-view__cell-inner {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--md-warning) 50%, transparent),
+              0 0 24px color-mix(in srgb, var(--md-warning) 25%, transparent);
+}
+.monthly-view__cell--snoozed.monthly-view__cell--expanded .monthly-view__cell-inner {
+  opacity: 0.85;
+}
+
 .monthly-view__cell--today .monthly-view__cell-inner {
   outline: 2px solid var(--md-primary);
   outline-offset: 1px;

@@ -6,6 +6,7 @@ import { getWorkflows } from './workflow-store.js'
 import { getCompletedIds } from './completion-store.js'
 import { evaluateTaskRuntime, isTaskTrackable, getTrackableTasks, checkPrerequisites } from './workflow-runtime.js'
 import { refreshWorkflowCarousel } from './workflow-carousel.js'
+import { getSnoozedIds } from './snooze-store.js'
 
 /**
  * 工作流渲染层：只读 stores，产出 DOM；不写状态、不绑定事件。
@@ -47,10 +48,20 @@ function buildBgIconHtml(itemId) {
 }
 
 function buildDynamicTagHtml(tagInfo) {
-  if (!tagInfo) return ''
+  if (!tagInfo?.label) return ''
   const variantClass = tagInfo.variant === 'muted' ? 'dynamic-tag--muted' : 'dynamic-tag--accent'
   const iconHtml = tagInfo.icon ? `<span class="material-symbols dynamic-tag__icon" aria-hidden="true">${tagInfo.icon}</span>` : ''
   return `<div class="dynamic-tag ${variantClass}">${iconHtml}<span class="dynamic-tag__label"></span></div>`
+}
+
+// 判断移动端轮播展示时是否应排到末尾。
+// 只影响 #workflow-list 的展示顺序：占位、运行时禁用（如休息日）和今日搁置排后；
+// 已完成但可操作、前置未解锁但可等待的任务仍保留在正常区。
+function isWorkflowCardDisabledForMobile(rawItem, snoozedIds) {
+  if (rawItem.isPlaceholder) return true
+  const { disabled } = evaluateTaskRuntime(rawItem)
+  if (disabled) return true
+  return Boolean(snoozedIds && snoozedIds.has(rawItem.id))
 }
 
 function hydrateDynamicTag(root, tagInfo) {
@@ -60,11 +71,12 @@ function hydrateDynamicTag(root, tagInfo) {
   return true
 }
 
-function createCard(rawItem, order, completedIds, workflows) {
+function createCard(rawItem, order, completedIds, workflows, snoozedIds, orderMap) {
   const card = document.createElement('article')
   card.id = `workflow-card-${rawItem.id}`
   card.dataset.itemId = rawItem.id
   const isComplete = completedIds.has(rawItem.id)
+  const isSnoozed = Boolean(snoozedIds && snoozedIds.has(rawItem.id))
   const { tagInfo, disabled } = evaluateTaskRuntime(rawItem)
 
   if (rawItem.isPlaceholder) {
@@ -91,6 +103,7 @@ function createCard(rawItem, order, completedIds, workflows) {
 
   const cardClasses = ['workflow-card']
   if (disabled) cardClasses.push('is-disabled')
+  if (isSnoozed) cardClasses.push('is-snoozed')
   if (isComplete && !disabled) cardClasses.push('is-complete')
   const { ready: prereqReady, missingIds } = checkPrerequisites(rawItem)
   const prereqLocked = !prereqReady && missingIds.length > 0
@@ -104,7 +117,8 @@ function createCard(rawItem, order, completedIds, workflows) {
         ? t(I18N.workflow.descFallback, { category: rawItem.checkConfig.category || I18N.workflow.defaultCategory, count: rawItem.checkConfig.targetCount })
         : rawItem.desc)
 
-  const checkboxLocked = disabled || checkEnabled || prereqLocked
+  // 搁置任务与其它锁定态一样禁用 checkbox；搁置优先级最高，已搁置任务不允许完成。
+  const checkboxLocked = disabled || checkEnabled || prereqLocked || isSnoozed
   const checkboxAttrs = checkboxLocked
     ? `disabled aria-label="${escapeHtml(rawItem.title)}" ${isComplete ? 'checked' : ''}`
     : `data-item-id="${escapeHtml(rawItem.id)}" ${isComplete ? 'checked' : ''} aria-label="${escapeHtml(rawItem.title)}"`
@@ -112,6 +126,8 @@ function createCard(rawItem, order, completedIds, workflows) {
   let checkIcon = ''
   if (isComplete) {
     checkIcon = 'check'
+  } else if (isSnoozed) {
+    checkIcon = 'pause'
   } else if (disabled) {
     checkIcon = tagInfo?.icon || 'lock'
   } else {
@@ -124,11 +140,16 @@ function createCard(rawItem, order, completedIds, workflows) {
   const jumpButtonHtml = safeUrl
     ? `<a class="workflow-card__action" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" aria-label="跳转：${escapeHtml(rawItem.title)}"><span class="material-symbols" aria-hidden="true">open_in_new</span></a>`
     : ''
-  const checkButtonHtml = checkEnabled && !disabled && !prereqLocked
+  const checkButtonHtml = checkEnabled && !disabled && !prereqLocked && !isSnoozed
     ? `<button class="workflow-card__check-btn" type="button" data-check-action="memo-count" data-item-id="${escapeHtml(rawItem.id)}" aria-label="检查并打卡：${escapeHtml(rawItem.title)}"><span class="material-symbols" aria-hidden="true">fact_check</span><span class="workflow-card__check-btn__label">检查</span></button>`
     : ''
   const actionAreaHtml = jumpButtonHtml || checkButtonHtml
     ? `<div class="workflow-card__action-area">${jumpButtonHtml}${checkButtonHtml}</div>`
+    : ''
+
+  // 搁置状态徽章：在标题行显示，明确告知用户该任务今日已被临时搁置。
+  const snoozeBadgeHtml = isSnoozed
+    ? `<span class="snooze-badge" aria-label="今日已搁置">${I18N.workflow.snoozedBadge}</span>`
     : ''
 
   // 前置任务 Badge
@@ -136,7 +157,12 @@ function createCard(rawItem, order, completedIds, workflows) {
     ? (() => {
         const locked = prereqLocked
         const otherTasks = workflows.filter((t) => rawItem.prerequisites.includes(t.id))
-        const nums = otherTasks.map((t) => `#${String(workflows.indexOf(t) + 1).padStart(2, '0')}`).join(' ')
+        // 移动端列表会重排展示顺序，但前置徽章必须沿用原始工作流序号，
+        // 与卡片序号徽章保持一致，避免误导“第几项”。
+        const nums = otherTasks.map((t) => {
+          const num = orderMap ? orderMap.get(t.id) : workflows.indexOf(t) + 1
+          return `#${String(num).padStart(2, '0')}`
+        }).join(' ')
         const label = locked
           ? t(I18N.workflow.prerequisiteBadgeLocked, { list: nums })
           : t(I18N.workflow.prerequisiteBadgeUnlocked, { list: nums })
@@ -153,6 +179,7 @@ function createCard(rawItem, order, completedIds, workflows) {
     <div class="workflow-card__content">
       <div class="workflow-card__title-row">
         <h3 class="workflow-card__title"></h3>
+        ${snoozeBadgeHtml ? `<span class="workflow-card__snooze-indicator">${snoozeBadgeHtml}</span>` : ''}
         ${prereqBadgeHtml ? `<span class="workflow-card__prereq-indicator">${prereqBadgeHtml}</span>` : ''}
       </div>
       ${descriptionHtml}
@@ -175,12 +202,38 @@ function createCard(rawItem, order, completedIds, workflows) {
 export function renderWorkflow() {
   const list = document.querySelector('#workflow-list')
   if (!list) return
-  const workflows = getWorkflows()
+  const originalWorkflows = getWorkflows()
   const completedIds = getCompletedIds()
   const trackableTasks = getTrackableTasks()
-  list.replaceChildren(...workflows.map((item, index) => createCard(item, index + 1, completedIds, workflows)))
+  const snoozedIds = getSnoozedIds()
+
+  // 移动端轮播按“可操作优先”排序，减少占位、休息日、搁置卡片阻碍切换。
+  // 桌面端仍使用工作流原始顺序；卡片序号徽章必须继续使用原始序号，因此下方
+  // 按 rawItem 在 originalWorkflows 中的位置取序号，而不是当前展示位置。
+  const isMobileLayout = typeof window !== 'undefined' && window.matchMedia('(max-width: 680px)').matches
+  const orderById = new Map(originalWorkflows.map((item, index) => [item.id, index + 1]))
+  const displayWorkflows = isMobileLayout
+    ? originalWorkflows
+      .map((rawItem, index) => ({ rawItem, index }))
+      .sort((a, b) => {
+        const aDisabled = isWorkflowCardDisabledForMobile(a.rawItem, snoozedIds)
+        const bDisabled = isWorkflowCardDisabledForMobile(b.rawItem, snoozedIds)
+        if (aDisabled !== bDisabled) return aDisabled ? 1 : -1
+        return a.index - b.index
+      })
+      .map((entry) => entry.rawItem)
+    : originalWorkflows
+
+  list.replaceChildren(...displayWorkflows.map((item) => createCard(item, orderById.get(item.id), completedIds, displayWorkflows, snoozedIds, orderById)))
+  // 今日进度：分母排除今日已搁置任务，分子只统计真实完成的可跟踪任务。
+  // 搁置不属于完成，已完成任务也不会出现在搁置集合中，二者互斥。
   const completed = trackableTasks.filter((t) => completedIds.has(t.id)).length
-  DBG('render:workflow', { completed, total: trackableTasks.length })
-  updateProgress(completed, trackableTasks.length)
+  const total = trackableTasks.filter((t) => !snoozedIds.has(t.id)).length
+  const progressCompleted = total === 0 && trackableTasks.length > 0
+    ? 1
+    : completed
+  const progressTotal = total === 0 && trackableTasks.length > 0 ? 1 : total
+  DBG('render:workflow', { completed: progressCompleted, total: progressTotal, snoozed: snoozedIds.size })
+  updateProgress(progressCompleted, progressTotal)
   refreshWorkflowCarousel()
 }

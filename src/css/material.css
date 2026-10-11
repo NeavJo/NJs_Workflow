@@ -45,6 +45,12 @@
   --md-success-container: #b9f397;
   --md-on-success-container: #0b2100;
 
+  /* 橙色（搁置 / 前置锁定等警示态） */
+  --md-warning: #9d5500;
+  --md-on-warning: #ffffff;
+  --md-warning-container: #ffdcbe;
+  --md-on-warning-container: #331900;
+
   --md-inverse-surface: #322f35;
   --md-inverse-on-surface: #f5eff7;
   --md-inverse-primary: #d0bcff;
@@ -122,6 +128,11 @@
     --md-on-success: #1a3700;
     --md-success-container: #2b500a;
     --md-on-success-container: #b9f397;
+
+    --md-warning: #ffb870;
+    --md-on-warning: #4f2800;
+    --md-warning-container: #6f3d00;
+    --md-on-warning-container: #ffdcbe;
 
     --md-inverse-surface: #e6e1e5;
     --md-inverse-on-surface: #322f35;

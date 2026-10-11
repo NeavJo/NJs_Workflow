@@ -27,6 +27,8 @@ import { setMemoCountCheckDependencies } from './workflow/workflow-runtime.js'
 import { renderWorkflow } from './workflow/workflow-renderer.js'
 import { bindWorkflowListEvents } from './workflow/workflow-events.js'
 import { MonthlyView } from './workflow/monthly-view.js'
+import { loadSnoozeRecords, onSnoozeChange } from './workflow/snooze-store.js'
+import { bindSnoozeEvents } from './workflow/snooze-events.js'
 
 import {
   loadMemos,
@@ -100,6 +102,7 @@ try {
   loadCompleted()
   loadCompletionHistory()
   loadLastResetDate()
+  loadSnoozeRecords()
   loadMemos()
   loadMemoTags()
   loadAnkiSettings()
@@ -191,6 +194,7 @@ try {
 const EVENT_BINDS = [
   { name: 'navigation', fn: bindNavigationEvents },
   { name: 'workflow-list', fn: bindWorkflowListEvents },
+  { name: 'workflow-snooze', fn: bindSnoozeEvents },
   { name: 'memo', fn: bindMemoEvents },
   { name: 'settings', fn: bindSettingsEvents },
   { name: 'editor', fn: bindEditorEvents },
@@ -246,6 +250,16 @@ const EVENT_BINDS = [
     name: 'rotation-subscribe',
     fn: () => {
       onRotationRulesChange(() => {
+        renderWorkflow()
+      })
+    }
+  },
+  {
+    name: 'snooze-subscribe',
+    fn: () => {
+      // 搁置记录变更时实时重渲染任务列表与进度；
+      // 月览由 MonthlyView 内部订阅 onSnoozeChange 自行刷新。
+      onSnoozeChange(() => {
         renderWorkflow()
       })
     }

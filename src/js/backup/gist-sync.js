@@ -12,7 +12,7 @@ import {
   hasGistCredentials,
   reloadGistSyncBaselineFromStorage
 } from '../core/settings-store.js'
-import { normalizeGistSettings, normalizeCompletionHistory } from '../config/storage-config.js'
+import { normalizeGistSettings, normalizeCompletionHistory, normalizeSnoozeRecords } from '../config/storage-config.js'
 import { gistApiRequest, gistErrorMessage, GIST_FILENAME } from './gist-api.js'
 import { buildExportPayload, keyOmitReasonText } from './snapshot.js'
 import {
@@ -32,6 +32,7 @@ import {
   getCompletionHistory,
   getLastResetDate
 } from '../workflow/history-store.js'
+import { getSnoozeRecords, setSnoozeRecords, persistSnoozeRecords } from '../workflow/snooze-store.js'
 import {
   setWorkflows,
   persistWorkflows,
@@ -89,6 +90,7 @@ function snapshotMemoryStores() {
     rotationRules: JSON.parse(JSON.stringify(getRotationRules() || [])),
     memos: JSON.parse(JSON.stringify(getMemos() || [])),
     completionHistory: JSON.parse(JSON.stringify(getCompletionHistory() || {})),
+    snoozeRecords: JSON.parse(JSON.stringify({ version: 1, records: getSnoozeRecords() })),
     lastResetDate: getLastResetDate() || '',
     userSettings: JSON.parse(JSON.stringify(getUserSettings() || {})),
     ankiSettings: JSON.parse(JSON.stringify(getAnkiSettings() || {})),
@@ -105,6 +107,7 @@ function restoreMemoryStores(snapshot) {
     ['rotationRules', () => setRotationRules(snapshot.rotationRules)],
     ['memos', () => replaceMemos(snapshot.memos)],
     ['completionHistory', () => setCompletionHistory(snapshot.completionHistory)],
+    ['snoozeRecords', () => setSnoozeRecords(snapshot.snoozeRecords, { emit: false, source: 'external:gist-pull-rollback' })],
     ['lastResetDate', () => { if (typeof snapshot.lastResetDate === 'string') setLastResetDate(snapshot.lastResetDate) }],
     ['userSettings', () => setUserSettings(snapshot.userSettings)],
     ['ankiSettings', () => setAnkiSettings(snapshot.ankiSettings)],
@@ -128,7 +131,7 @@ function restoreMemoryStores(snapshot) {
  *
  * 返回 { ok:true } 或 { ok:false, reason }。调用方据此决定是否标记同步成功 / 提示失败。
  */
-function applyImportedState({ workflows, rotationRules, memos, completionHistory, lastResetDate, userSettings, ankiSettings, ankiExportSettings, memoTags }) {
+function applyImportedState({ workflows, rotationRules, memos, completionHistory, snoozeRecords, lastResetDate, userSettings, ankiSettings, ankiExportSettings, memoTags }) {
   suspendAutoUpload()
   const prevStorage = captureImportStorageSnapshot()
   const prevMemory = snapshotMemoryStores()
@@ -137,6 +140,7 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     setRotationRules(rotationRules)
     replaceMemos(memos)
     setCompletionHistory(completionHistory)
+    setSnoozeRecords(snoozeRecords, { emit: false, source: 'external:gist-pull' })
     if (typeof lastResetDate === 'string') setLastResetDate(lastResetDate)
     if (userSettings) setUserSettings(userSettings)
     if (ankiSettings) setAnkiSettings(ankiSettings)
@@ -150,6 +154,7 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
       ['rotationRules', () => persistRotationRules()],
       ['memos', () => persistMemos()],
       ['completionHistory', () => persistCompletionHistory()],
+      ['snoozeRecords', () => persistSnoozeRecords()],
       ['lastResetDate', () => persistLastResetDate()],
       ['userSettings', () => persistUserSettings()],
       ['ankiSettings', () => (ankiSettings ? persistAnkiSettings() : true)],
@@ -180,6 +185,7 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     rotationRules: rotationRules.length,
     memos: memos.length,
     historyDays: Object.keys(completionHistory).length,
+    snoozeDays: Object.keys(getSnoozeRecords()).length,
     ankiProfileCount: Array.isArray(ankiSettings?.profiles) ? ankiSettings.profiles.length : 0,
     memoTags: Array.isArray(memoTags) ? memoTags.length : 0
   })
@@ -341,6 +347,17 @@ function mergeCompletionHistory(local, remote) {
   return out
 }
 
+function mergeSnoozeRecords(local, remote) {
+  const localRecords = normalizeSnoozeRecords(local).records
+  const remoteRecords = normalizeSnoozeRecords(remote).records
+  const records = { ...localRecords }
+  for (const [date, remoteRecord] of Object.entries(remoteRecords)) {
+    const localRecord = localRecords[date]
+    if (!localRecord || remoteRecord.updatedAt > localRecord.updatedAt) records[date] = remoteRecord
+  }
+  return { version: 1, records }
+}
+
 /**
  * 列表合并（workflows / rotationRules / memoTags）：
  * 以远端为准，并保留仅存在于本机的新增项。
@@ -393,6 +410,10 @@ function mergeRemoteIntoLocal(remoteData) {
     completionHistory: mergeCompletionHistory(
       localHistoryWithToday(),
       normalizeCompletionHistory(remoteData.completionHistory)
+    ),
+    snoozeRecords: mergeSnoozeRecords(
+      { version: 1, records: getSnoozeRecords() },
+      remoteData.snoozeRecords
     ),
     lastResetDate: pickLaterDate(getLastResetDate(), remoteData.lastResetDate),
     userSettings: { ...getUserSettings(), ...(remoteData.userSettings || {}) },
@@ -772,6 +793,7 @@ async function pullFromGistInternal({ silent = false } = {}) {
     rotationRules: parsed.data.rotationRules,
     memos: parsed.data.memos,
     completionHistory: normalizeCompletionHistory(parsed.data.completionHistory),
+    snoozeRecords: normalizeSnoozeRecords(parsed.data.snoozeRecords),
     lastResetDate: parsed.data.lastResetDate,
     userSettings: parsed.data.userSettings,
     ankiSettings: parsed.data.ankiSettings,

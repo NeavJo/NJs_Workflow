@@ -104,6 +104,9 @@ export const I18N = {
     prerequisiteSectionTitle: '前置任务',
     prerequisiteHelper: '可勾选多个，所有勾选的任务完成后此任务才可打卡。',
 
+    // 今日临时搁置
+    snoozedBadge: '今日已搁置',
+
     // 任务编辑器
     editorEyebrow: 'WORKFLOW LIST',
     editorTitle: '编辑工作流',
@@ -196,7 +199,12 @@ export const I18N = {
   monthly: {
     eyebrow: 'RETROSPECT · PAST 30 DAYS',
     title: '月览<span>·热力图</span>',
-    heroCopy: '查看过去30天的任务完成情况，保持连续打卡习惯。'
+    heroCopy: '查看过去30天的任务完成情况，保持连续打卡习惯。',
+    snoozeTitle: '已搁置',
+    snoozeDetailTitle: '搁置详情',
+    snoozeDetailTasks: '被搁置的任务',
+    snoozeDetailReason: '搁置理由',
+    snoozeDetailNoReason: '当日未填写搁置理由。'
   },
 
   /* ========================================================================
@@ -410,6 +418,13 @@ export const I18N = {
     ankiExportTutorialFieldsBody: '回到 Anki 处理机页面，点击「导出 APKG」，下载 .apkg 文件后在 Anki 中导入即可。',
     workflowMenu: '工作流管理',
     workflowMenuSub: '添加任务，编辑现有工作流及其排序。',
+    snoozeTile: '今日临时搁置',
+    snoozeTileSub: '选择今天暂时不做的任务，不计入今日进度。',
+    snoozeTitle: '今日临时搁置',
+    snoozeSubtitle: '勾选今天暂时不做的任务，它们将不计入今日进度。',
+    snoozeReasonLabel: '搁置理由（可选）',
+    snoozeReasonPlaceholder: '例如：作业多的要死',
+    snoozeEmpty: '今天没有可搁置的任务（全部已完成或处于休息日）。',
     tagsMenu: '生词本标签管理',
     tagsMenuSub: '维护生词本分类标签，管理自定义标签。',
     germanMenu: '德语助手设置',
@@ -582,7 +597,12 @@ export const I18N = {
       presetCreated: '已新建预设：{name}',
       presetSaved: '已保存预设：{name}',
       presetDeleted: '已删除预设。',
-      prerequisitesLocked: '需先完成前置任务：{list}'
+      prerequisitesLocked: '需先完成前置任务：{list}',
+      taskSnoozed: '该任务今日已搁置，不可完成。',
+      snoozeSaved: '已搁置 {count} 项今日任务。',
+      snoozeCleared: '已取消今日所有搁置。',
+      snoozeSaveFailed: '搁置保存失败，请重试。',
+      snoozeOpenFailed: '搁置弹窗打开失败，请稍后重试。'
     },
 
     memo: {

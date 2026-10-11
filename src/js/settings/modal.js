@@ -14,7 +14,9 @@ export const MODAL_IDS = {
   'editor-action': 'editor-action-modal',
   confirm: 'confirm-modal',
   'memo-tag-picker': 'memo-tag-picker-modal',
-  'memo-filter': 'memo-filter-modal'
+  'memo-filter': 'memo-filter-modal',
+  snooze: 'snooze-modal',
+  snoozeDetail: 'snooze-detail-modal'
 }
 
 const FOCUSABLE_SELECTOR = [

@@ -7,7 +7,9 @@ import {
   WORKFLOWS_STORAGE_KEY,
   ANKI_SETTINGS_STORAGE_KEY,
   ANKI_EXPORT_SETTINGS_STORAGE_KEY,
+  SNOOZE_STORAGE_KEY,
   normalizeCompletionHistory,
+  normalizeSnoozeRecords,
   normalizeUserSettings,
   normalizeAnkiSettings,
   normalizeAnkiExportSettings,
@@ -45,7 +47,8 @@ const STORAGE_KEYS_FOR_IMPORT = {
   userSettings: USER_SETTINGS_STORAGE_KEY,
   ankiSettings: ANKI_SETTINGS_STORAGE_KEY,
   ankiExportSettings: ANKI_EXPORT_SETTINGS_STORAGE_KEY,
-  memoTags: MEMO_TAGS_STORAGE_KEY
+  memoTags: MEMO_TAGS_STORAGE_KEY,
+  snoozeRecords: SNOOZE_STORAGE_KEY
 }
 
 /**
@@ -73,6 +76,10 @@ export function validateBackupPayload(raw) {
   if (raw.data.ankiSettings !== undefined &&
       (typeof raw.data.ankiSettings !== 'object' || Array.isArray(raw.data.ankiSettings) || raw.data.ankiSettings === null)) {
     return 'data.ankiSettings 应为对象。'
+  }
+  if (raw.data.snoozeRecords !== undefined &&
+      (typeof raw.data.snoozeRecords !== 'object' || Array.isArray(raw.data.snoozeRecords) || raw.data.snoozeRecords === null)) {
+    return 'data.snoozeRecords 应为对象。'
   }
 
   return null
@@ -122,6 +129,7 @@ export function normalizeBackupPayload(payload, { fallbackLastReset = '' } = {})
     .filter(Boolean)
 
   const importedHistory = normalizeCompletionHistory(payload.data.completionHistory || {})
+  const importedSnoozeRecords = normalizeSnoozeRecords(payload.data.snoozeRecords || {})
   const importedLastReset = (typeof payload.data.lastResetDate === 'string' &&
     /^\d{4}-\d{2}-\d{2}$/.test(payload.data.lastResetDate)) ? payload.data.lastResetDate : fallbackLastReset
   const importedUserSettings = normalizeUserSettings(payload.data.userSettings || {})
@@ -144,6 +152,7 @@ export function normalizeBackupPayload(payload, { fallbackLastReset = '' } = {})
       rotationRules: importedRotationRuleList,
       memos: importedMemos,
       completionHistory: importedHistory,
+      snoozeRecords: importedSnoozeRecords,
       lastResetDate: importedLastReset,
       userSettings: importedUserSettings,
       ankiSettings: importedAnkiSettings,
@@ -205,12 +214,12 @@ export function persistBackupToStorage(payload, { fallbackLastReset = '' } = {})
       ['rotationRules', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.rotationRules, normalized.rotationRules)],
       ['memos', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.memos, normalized.memos)],
       ['completionHistory', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.completionHistory, normalized.completionHistory)],
+      ['snoozeRecords', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.snoozeRecords, normalized.snoozeRecords)],
       ['lastResetDate', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.lastResetDate, normalized.lastResetDate)],
       ['userSettings', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.userSettings, normalized.userSettings)],
       ['ankiSettings', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.ankiSettings, normalized.ankiSettings)],
       ['ankiExportSettings', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.ankiExportSettings, normalized.ankiExportSettings)],
-      ['memoTags', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.memoTags, normalized.memoTags)],
-
+      ['memoTags', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.memoTags, normalized.memoTags)]
     ]
 
     for (const [name, fn] of writes) {

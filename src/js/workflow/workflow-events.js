@@ -5,6 +5,7 @@ import { getWorkflows } from './workflow-store.js'
 import { getCompletedIds, persistCompleted, hasCompleted, toggleCompleted } from './completion-store.js'
 import { renderWorkflow } from './workflow-renderer.js'
 import { runMemoCountCheck, checkPrerequisites } from './workflow-runtime.js'
+import { isTaskSnoozed } from './snooze-store.js'
 import { bindBatch } from '../utils/event-manager.js'
 import { throttle } from '../utils/throttle.js'
 
@@ -18,6 +19,14 @@ function toggleItem(id, { forced = false } = {}) {
   if (!forced && task && task.checkConfig && task.checkConfig.enabled) {
     DBG('toggleItem:blocked-check-lock', { id })
     showToast(I18N.toast.workflow.systemCheckOnly)
+    renderWorkflow()
+    return
+  }
+  // 搁置任务：业务层拦截，避免绕过 checkbox disabled 状态完成任务。
+  // 搁置与完成互斥，已搁置任务不可被强制完成。
+  if (!forced && isTaskSnoozed(id)) {
+    DBG('toggleItem:blocked-snoozed', { id })
+    showToast(I18N.toast.workflow.taskSnoozed)
     renderWorkflow()
     return
   }

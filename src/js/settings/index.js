@@ -208,6 +208,11 @@ export function bindGlobalEscapeHandler() {
       closeModal('confirm')
       return
     }
+    const snooze = document.getElementById('snooze-modal')
+    if (snooze && !snooze.hidden) {
+      closeModal('snooze')
+      return
+    }
     const rot = document.getElementById('taskform-rotation-modal')
     if (rot && !rot.hidden) {
       replaceModal('rotation', 'taskform')

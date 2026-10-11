@@ -4,6 +4,9 @@ import { onHistoryChange } from './history-store.js'
 import { onCompletedChange, getCompletedIds } from './completion-store.js'
 import { getTrackableTasks } from './workflow-runtime.js'
 import { getTodayDateString } from '../core/date.js'
+import { getSnoozeRecord, onSnoozeChange } from './snooze-store.js'
+import { I18N } from '../locales.js'
+import { openModal, isModalOpen } from '../settings/modal.js'
 
 export class MonthlyView {
   constructor(container) {
@@ -23,6 +26,8 @@ export class MonthlyView {
     this._subscribe(onWorkflowsChange, () => this.refresh())
     this._subscribe(onHistoryChange, () => this.refresh())
     this._subscribe(onCompletedChange, () => this.refresh())
+    // 搁置记录变更时刷新月览：今日/历史日期的橙色态与详情需要同步。
+    this._subscribe(onSnoozeChange, () => this.refresh())
 
     // 文档级键盘：Escape 关闭选中方格
     const onKeydown = (e) => {
@@ -31,9 +36,11 @@ export class MonthlyView {
         this.lockedCell = null
       }
     }
-    // 文档级点击空白区域收起
+    // 文档级点击空白区域收起；弹窗打开期间跳过，避免误收起仍有效的固定格。
     const onDocClick = (e) => {
-      if (this.lockedCell && !e.target.closest('.monthly-view__cell')) {
+      if (!this.lockedCell) return
+      if (isModalOpen('snoozeDetail')) return
+      if (!e.target.closest('.monthly-view__cell')) {
         this.hideCellInfo(this.lockedCell)
         this.lockedCell = null
       }
@@ -111,13 +118,23 @@ export class MonthlyView {
         ? Math.min(100, Math.round((completedCount / dailyTotalTasks) * 100))
         : 0
 
+      // 搁置记录按日期独立保存，今日与历史日期统一从 snooze store 读取。
+      // 历史日期即使任务已被删除/改名，快照名称仍可读。
+      const snoozeRecord = getSnoozeRecord(dateStr)
+      const hasSnoozed = Boolean(snoozeRecord && Array.isArray(snoozeRecord.taskSnapshots) && snoozeRecord.taskSnapshots.length > 0)
+      const snoozeSnapshots = hasSnoozed ? snoozeRecord.taskSnapshots : []
+      const snoozeReason = hasSnoozed ? (snoozeRecord.reason || '') : ''
+
       data.push({
         date: date,
         dateStr: dateStr,
         completed: completedCount,
         total: dailyTotalTasks,
         rate: rate,
-        isToday: dateStr === this.today
+        isToday: dateStr === this.today,
+        hasSnoozed,
+        snoozeSnapshots,
+        snoozeReason
       })
     }
 
@@ -163,9 +180,11 @@ export class MonthlyView {
     const opacity = day.rate === 0 ? 0.15 : Math.pow(day.rate / 100, 1 / 3)
     const isFull = day.rate === 100
     const isToday = day.isToday
+    // 搁置橙色态优先级高于完成率色阶（含满格绿），但完成数信息仍保留在 label 中。
     const cellClass = [
       'monthly-view__cell',
-      isFull ? 'monthly-view__cell--full' : '',
+      day.hasSnoozed ? 'monthly-view__cell--snoozed' : '',
+      !day.hasSnoozed && isFull ? 'monthly-view__cell--full' : '',
       isToday ? 'monthly-view__cell--today' : ''
     ].filter(Boolean).join(' ')
 
@@ -176,9 +195,10 @@ export class MonthlyView {
            data-rate="${day.rate}"
            data-completed="${day.completed}"
            data-total="${day.total}"
+           data-snoozed="${day.hasSnoozed ? '1' : '0'}"
            style="--cell-opacity: ${opacity}"
            tabindex="0"
-           aria-label="${this.formatDisplayDate(day.date)} · ${day.rate}% · ${day.completed}/${day.total}任务"
+           aria-label="${this.formatDisplayDate(day.date)} · ${day.rate}% · ${day.completed}/${day.total}任务${day.hasSnoozed ? ' · 已搁置' + day.snoozeSnapshots.length + '项' : ''}"
            aria-expanded="false">
         <span class="monthly-view__cell-inner"></span>
         <span class="monthly-view__cell-label">
@@ -244,14 +264,85 @@ export class MonthlyView {
     e.stopPropagation()
 
     if (this.lockedCell === cell) {
-      this.hideCellInfo(cell)
-      this.lockedCell = null
-    } else {
-      if (this.lockedCell) {
-        this.hideCellInfo(this.lockedCell)
+      // 第二步交互：格子已固定时再次点击，若为搁置格则打开详情弹窗，
+      // 否则仅取消固定，避免空详情弹窗干扰普通日期。
+      if (cell.getAttribute('data-snoozed') === '1') {
+        this.openSnoozeDetailModal(cell)
+      } else {
+        this.hideCellInfo(cell)
+        this.lockedCell = null
       }
-      this.showCellInfo(cell)
-      this.lockedCell = cell
+      return
+    }
+
+    // 第一步交互：固定当前格子，同时收起其它已固定的格子。
+    if (this.lockedCell) {
+      this.hideCellInfo(this.lockedCell)
+    }
+    this.showCellInfo(cell)
+    this.lockedCell = cell
+  }
+
+  /**
+   * 打开搁置详情弹窗：任务名称快照与理由均使用 textContent 写入，
+   * 杜绝用户输入（理由、任务标题）被当作 HTML 注入。
+   */
+  openSnoozeDetailModal(cell) {
+    const day = this.findDayByDate(cell.getAttribute('data-date'))
+    if (!day || !day.hasSnoozed) return
+    this.populateSnoozeDetailModal(day)
+    openModal('snoozeDetail')
+  }
+
+  findDayByDate(dateStr) {
+    if (!dateStr) return null
+    return this.getData().find((d) => d.dateStr === dateStr) || null
+  }
+
+  populateSnoozeDetailModal(day) {
+    // 日期：同时写 datetime 属性供辅助技术读取 ISO 值，textContent 供视觉显示。
+    const dateEl = document.getElementById('snooze-detail-date')
+    if (dateEl) {
+      dateEl.setAttribute('datetime', day.dateStr)
+      dateEl.textContent = this.formatDisplayDate(day.date)
+    }
+
+    // 完成度：用图标 + 文本展示，避免纯文字显得孤立。
+    const progressEl = document.getElementById('snooze-detail-progress')
+    if (progressEl) {
+      progressEl.innerHTML = ''
+      const icon = document.createElement('span')
+      icon.className = 'material-symbols'
+      icon.setAttribute('aria-hidden', 'true')
+      icon.textContent = day.total > 0 ? 'checklist' : 'info_off'
+      const text = document.createElement('span')
+      text.textContent = day.total > 0
+        ? `${day.rate}% · 已完成 ${day.completed}/${day.total} 项`
+        : '无数据'
+      progressEl.append(icon, text)
+    }
+
+    // 任务列表：逐项 textContent 写入，防 HTML 注入；标题处显示任务数量徽章。
+    const countEl = document.getElementById('snooze-detail-task-count')
+    if (countEl) countEl.textContent = String(day.snoozeSnapshots.length)
+
+    const listEl = document.getElementById('snooze-detail-task-list')
+    if (listEl) {
+      listEl.innerHTML = ''
+      for (const snap of day.snoozeSnapshots) {
+        const li = document.createElement('li')
+        li.className = 'snooze-detail-task'
+        li.textContent = snap.title || snap.id
+        listEl.appendChild(li)
+      }
+    }
+
+    // 理由：空态显示占位文案并标记 is-empty 以斜体弱化；非空时正常显示。
+    const reasonEl = document.getElementById('snooze-detail-reason')
+    if (reasonEl) {
+      const empty = !day.snoozeReason
+      reasonEl.textContent = empty ? I18N.monthly.snoozeDetailNoReason : day.snoozeReason
+      reasonEl.classList.toggle('is-empty', empty)
     }
   }
 

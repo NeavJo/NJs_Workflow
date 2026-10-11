@@ -2,6 +2,8 @@ export const WORKFLOWS_STORAGE_KEY = 'njs-workflow-config'
 
 export const COMPLETION_HISTORY_STORAGE_KEY = 'njs-workflow-completion-history'
 
+export const SNOOZE_STORAGE_KEY = 'njs-workflow-snooze-records'
+
 export const LAST_RESET_DATE_STORAGE_KEY = 'njs-workflow-last-reset-date'
 
 export const GIST_SETTINGS_STORAGE_KEY = 'njs-workflow-gist-settings'
@@ -333,6 +335,31 @@ export function normalizeCompletionHistory(raw) {
     result[key] = { completedIds: ids, totalTasks }
   }
   return result
+}
+
+export function normalizeSnoozeRecords(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { version: 1, records: {} }
+  const source = raw.records && typeof raw.records === 'object' && !Array.isArray(raw.records)
+    ? raw.records
+    : {}
+  const records = {}
+  for (const [date, value] of Object.entries(source)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !value || typeof value !== 'object' || Array.isArray(value)) continue
+    const taskIds = [...new Set((Array.isArray(value.taskIds) ? value.taskIds : [])
+      .filter((id) => typeof id === 'string' && id.trim()))]
+    const snapshots = new Map((Array.isArray(value.taskSnapshots) ? value.taskSnapshots : [])
+      .filter((item) => item && typeof item.id === 'string' && item.id.trim() && typeof item.title === 'string' && item.title.trim())
+      .map((item) => [item.id, { id: item.id, title: item.title.trim() }]))
+    const taskSnapshots = taskIds
+      .filter((id) => snapshots.has(id))
+      .map((id) => snapshots.get(id))
+    const validIds = taskIds.filter((id) => snapshots.has(id))
+    const reason = typeof value.reason === 'string' ? value.reason.trim().slice(0, 240) : ''
+    const updatedAt = Number.isFinite(value.updatedAt) && value.updatedAt >= 0 ? Math.trunc(value.updatedAt) : 0
+    if (validIds.length === 0 || taskSnapshots.length === 0) continue
+    records[date] = { taskIds: validIds, taskSnapshots, reason, updatedAt }
+  }
+  return { version: 1, records }
 }
 
 export function normalizeUserSettings(raw) {

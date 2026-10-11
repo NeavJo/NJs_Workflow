@@ -6,7 +6,8 @@ import { getRotationRules } from '../workflow/rotation-store.js'
 import { getMemos } from '../memo/memo-store.js'
 import { getCompletionHistory, getLastResetDate } from '../workflow/history-store.js'
 import { getCompletedIds } from '../workflow/completion-store.js'
-import { normalizeCompletionHistory } from '../config/storage-config.js'
+import { normalizeCompletionHistory, normalizeSnoozeRecords } from '../config/storage-config.js'
+import { getSnoozeRecords } from '../workflow/snooze-store.js'
 import { getUserSettings } from '../core/settings-store.js'
 import { getAnkiSettings, getActiveProfile } from '../anki/anki-store.js'
 import { getMemoTags } from '../memo/memo-store.js'
@@ -150,6 +151,7 @@ export async function buildExportPayload() {
     content: m.content
   }))
   const completionHistorySnapshot = normalizeCompletionHistory(JSON.parse(JSON.stringify(getCompletionHistory())))
+  const snoozeRecordsSnapshot = normalizeSnoozeRecords(JSON.parse(JSON.stringify({ version: 1, records: getSnoozeRecords() })))
   const todayStr = getTodayDateString()
   const todayCompleted = [...getCompletedIds()]
   const existingTodayRecord = completionHistorySnapshot[todayStr]
@@ -199,6 +201,7 @@ export async function buildExportPayload() {
         rotationRules: rotationSnapshot,
         memos: memosSnapshot,
         completionHistory: completionHistorySnapshot,
+        snoozeRecords: snoozeRecordsSnapshot,
         lastResetDate: lastReset,
         userSettings: userSettingsSnapshot,
         ankiSettings: prepared.settings,

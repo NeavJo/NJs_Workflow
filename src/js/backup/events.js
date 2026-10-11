@@ -23,6 +23,7 @@ import { setAnkiExportSettings } from '../anki/anki-export-store.js'
 import { decryptAnkiSecret } from '../anki/anki-crypto.js'
 import { setPassphrase } from '../anki/anki-passphrase.js'
 import { normalizeAnkiSettings } from '../config/storage-config.js'
+import { setSnoozeRecords, persistSnoozeRecords } from '../workflow/snooze-store.js'
 import { renderAnkiSettingsInputs } from '../anki/anki-settings.js'
 import { renderWorkflow } from '../workflow/workflow-renderer.js'
 import { renderMemos, updateMemoCounters, renderTagSelector } from '../memo/memo-renderer.js'
@@ -246,6 +247,8 @@ async function handleImportFile(file) {
   if (imported.userSettings) setUserSettings(imported.userSettings)
   if (imported.ankiSettings) setAnkiSettings(imported.ankiSettings)
   if (imported.ankiExportSettings) setAnkiExportSettings(imported.ankiExportSettings, { emit: true, source: 'external:backup-restore' })
+  // 旧备份缺少搁置字段时，归一化结果为空对象，按完整导入快照替换本地记录。
+  setSnoozeRecords(imported.snoozeRecords, { emit: true, source: 'external:backup-restore' })
 
   // 双保险：把每个 store 的 persist* 跑一遍，让内部状态与 localStorage 完全一致
   // （persist* 会走各自的序列化投影，例如 workflows 的 runtime 字段裁剪、
@@ -260,7 +263,8 @@ async function handleImportFile(file) {
     ['completionHistory', () => persistCompletionHistory()],
     ['lastResetDate', () => persistLastResetDate()],
     ['userSettings', () => persistUserSettings()],
-    ['ankiSettings', () => (imported.ankiSettings ? persistAnkiSettings() : true)]
+    ['ankiSettings', () => (imported.ankiSettings ? persistAnkiSettings() : true)],
+    ['snoozeRecords', () => persistSnoozeRecords()]
   ]
   const failedDomains = []
   for (const [domain, fn] of secondRound) {

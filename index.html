@@ -799,6 +799,15 @@
                         </span>
                         <span class="material-symbols settings-action-tile__chevron" aria-hidden="true">chevron_right</span>
                       </button>
+
+                      <button type="button" class="settings-action-tile settings-action-tile--warning" id="btn-workflow-snooze">
+                        <span class="material-symbols" aria-hidden="true">pause_circle</span>
+                        <span class="settings-action-tile__body">
+                          <strong data-i18n="settings.snoozeTile">今日临时搁置</strong>
+                          <small data-i18n="settings.snoozeTileSub">选择今天暂时不做的任务，不计入今日进度。</small>
+                        </span>
+                        <span class="material-symbols settings-action-tile__chevron" aria-hidden="true">chevron_right</span>
+                      </button>
                     </section>
                   </div>
                 </section>
@@ -1324,6 +1333,73 @@
         <div class="modal__body modal__body--sheet">
           <ul id="editor-action-list" class="sheet-action-list" aria-label="任务操作" data-i18n-aria="workflow.taskOpAria"></ul>
         </div>
+      </div>
+    </div>
+
+    <!-- 今日临时搁置弹窗 -->
+    <div id="snooze-modal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="snooze-title" hidden>
+      <div class="modal__scrim" data-close-modal="snooze"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <div class="modal__title-wrap">
+            <div>
+              <h2 id="snooze-title" data-i18n="settings.snoozeTitle">今日临时搁置</h2>
+              <p class="modal__subtitle" data-i18n="settings.snoozeSubtitle">勾选今天暂时不做的任务，它们将不计入今日进度。</p>
+            </div>
+          </div>
+          <button type="button" class="modal__close" data-close-modal="snooze" aria-label="关闭" data-i18n-aria="common.close">
+            <span class="material-symbols" aria-hidden="true">close</span>
+          </button>
+        </header>
+        <div class="modal__body">
+          <div id="snooze-task-list" class="snooze-task-list" aria-label="今日可搁置任务列表"></div>
+          <div class="snooze-reason-wrap">
+            <label for="snooze-reason-input" class="snooze-reason-label" data-i18n="settings.snoozeReasonLabel">搁置理由（可选）</label>
+            <input type="text" id="snooze-reason-input" class="snooze-reason-input" maxlength="240" data-i18n-placeholder="settings.snoozeReasonPlaceholder" placeholder="例如：作业多的要死" />
+          </div>
+          <p id="snooze-status" class="snooze-status" role="status" aria-live="polite"></p>
+        </div>
+        <footer class="modal__footer">
+          <button id="snooze-cancel" type="button" class="btn btn--text modal__footer-secondary" data-close-modal="snooze"><span data-i18n="common.cancel">取消</span></button>
+          <button id="snooze-confirm" type="button" class="btn btn--filled modal__footer-primary"><span data-i18n="common.confirm">确认</span></button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- 月览搁置详情弹窗：点击已固定的橙色格子查看该日搁置详情 -->
+    <div id="snooze-detail-modal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="snooze-detail-title" hidden>
+      <div class="modal__scrim" data-close-modal="snoozeDetail"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <div class="modal__title-wrap">
+            <div>
+              <h2 id="snooze-detail-title" data-i18n="monthly.snoozeDetailTitle">搁置详情</h2>
+              <p class="modal__subtitle"><time id="snooze-detail-date" class="snooze-detail-date" datetime=""></time></p>
+            </div>
+          </div>
+          <button type="button" class="modal__close" data-close-modal="snoozeDetail" aria-label="关闭" data-i18n-aria="common.close">
+            <span class="material-symbols" aria-hidden="true">close</span>
+          </button>
+        </header>
+        <div class="modal__body">
+          <div class="snooze-detail-stats">
+            <span id="snooze-detail-progress" class="snooze-detail-stat"></span>
+          </div>
+          <div class="snooze-detail-section">
+            <h3 class="snooze-detail-section-title">
+              <span data-i18n="monthly.snoozeDetailTasks">被搁置的任务</span>
+              <span id="snooze-detail-task-count" class="snooze-detail-count"></span>
+            </h3>
+            <ul id="snooze-detail-task-list" class="snooze-detail-list"></ul>
+          </div>
+          <div class="snooze-detail-section">
+            <h3 class="snooze-detail-section-title" data-i18n="monthly.snoozeDetailReason">搁置理由</h3>
+            <p id="snooze-detail-reason" class="snooze-detail-reason"></p>
+          </div>
+        </div>
+        <footer class="modal__footer">
+          <button type="button" class="btn btn--filled modal__footer-primary" data-close-modal="snoozeDetail"><span data-i18n="common.confirm">确认</span></button>
+        </footer>
       </div>
     </div>
 

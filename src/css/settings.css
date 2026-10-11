@@ -191,6 +191,15 @@
   background: var(--md-primary);
   color: var(--md-on-primary);
 }
+.settings-action-tile--warning > .material-symbols:first-child {
+  background: var(--md-warning);
+  color: var(--md-on-warning);
+}
+.settings-action-tile--warning:hover,
+.settings-action-tile--warning:focus-visible {
+  background: color-mix(in srgb, var(--md-warning) 6%, var(--md-surface));
+  border-color: color-mix(in srgb, var(--md-warning) 36%, transparent);
+}
 .settings-action-tile__body {
   display: flex;
   flex-direction: column;
