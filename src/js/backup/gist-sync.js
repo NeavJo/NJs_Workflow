@@ -51,6 +51,7 @@ import { decryptAnkiSecret } from '../anki/anki-crypto.js'
 import { getEffectivePassphrase } from '../anki/anki-passphrase.js'
 import { registerAutoUploadHandler, suspendAutoUpload, resumeAutoUpload } from '../core/sync-hooks.js'
 import { openConfirmDialog } from '../settings/modal.js'
+import { applyImportedGermanArticle, getGermanArticleState } from '../german/german-article-store.js'
 
 // 上传后回读校验失败时的最大重试轮数。
 // 每轮都会重新执行「冲突检测 → 合并远端 → 构建 → PATCH → 回读校验」，
@@ -95,7 +96,8 @@ function snapshotMemoryStores() {
     userSettings: JSON.parse(JSON.stringify(getUserSettings() || {})),
     ankiSettings: JSON.parse(JSON.stringify(getAnkiSettings() || {})),
     ankiExportSettings: JSON.parse(JSON.stringify(getAnkiExportSettings() || {})),
-    memoTags: JSON.parse(JSON.stringify(getMemoTags() || []))
+    memoTags: JSON.parse(JSON.stringify(getMemoTags() || [])),
+    germanArticle: JSON.parse(JSON.stringify(getGermanArticleState() || {}))
   }
 }
 
@@ -112,7 +114,8 @@ function restoreMemoryStores(snapshot) {
     ['userSettings', () => setUserSettings(snapshot.userSettings)],
     ['ankiSettings', () => setAnkiSettings(snapshot.ankiSettings)],
     ['ankiExportSettings', () => setAnkiExportSettings(snapshot.ankiExportSettings, { emit: false, source: 'external:gist-pull-rollback' })],
-    ['memoTags', () => setMemoTags(snapshot.memoTags)]
+    ['memoTags', () => setMemoTags(snapshot.memoTags)],
+    ['germanArticle', () => applyImportedGermanArticle(snapshot.germanArticle, { emit: true })]
   ]
   for (const [name, fn] of steps) {
     try {
@@ -131,7 +134,7 @@ function restoreMemoryStores(snapshot) {
  *
  * 返回 { ok:true } 或 { ok:false, reason }。调用方据此决定是否标记同步成功 / 提示失败。
  */
-function applyImportedState({ workflows, rotationRules, memos, completionHistory, snoozeRecords, lastResetDate, userSettings, ankiSettings, ankiExportSettings, memoTags }) {
+function applyImportedState({ workflows, rotationRules, memos, completionHistory, snoozeRecords, lastResetDate, userSettings, ankiSettings, ankiExportSettings, memoTags, germanArticle }) {
   suspendAutoUpload()
   const prevStorage = captureImportStorageSnapshot()
   const prevMemory = snapshotMemoryStores()
@@ -146,6 +149,25 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     if (ankiSettings) setAnkiSettings(ankiSettings)
     if (ankiExportSettings) setAnkiExportSettings(ankiExportSettings, { emit: true, source: 'external:gist-pull' })
     if (Array.isArray(memoTags)) setMemoTags(memoTags)
+
+    // 德语文章（可选同步域）：applyImportedGermanArticle 内部做"远端空文档/非法文档跳过"保护，
+    // 因此这里无论传 undefined/null/空对象都不会覆盖本地已有文章；
+    // 远端有合法文章时会先落盘成功才更新内存并 emit，emit 由 PubSub 驱动文章视图刷新。
+    let germanArticleApplied = true
+    if (germanArticle !== undefined && germanArticle !== null) {
+      try {
+        const result = applyImportedGermanArticle(germanArticle, { emit: true })
+        germanArticleApplied = result.ok
+      } catch (err) {
+        DBG('gist-pull:persist:error', { domain: 'germanArticle', err: String(err) })
+        germanArticleApplied = false
+      }
+    }
+    if (!germanArticleApplied) {
+      restoreImportStorageSnapshot(prevStorage)
+      restoreMemoryStores(prevMemory)
+      return { ok: false, reason: 'persist-failed:germanArticle' }
+    }
 
     // 持久化结果必须逐项校验：任一写入失败都意味着磁盘与内存不一致，
     // 必须整体回滚，否则刷新页面后会出现"部分新、部分旧"的损坏数据。
@@ -187,7 +209,8 @@ function applyImportedState({ workflows, rotationRules, memos, completionHistory
     historyDays: Object.keys(completionHistory).length,
     snoozeDays: Object.keys(getSnoozeRecords()).length,
     ankiProfileCount: Array.isArray(ankiSettings?.profiles) ? ankiSettings.profiles.length : 0,
-    memoTags: Array.isArray(memoTags) ? memoTags.length : 0
+    memoTags: Array.isArray(memoTags) ? memoTags.length : 0,
+    germanArticle: Boolean(germanArticle)
   })
   return { ok: true }
 }
@@ -419,7 +442,9 @@ function mergeRemoteIntoLocal(remoteData) {
     userSettings: { ...getUserSettings(), ...(remoteData.userSettings || {}) },
     ankiSettings: getAnkiSettings(),
     ankiExportSettings: { ...getAnkiExportSettings(), ...(remoteData.ankiExportSettings || {}) },
-    memoTags: mergeByIdPreferRemote(getMemoTags(), remoteData.memoTags)
+    memoTags: mergeByIdPreferRemote(getMemoTags(), remoteData.memoTags),
+    // 远端无文章时传 undefined，applyImportedState 跳过该域，保留本地文章。
+    germanArticle: remoteData.germanArticle || undefined
   }
   return applyImportedState(merged)
 }
@@ -798,7 +823,9 @@ async function pullFromGistInternal({ silent = false } = {}) {
     userSettings: parsed.data.userSettings,
     ankiSettings: parsed.data.ankiSettings,
     ankiExportSettings: parsed.data.ankiExportSettings,
-    memoTags: parsed.data.memoTags
+    memoTags: parsed.data.memoTags,
+    // 可选域：旧备份可能缺失该字段；undefined 时 applyImportedState 跳过，本地文章原样保留。
+    germanArticle: parsed.data.germanArticle
   })
 
   // 事务式应用失败：已回滚内存与 localStorage，此处必须中止流程，

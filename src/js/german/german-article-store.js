@@ -21,6 +21,7 @@
 
 import { createPubSub } from '../utils/pubsub.js'
 import { safeStorageGet, safeStorageSet, safeStorageRemove } from '../core/storage.js'
+import { requestAutoUpload } from '../core/sync-hooks.js'
 import { DBG } from '../core/debug.js'
 
 /** 独立存储 key（与德语助手其它持久化互不干扰）。 */
@@ -196,6 +197,57 @@ function buildDoc(s) {
   }
 }
 
+/**
+ * 导出可用于 Gist 同步的文章文档。
+ * 仅当本地存在“合法且非空”的持久化文章时返回副本；空文章/空白文章必须返回 null，
+ * 让备份层省略该字段，避免用空数据覆盖远端已保存的文章。
+ */
+export function buildGermanArticleSyncDoc() {
+  const raw = safeStorageGet(ARTICLE_STORAGE_KEY, null)
+  const doc = normalizeArticleDoc(raw)
+  if (!doc) return null
+  return JSON.parse(JSON.stringify({
+    version: ARTICLE_SCHEMA_VERSION,
+    ...doc,
+    updatedAt: Date.now()
+  }))
+}
+
+/**
+ * 把外部同步源提供的文章文档恢复进 Store。
+ * 语义与 loadArticle 保持一致：先落盘成功，才更新内存、递增 revision 并发布；
+ * 远端空文档/非法文档必须跳过，保留本地当前文章。
+ */
+export function applyImportedGermanArticle(rawDoc, { emit = true } = {}) {
+  const doc = normalizeArticleDoc(rawDoc)
+  if (!doc) {
+    DBG('german-article:sync:skipped-invalid')
+    return { ok: true, reason: 'skipped-invalid-or-empty' }
+  }
+
+  const nextRevision = articleRevision + 1
+  const nextState = {
+    mode: 'reading',
+    hasArticle: true,
+    articleText: doc.articleText,
+    paragraphs: doc.paragraphs,
+    translations: doc.translations,
+    loadedAt: doc.loadedAt
+  }
+  if (!safeStorageSet(ARTICLE_STORAGE_KEY, buildDoc(nextState))) {
+    DBG('german-article:sync:persist-failed')
+    return { ok: false, reason: 'persist_failed' }
+  }
+  state = nextState
+  articleRevision = nextRevision
+  if (emit) pubsub.emit(state)
+  DBG('german-article:sync:applied', {
+    paragraphs: nextState.paragraphs.length,
+    translations: Object.keys(nextState.translations).length
+  })
+  return { ok: true }
+}
+
 /* ====================================================================
  * 公开接口
  * ==================================================================== */
@@ -292,6 +344,7 @@ export function loadArticle(rawText) {
   articleRevision = nextRevision
   pubsub.emit(state)
   DBG('german-article:loaded', { paragraphs: paragraphs.length })
+  requestAutoUpload()
   return { ok: true }
 }
 
@@ -341,6 +394,7 @@ export function commitParagraphTranslation(index, translatedText, expectedRevisi
   }
   pubsub.emit(state)
   DBG('german-article:translate:committed', { index: i })
+  requestAutoUpload()
   return { ok: true }
 }
 

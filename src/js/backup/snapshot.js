@@ -12,6 +12,7 @@ import { getUserSettings } from '../core/settings-store.js'
 import { getAnkiSettings, getActiveProfile } from '../anki/anki-store.js'
 import { getMemoTags } from '../memo/memo-store.js'
 import { getAnkiExportSettings } from '../anki/anki-export-store.js'
+import { buildGermanArticleSyncDoc } from '../german/german-article-store.js'
 
 import { getTodayDateString } from '../core/date.js'
 import { showToast } from '../ui.js'
@@ -180,6 +181,14 @@ export async function buildExportPayload() {
   }
   const lastReset = getLastResetDate()
   const prepared = await prepareAnkiSettingsForExport(ankiSettingsSnapshot)
+  // 德语文章同步（可选域）：仅在本地存在合法且非空的文章时写入 germanArticle；
+  // 本地无文章（null）时省略该字段，绝不把空文章/空对象上传，避免覆盖远端已保存的阅读数据。
+  let germanArticleDoc = null
+  try {
+    germanArticleDoc = buildGermanArticleSyncDoc()
+  } catch (e) {
+    DBG('export:germanArticle:error', String(e))
+  }
   DBG('export:snapshot', {
     workflowsLength: workflowsSnapshot.length,
     rotationRulesLength: rotationSnapshot.length,
@@ -189,26 +198,28 @@ export async function buildExportPayload() {
     userSettingsKeys: Object.keys(userSettingsSnapshot).length,
     ankiProfileCount: Array.isArray(ankiSettingsSnapshot.profiles) ? ankiSettingsSnapshot.profiles.length : 0,
     ankiKeyOmitted: Boolean(prepared.keyOmitted),
-    ankiOmitReason: prepared.omitReason || null
+    ankiOmitReason: prepared.omitReason || null,
+    germanArticlePresent: Boolean(germanArticleDoc)
   })
+  const data = {
+    workflows: workflowsSnapshot,
+    rotationRules: rotationSnapshot,
+    memos: memosSnapshot,
+    completionHistory: completionHistorySnapshot,
+    snoozeRecords: snoozeRecordsSnapshot,
+    lastResetDate: lastReset,
+    userSettings: userSettingsSnapshot,
+    ankiSettings: prepared.settings,
+    ankiExportSettings: ankiExportSettingsSnapshot,
+    memoTags: memoTagsSnapshot
+  }
+  if (germanArticleDoc) data.germanArticle = germanArticleDoc
   return {
     ok: true,
     payload: {
       version: BACKUP_VERSION,
       exportTime: formatTimestamp(new Date()),
-      data: {
-        workflows: workflowsSnapshot,
-        rotationRules: rotationSnapshot,
-        memos: memosSnapshot,
-        completionHistory: completionHistorySnapshot,
-        snoozeRecords: snoozeRecordsSnapshot,
-        lastResetDate: lastReset,
-        userSettings: userSettingsSnapshot,
-        ankiSettings: prepared.settings,
-        ankiExportSettings: ankiExportSettingsSnapshot,
-        memoTags: memoTagsSnapshot,
-
-      }
+      data
     },
     keyOmitted: Boolean(prepared.keyOmitted),
     keyOmitReason: prepared.omitReason || null

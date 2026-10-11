@@ -54,10 +54,10 @@ function buildDynamicTagHtml(tagInfo) {
   return `<div class="dynamic-tag ${variantClass}">${iconHtml}<span class="dynamic-tag__label"></span></div>`
 }
 
-// 判断移动端轮播展示时是否应排到末尾。
-// 只影响 #workflow-list 的展示顺序：占位、运行时禁用（如休息日）和今日搁置排后；
-// 已完成但可操作、前置未解锁但可等待的任务仍保留在正常区。
-function isWorkflowCardDisabledForMobile(rawItem, snoozedIds) {
+// 判断卡片是否应归入「禁用组」（占位 / 运行时禁用如休息日 / 今日搁置）。
+// 用于「可操作优先」排序：禁用组整体排到末尾，组内仍按原始工作流序号。
+// 已完成但可操作、前置未解锁但可等待的任务不算禁用，保留在正常组。
+function isWorkflowCardDisabled(rawItem, snoozedIds) {
   if (rawItem.isPlaceholder) return true
   const { disabled } = evaluateTaskRuntime(rawItem)
   if (disabled) return true
@@ -75,6 +75,8 @@ function createCard(rawItem, order, completedIds, workflows, snoozedIds, orderMa
   const card = document.createElement('article')
   card.id = `workflow-card-${rawItem.id}`
   card.dataset.itemId = rawItem.id
+  // 记录原始工作流序号，供移动端「可操作优先」重排按此稳定归位；不随展示顺序变化。
+  card.dataset.order = String(order)
   const isComplete = completedIds.has(rawItem.id)
   const isSnoozed = Boolean(snoozedIds && snoozedIds.has(rawItem.id))
   const { tagInfo, disabled } = evaluateTaskRuntime(rawItem)
@@ -207,22 +209,20 @@ export function renderWorkflow() {
   const trackableTasks = getTrackableTasks()
   const snoozedIds = getSnoozedIds()
 
-  // 移动端轮播按“可操作优先”排序，减少占位、休息日、搁置卡片阻碍切换。
-  // 桌面端仍使用工作流原始顺序；卡片序号徽章必须继续使用原始序号，因此下方
-  // 按 rawItem 在 originalWorkflows 中的位置取序号，而不是当前展示位置。
-  const isMobileLayout = typeof window !== 'undefined' && window.matchMedia('(max-width: 680px)').matches
+  // 所有布局（含桌面端）都按「可操作优先」排序：正常态卡片按原始序号在前，
+  // 禁用态（占位 / 休息日 / 搁置）按原始序号在后。卡片序号徽章始终使用原始
+  // 工作流序号（orderById），不随展示顺序变化；分组依据卡片禁用判定，与
+  // carousel 侧 reorderCardsForMobile 的状态类判定一致，幂等收敛。
   const orderById = new Map(originalWorkflows.map((item, index) => [item.id, index + 1]))
-  const displayWorkflows = isMobileLayout
-    ? originalWorkflows
-      .map((rawItem, index) => ({ rawItem, index }))
-      .sort((a, b) => {
-        const aDisabled = isWorkflowCardDisabledForMobile(a.rawItem, snoozedIds)
-        const bDisabled = isWorkflowCardDisabledForMobile(b.rawItem, snoozedIds)
-        if (aDisabled !== bDisabled) return aDisabled ? 1 : -1
-        return a.index - b.index
-      })
-      .map((entry) => entry.rawItem)
-    : originalWorkflows
+  const displayWorkflows = originalWorkflows
+    .map((rawItem, index) => ({ rawItem, index }))
+    .sort((a, b) => {
+      const aDisabled = isWorkflowCardDisabled(a.rawItem, snoozedIds)
+      const bDisabled = isWorkflowCardDisabled(b.rawItem, snoozedIds)
+      if (aDisabled !== bDisabled) return aDisabled ? 1 : -1
+      return a.index - b.index
+    })
+    .map((entry) => entry.rawItem)
 
   list.replaceChildren(...displayWorkflows.map((item) => createCard(item, orderById.get(item.id), completedIds, displayWorkflows, snoozedIds, orderById)))
   // 今日进度：分母排除今日已搁置任务，分子只统计真实完成的可跟踪任务。

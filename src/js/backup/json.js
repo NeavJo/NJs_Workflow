@@ -18,7 +18,7 @@ import {
 import { ROTATION_RULES_STORAGE_KEY } from '../config/rotation-rules.js'
 import { MEMO_STORAGE_KEY } from '../core/storage.js'
 import { MEMO_TAGS_STORAGE_KEY } from '../config/memo-tags.js'
-
+import { ARTICLE_STORAGE_KEY } from '../german/german-article-store.js'
 import {
   DEFAULT_WORKFLOWS,
   normalizeTask
@@ -48,7 +48,8 @@ const STORAGE_KEYS_FOR_IMPORT = {
   ankiSettings: ANKI_SETTINGS_STORAGE_KEY,
   ankiExportSettings: ANKI_EXPORT_SETTINGS_STORAGE_KEY,
   memoTags: MEMO_TAGS_STORAGE_KEY,
-  snoozeRecords: SNOOZE_STORAGE_KEY
+  snoozeRecords: SNOOZE_STORAGE_KEY,
+  germanArticle: ARTICLE_STORAGE_KEY
 }
 
 /**
@@ -80,6 +81,10 @@ export function validateBackupPayload(raw) {
   if (raw.data.snoozeRecords !== undefined &&
       (typeof raw.data.snoozeRecords !== 'object' || Array.isArray(raw.data.snoozeRecords) || raw.data.snoozeRecords === null)) {
     return 'data.snoozeRecords 应为对象。'
+  }
+  if (raw.data.germanArticle !== undefined && raw.data.germanArticle !== null &&
+      (typeof raw.data.germanArticle !== 'object' || Array.isArray(raw.data.germanArticle))) {
+    return 'data.germanArticle 应为对象或 null。'
   }
 
   return null
@@ -147,6 +152,10 @@ export function normalizeBackupPayload(payload, { fallbackLastReset = '' } = {})
     ? normalizeAnkiExportSettings(payload.data.ankiExportSettings)
     : normalizeAnkiExportSettings(safeStorageGet(ANKI_EXPORT_SETTINGS_STORAGE_KEY, DEFAULT_ANKI_EXPORT_SETTINGS))
 
+  // germanArticle 是可选同步域：旧备份缺失 / null / 空文章都必须保留本地当前文章，
+  // 避免远端或本地临时没有文章时，用 null 覆盖掉已有的跨设备阅读数据。
+  const importedGermanArticle = payload.data.germanArticle ?? safeStorageGet(ARTICLE_STORAGE_KEY, null)
+
   return {
       workflows: importedWorkflows,
       rotationRules: importedRotationRuleList,
@@ -157,7 +166,8 @@ export function normalizeBackupPayload(payload, { fallbackLastReset = '' } = {})
       userSettings: importedUserSettings,
       ankiSettings: importedAnkiSettings,
       ankiExportSettings: importedAnkiExportSettings,
-      memoTags: importedMemoTags
+      memoTags: importedMemoTags,
+      germanArticle: importedGermanArticle
     }
 }
 
@@ -219,7 +229,8 @@ export function persistBackupToStorage(payload, { fallbackLastReset = '' } = {})
       ['userSettings', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.userSettings, normalized.userSettings)],
       ['ankiSettings', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.ankiSettings, normalized.ankiSettings)],
       ['ankiExportSettings', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.ankiExportSettings, normalized.ankiExportSettings)],
-      ['memoTags', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.memoTags, normalized.memoTags)]
+      ['memoTags', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.memoTags, normalized.memoTags)],
+      ['germanArticle', () => safeStorageSet(STORAGE_KEYS_FOR_IMPORT.germanArticle, normalized.germanArticle)]
     ]
 
     for (const [name, fn] of writes) {

@@ -376,8 +376,38 @@ export function refreshWorkflowCarousel() {
   }
 
   list.classList.add('workflow-list--carousel')
+  reorderCardsForMobile(list)
   renderCarouselPagination()
   restoreCarouselPosition()
+}
+
+/**
+ * 移动端加类后按「可操作优先」重排：禁用态卡片（占位 / 禁用 / 搁置）按原始
+ * 序号排到末尾，正常态卡片按原始序号排在前。
+ *
+ * 与 renderWorkflow 侧的 isWorkflowCardDisabled 判定一致（都基于占位 / 运行时禁用 /
+ * 搁置三态），此处按卡片已写入的状态类（.is-placeholder / .is-disabled /
+ * .is-snoozed）+ data-order（原始工作流序号）做稳定收敛：
+ *  - 所有布局（含桌面端）在 renderWorkflow 生成 DOM 时已排序一次；
+ *  - 移动端切到轮播布局、加 .workflow-list--carousel 类后，再按同一判定排一次，
+ *    保证 DOM 顺序与判定一致，两次稳定排序结果幂等相同，不会跳动。
+ * 重排是 DOM 节点移动而非重建，is-carousel-active 类与 data-item-id 不变；
+ * 后续 renderCarouselPagination / restoreCarouselPosition 基于重排后顺序重新对齐。
+ */
+function reorderCardsForMobile(list) {
+  const cards = getCards()
+  if (cards.length <= 1) return
+  const orderOf = (card) => Number(card.dataset.order) || 0
+  const isDisabledCard = (card) =>
+    card.classList.contains('is-placeholder') ||
+    card.classList.contains('is-disabled') ||
+    card.classList.contains('is-snoozed')
+  const enabled = []
+  const disabled = []
+  cards.forEach((card) => (isDisabledCard(card) ? disabled : enabled).push(card))
+  enabled.sort((a, b) => orderOf(a) - orderOf(b))
+  disabled.sort((a, b) => orderOf(a) - orderOf(b))
+  list.replaceChildren(...enabled, ...disabled)
 }
 
 /**
