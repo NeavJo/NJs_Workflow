@@ -22,7 +22,7 @@ import {
   onDictionaryLoaded,
   setPendingQuery
 } from './german-dictionary.js'
-import { lookupWordViaLLM, removeCachedDetail } from './german-llm.js'
+import { lookupWordViaLLM, removeCachedDetail, removeArticleCachedDetail } from './german-llm.js'
 import { getGermanTtsApiKey } from './german-font-size.js'
 import {
   setSuggestions,
@@ -48,6 +48,10 @@ const guard = createGuard('germanEventsBound')
 const detailGuard = createGuard('germanDetailActionsBound')
 const SUGGEST_DEBOUNCE_MS = 200
 let suggestTimer = null
+
+// 当前文章点词上下文（词形 + 片段）。只记最近一次文章查询，供"重新获取"判断
+// 应清除哪一个文章语境缓存键；普通查词不写入此项，故 refetch 走原普通缓存路径。
+let activeArticleContext = null
 
 // ── DOM 获取 ──
 function getInput() { return document.getElementById('german-search-input') }
@@ -86,8 +90,9 @@ function runSuggest(query) {
  * 这是德语助手**唯一**的查词入口：普通搜索框、候选词、重试、文章切词
  * 全部走这里，不复制任何请求/Store 逻辑。
  * @param {string} word 原始词形（文章模式直接使用文章中的原词，不做词形还原）
- * @param {{refetch?:boolean, scopeEl?:HTMLElement, channel?:'assistant'|'article'}} [options]
- *   refetch=true 强制刷新缓存；scopeEl 指定详情渲染/读取所属容器
+ * @param {{refetch?:boolean, scopeEl?:HTMLElement, channel?:'assistant'|'article', context?:string}} [options]
+ *   refetch=true 强制刷新缓存；scopeEl 指定详情渲染/读取所属容器；
+ *   context 为文章点词的有界上下文片段（普通查词不传，行为完全不变）
  * @returns {Promise<{ok:boolean, detail?:object}|undefined>} 结果对象，空词时返回 undefined
  */
 export async function runLookup(word, options) {
@@ -95,6 +100,14 @@ export async function runLookup(word, options) {
   if (!w) {
     showToast(t(I18N.german.toasts.searchEmpty))
     return
+  }
+
+  // 记录文章上下文（词形 + 片段），供"重新获取"只清除当前语境缓存键。
+  // 仅文章通道时更新：有上下文则记录，无上下文（截取失败回退）则清空，
+  // 避免上一次同词形的陈旧上下文串到本次 refetch；普通查词不写入，保证互不干扰。
+  const context = typeof options?.context === 'string' ? options.context : ''
+  if (options?.channel === 'article') {
+    activeArticleContext = context ? { word: w, context } : null
   }
 
   const seq = startLookup(w, options?.channel)
@@ -119,6 +132,17 @@ export async function runLookup(word, options) {
 
 /** 重新获取按钮：清除本地缓存并强制重新蒸馏。 */
 function runRefetch(scopeEl) {
+  // 文章通道：以最近一次文章查询记录的"原始点选词形 + 上下文"为准重查。
+  // 注意：文章详情顶部显示的是上下文推断出的词头（如 giftigen → giftig），
+  // 与原始点选词形不同，故不能用卡片显示词去匹配，否则会误清普通缓存并以无上下文重查。
+  // 只清除该"词形 + 上下文"对应的文章语境缓存，绝不触碰普通词典缓存（njs-german-cache）。
+  if (getGermanLookupChannel() === 'article' && activeArticleContext) {
+    const { word, context } = activeArticleContext
+    removeArticleCachedDetail(word, context)
+    runLookup(word, { refetch: true, scopeEl, channel: 'article', context })
+    return
+  }
+  // 普通通道维持原有行为完全不变。
   const w = getDetailWord(scopeEl)
   if (!w) return
   removeCachedDetail(w)

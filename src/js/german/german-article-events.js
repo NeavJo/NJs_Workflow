@@ -45,7 +45,7 @@ import {
 } from './german-article-renderer.js'
 import { runLookup, bindDetailActions, registerDictionarySwitcher } from './german-events.js'
 import { renderDetail, renderSkeleton } from './german-renderer.js'
-import { getGermanState, setLookupChannel } from './german-store.js'
+import { getGermanLookupChannel, getGermanState, onGermanStateChange, setLookupChannel } from './german-store.js'
 import { getActiveProfile, hasAnkiCredentials } from '../anki/anki-store.js'
 import { requestGemini, requestOpenAI } from '../anki/anki-api.js'
 
@@ -81,6 +81,7 @@ const inputGuard = createGuard('germanArticleInputBound')
 const bodyGuard = createGuard('germanArticleBodyBound')
 // 查词层关闭 / 返回：以查词层为 host。
 const lookupGuard = createGuard('germanArticleLookupBound')
+const lookupStateGuard = createGuard('germanArticleLookupStateBound')
 // 查词层顶部拖动：以查词层为 host，避免重复注册 window 级 mousemove/mouseup。
 const dragGuard = createGuard('germanArticleDragBound')
 
@@ -362,11 +363,60 @@ function closeLookupLayer() {
   DBG('german-article:lookup-close')
 }
 
+/** 上下文窗口：目标词左右各最多取的 Unicode code point 数。 */
+const CONTEXT_WINDOW = 30
+
+/** 判断字符是否为词项字母（与渲染层 WORD_RE 覆盖范围一致：基本拉丁 + 拉丁扩展）。 */
+function isWordLetter(ch) {
+  return /[A-Za-z\u00C0-\u024F]/.test(ch)
+}
+
+/**
+ * 按按钮上的段落索引与 code point 起止偏移，从当前文章 Store 原文截取有界上下文。
+ *
+ * 为什么用 code point：文章可能含代理对字符（emoji 等），其 UTF-16 下标与
+ * code point 下标不一致；渲染层已按 code point 记录偏移，此处必须同单位切片，
+ * 否则变音字母/emoji 附近会错位。
+ *
+ * 窗口规则：目标词左右各最多 CONTEXT_WINDOW 个 code point；若窗口边缘落在词内，
+ * 向外扩展到完整相邻词边界；目标词本身始终被完整包含；文章首尾按可用文本截断。
+ *
+ * @param {HTMLElement|null} btnEl 词项按钮（携带 paragraphIndex / cpStart / cpEnd）
+ * @returns {string} 上下文片段；任何偏移/段落无效时返回 ''，由调用方回退普通查词
+ */
+function extractWordContext(btnEl) {
+  const paraIdx = Number(btnEl?.dataset?.paragraphIndex)
+  const cpStart = Number(btnEl?.dataset?.cpStart)
+  const cpEnd = Number(btnEl?.dataset?.cpEnd)
+  if (!Number.isInteger(paraIdx) || !Number.isInteger(cpStart) || !Number.isInteger(cpEnd)) return ''
+  if (cpStart < 0 || cpEnd <= cpStart) return ''
+
+  const state = getGermanArticleState()
+  const paragraph = state?.paragraphs?.[paraIdx]
+  if (!paragraph || typeof paragraph.text !== 'string') return ''
+
+  const cps = [...paragraph.text]
+  const total = cps.length
+  // 偏移必须落在段落范围内；越界视为失效（文章被替换或 DOM 陈旧），回退普通查词
+  if (cpEnd > total) return ''
+
+  let start = Math.max(0, cpStart - CONTEXT_WINDOW)
+  let end = Math.min(total, cpEnd + CONTEXT_WINDOW)
+  // 向左扩展：窗口左边界两侧都在词内时继续左移，直到落到词首或段落开头
+  while (start > 0 && isWordLetter(cps[start - 1]) && isWordLetter(cps[start])) start--
+  // 向右扩展：窗口右边界两侧都在词内时继续右移，直到落到词尾或段落结尾
+  while (end < total && isWordLetter(cps[end - 1]) && isWordLetter(cps[end])) end++
+
+  return cps.slice(start, end).join('')
+}
+
 /**
  * 点击正文词项：以原始词形走现有查词管线，结果渲染到查词层共享容器。
  * 来源/锚点管理：
  *   - 记录锚点元素，浮窗以其为基准定位并受视口约束；
  *   - 每次点击 lookupSeq+1，旧请求 resolve/fail 时序号不匹配即丢弃（竞态防护）。
+ * 上下文：按按钮偏移从原文截取有界片段，交给查词 LLM 辅助判断词头/词性/本句释义；
+ *         偏移失效时回退为无上下文查询（不阻断点词）。
  */
 async function handleWordClick(word, btnEl) {
   if (!word) return
@@ -388,7 +438,8 @@ async function handleWordClick(word, btnEl) {
     renderSkeleton(content)
   }
 
-  const result = await runLookup(word, { scopeEl: content, channel: 'article' })
+  const context = extractWordContext(btnEl)
+  const result = await runLookup(word, { scopeEl: content, channel: 'article', context })
 
   // 竞态防护：期间又点了别的词 → 本次结果直接丢弃，不覆盖新词的锚点与浮窗
   if (seq !== lookupSeq) return
@@ -570,6 +621,28 @@ function bindBodyWordClick() {
     }
   })
   DBG('german-article:body-bound')
+}
+
+/** 订阅查词 Store，确保文章详情中的重新获取也能刷新独立查词层。 */
+function subscribeLookupState() {
+  const content = getLookupContent()
+  if (!content || lookupStateGuard.is(content)) return
+  lookupStateGuard.set(content)
+
+  onGermanStateChange((state) => {
+    if (!lookupOpen || getGermanLookupChannel() !== 'article') return
+    if (state.detailLoading) {
+      renderSkeleton(content)
+    } else if (state.detailError) {
+      content.replaceChildren()
+      content.hidden = true
+    } else if (state.detail) {
+      renderDetail(state.detail, content)
+    } else {
+      content.replaceChildren()
+      content.hidden = true
+    }
+  })
 }
 
 /** 绑定查词层关闭 / 返回。 */
@@ -816,6 +889,7 @@ export function bindGermanArticleEvents() {
     { name: 'mode', fn: bindModeSwitch },
     { name: 'input', fn: bindInputActions },
     { name: 'body', fn: bindBodyWordClick },
+    { name: 'lookup-state', fn: subscribeLookupState },
     { name: 'lookup', fn: bindLookupClose },
     { name: 'drag', fn: bindLookupDrag }
   ]

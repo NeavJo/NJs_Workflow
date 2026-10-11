@@ -127,25 +127,38 @@ function appendTokenizedText(el, text, paragraphIndex) {
   const source = String(text || '')
   const ariaTemplate = articleCopy().wordAria
   let last = 0
+  // cursor 记录 source 下标 last 处的 Unicode code point 偏移。
+  // 为什么不用 match.index（UTF-16 下标）：文章可能含代理对字符（emoji 等），
+  // 其 UTF-16 下标与 code point 下标不一致，会导致事件层从原文截取上下文时错位。
+  // 词项本身只由基本拉丁/拉丁扩展字母组成（均为 BMP），故词长即 code point 数。
+  let cursor = 0
   WORD_RE.lastIndex = 0
   let match
   while ((match = WORD_RE.exec(source)) !== null) {
     if (match.index > last) {
-      el.appendChild(document.createTextNode(source.slice(last, match.index)))
+      const gap = source.slice(last, match.index)
+      el.appendChild(document.createTextNode(gap))
+      cursor += [...gap].length
     }
     const word = match[0]
+    const cpStart = cursor
+    const cpEnd = cpStart + [...word].length
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'german-article__word'
     btn.textContent = word
-    // 携带原始词形与段落索引，供事件层按原词形查询并做锚点管理
+    // 携带原始词形、段落索引与词项在段落原文中的 code point 起止区间，
+    // 供事件层按原词形查询、做锚点管理，并据此从原文截取有界上下文。
     btn.dataset.word = word
     btn.dataset.paragraphIndex = String(paragraphIndex)
+    btn.dataset.cpStart = String(cpStart)
+    btn.dataset.cpEnd = String(cpEnd)
     const label = ariaTemplate ? t(ariaTemplate, { word }) : word
     btn.setAttribute('aria-label', label)
     btn.setAttribute('title', label)
     el.appendChild(btn)
     last = match.index + word.length
+    cursor = cpEnd
   }
   if (last < source.length) {
     el.appendChild(document.createTextNode(source.slice(last)))
