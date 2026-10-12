@@ -31,15 +31,31 @@ import {
   resolveLookup,
   failLookup,
   getGermanState,
-  getGermanLookupChannel
+  getGermanLookupChannel,
+  setLookupChannel
 } from './german-store.js'
+import { isGermanArticleViewOpen, setGermanArticleViewOpen } from './german-article-renderer.js'
+import { setArticleMode } from './german-article-store.js'
 import { appendOrDailyMemo, getSelectedMemoTag } from '../memo/memo-store.js'
-// 常规查词在文章阅读子模式下触发时，自动切回查词模式（复用 closeArticleMode，避免循环引用）。
-// 文章侧事件层与本层互相 import，ESM 允许这种环（函数声明提升 + 调用在运行期发生）。
+// 常规查词在文章阅读子模式下触发时，自动切回查词模式。
+// 主路径由文章侧 bindModeSwitch 注册的 closeArticleMode 完成完整切换；
+// 兜底路径在回调未注册（逐绑定隔离失败）时，直接归位可视 class、文章子模式与查词通道，
+// 仅 import german-article-renderer / store（与本文互不反向 import），不形成循环依赖。
 let _switchToDictionaryFn = null
 export function registerDictionarySwitcher(fn) { _switchToDictionaryFn = fn }
 function switchToDictionaryIfInArticleMode() {
-  if (_switchToDictionaryFn) _switchToDictionaryFn()
+  if (!isGermanArticleViewOpen()) return
+  // 主路径：由文章事件模块注册的回调完成完整切换（关闭查词层、复位译文显隐、渲染文章卡片）。
+  if (_switchToDictionaryFn) {
+    _switchToDictionaryFn()
+    return
+  }
+  // 兜底：bindModeSwitch 因逐绑定隔离机制失败导致回调未注册时，
+  // 直接归位可视 class（移除 is-article-mode）+ 文章子模式 + 查词通道，
+  // 保证用户在文章阅读子模式下回车/点候选/重试仍能正常查词。
+  setGermanArticleViewOpen(false)
+  setArticleMode('input')
+  setLookupChannel('assistant')
 }
 
 const guard = createGuard('germanEventsBound')
