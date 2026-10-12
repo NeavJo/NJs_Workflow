@@ -124,6 +124,17 @@ export class MonthlyView {
       const hasSnoozed = Boolean(snoozeRecord && Array.isArray(snoozeRecord.taskSnapshots) && snoozeRecord.taskSnapshots.length > 0)
       const snoozeSnapshots = hasSnoozed ? snoozeRecord.taskSnapshots : []
       const snoozeReason = hasSnoozed ? (snoozeRecord.reason || '') : ''
+      // 搁置任务数：取自 taskSnapshots.length，历史日期即使任务被删/改名仍可计数。
+      // 搁置视作"不算未完成"，有效完成度 = 完成 + 搁置。
+      const snoozedCount = snoozeSnapshots.length
+
+      // 有效完成率（含搁置）：搁置格用此值驱动透明度与满格判定；非搁置格沿用原 rate。
+      // 钳制 100 防止 completed+snoozed 超过 total 时产生 >1 的非法透明度。
+      const effectiveRate = dailyTotalTasks > 0
+        ? Math.min(100, Math.round(((completedCount + snoozedCount) / dailyTotalTasks) * 100))
+        : 0
+      // 搁置达成态：(完成+搁置) 已达总数，橙色方格加发光以区分"已达成/未达成"。
+      const snoozeAchieved = hasSnoozed && effectiveRate >= 100
 
       data.push({
         date: date,
@@ -131,8 +142,11 @@ export class MonthlyView {
         completed: completedCount,
         total: dailyTotalTasks,
         rate: rate,
+        effectiveRate: effectiveRate,
         isToday: dateStr === this.today,
         hasSnoozed,
+        snoozedCount,
+        snoozeAchieved,
         snoozeSnapshots,
         snoozeReason
       })
@@ -175,18 +189,28 @@ export class MonthlyView {
   }
 
   createCell(day) {
+    // 搁置格用 effectiveRate（含搁置的有效完成度）驱动透明度与满格判定；非搁置格沿用 rate。
     // 透明度曲线：rate^(1/3) 前期递增快、后期放缓，让 50% 以下完成度的格子明显可辨；
     // 0% 完成度保持 0.15 下限（避免纯白/接近不可见），与 CSS 双重使用相乘后视觉更实
-    const opacity = day.rate === 0 ? 0.15 : Math.pow(day.rate / 100, 1 / 3)
-    const isFull = day.rate === 100
+    const drivingRate = day.hasSnoozed ? day.effectiveRate : day.rate
+    const opacity = drivingRate === 0 ? 0.15 : Math.pow(drivingRate / 100, 1 / 3)
+    const isFull = drivingRate === 100
     const isToday = day.isToday
     // 搁置橙色态优先级高于完成率色阶（含满格绿），但完成数信息仍保留在 label 中。
+    // 达成 100% 的搁置格额外加 --snooze-achieved 发光类，区分"已达成/未达成"。
     const cellClass = [
       'monthly-view__cell',
       day.hasSnoozed ? 'monthly-view__cell--snoozed' : '',
+      day.snoozeAchieved ? 'monthly-view__cell--snooze-achieved' : '',
       !day.hasSnoozed && isFull ? 'monthly-view__cell--full' : '',
       isToday ? 'monthly-view__cell--today' : ''
     ].filter(Boolean).join(' ')
+
+    // label：搁置格显示 完成数/(总任务-搁置数)/总任务 三段式（如 总5搁1完成2 → 2/4/5），
+    // 未搁置格维持 完成/总
+    const statsLabel = day.hasSnoozed
+      ? `${day.completed}/${day.total - day.snoozedCount}/${day.total}`
+      : (day.completed > 0 ? day.completed + '/' + day.total : '无数据')
 
     return `
       <div class="${cellClass}"
@@ -198,12 +222,12 @@ export class MonthlyView {
            data-snoozed="${day.hasSnoozed ? '1' : '0'}"
            style="--cell-opacity: ${opacity}"
            tabindex="0"
-           aria-label="${this.formatDisplayDate(day.date)} · ${day.rate}% · ${day.completed}/${day.total}任务${day.hasSnoozed ? ' · 已搁置' + day.snoozeSnapshots.length + '项' : ''}"
+           aria-label="${this.formatDisplayDate(day.date)} · ${day.hasSnoozed ? day.effectiveRate : day.rate}% · ${statsLabel}任务${day.hasSnoozed ? ' · 已搁置' + day.snoozedCount + '项' : ''}"
            aria-expanded="false">
         <span class="monthly-view__cell-inner"></span>
         <span class="monthly-view__cell-label">
           <span class="monthly-view__cell-label-date">${this.formatDisplayDate(day.date)}</span>
-          <span class="monthly-view__cell-label-stats">${day.completed > 0 ? day.completed + '/' + day.total : '无数据'}</span>
+          <span class="monthly-view__cell-label-stats">${statsLabel}</span>
         </span>
       </div>
     `

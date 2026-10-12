@@ -69,6 +69,21 @@
   opacity: 0.85;
 }
 
+/* 搁置达成态：(完成+搁置) 已达总数 100%，保持橙色但加发光，与"未达成"搁置格区分。
+   发光层叠加在普通橙色之上，达成格更亮更显眼；仍保留橙色以提示"今天有搁置"。 */
+.monthly-view__cell--snooze-achieved .monthly-view__cell-inner {
+  opacity: 1;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--md-warning) 55%, transparent),
+              0 0 22px color-mix(in srgb, var(--md-warning) 30%, transparent);
+}
+.monthly-view__cell--snooze-achieved:hover .monthly-view__cell-inner {
+  box-shadow: 0 0 14px color-mix(in srgb, var(--md-warning) 65%, transparent),
+              0 0 30px color-mix(in srgb, var(--md-warning) 35%, transparent);
+}
+.monthly-view__cell--snooze-achieved.monthly-view__cell--expanded .monthly-view__cell-inner {
+  opacity: 0.95;
+}
+
 .monthly-view__cell--today .monthly-view__cell-inner {
   outline: 2px solid var(--md-primary);
   outline-offset: 1px;
