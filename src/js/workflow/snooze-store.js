@@ -2,6 +2,7 @@ import { SNOOZE_STORAGE_KEY, normalizeSnoozeRecords } from '../config/storage-co
 import { getTodayDateString } from '../core/date.js'
 import { safeStorageGet, safeStorageSet } from '../core/storage.js'
 import { createPubSub } from '../utils/pubsub.js'
+import { requestAutoUpload } from '../core/sync-hooks.js'
 import { getWorkflows } from './workflow-store.js'
 import { getCompletedIds } from './completion-store.js'
 import { isTaskTrackable } from './workflow-runtime.js'
@@ -68,6 +69,7 @@ export function saveTodaySnoozeSelection(taskIds, reason = '') {
   const nextState = normalizeSnoozeRecords({ version: 1, records: nextRecords })
   if (!safeStorageSet(SNOOZE_STORAGE_KEY, nextState)) return false
   state = nextState
+  requestAutoUpload()
   changes.emit({ records: state.records, date, source: 'local' })
   return true
 }
