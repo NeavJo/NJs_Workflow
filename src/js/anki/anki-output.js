@@ -34,6 +34,38 @@ function isAbnormalCategory(name) {
   return String(name || '') === ABNORMAL_CATEGORY_NAME
 }
 
+// "语言错误"是提示词约定的固定哨兵分类名：整篇语言混杂/无法判定时，LLM 只输出该块、不输出词条。
+// 识别不依赖"块内有正文"，因为裸标记（省略理由行）同样要整批拒收，故直接按行扫描标记。
+const LANGUAGE_ERROR_REASON_RE = /^\s*理由[：:]\s*(.*)$/
+const SECTION_HEADER_RE = /^===.*===$/
+
+/**
+ * 识别 LLM 输出中的语言错误哨兵。
+ * 命中时返回 { reason }，未命中返回 null；命中即代表整批结果应被拒收，
+ * 调用方不得再渲染任何分类卡片（包括同批中夹带的其它分类）。
+ */
+export function detectAnkiLanguageError(rawText) {
+  const raw = typeof rawText === 'string' ? rawText : ''
+  const category = I18N.anki.languageErrorCategory
+  const lines = raw.split(/\r?\n/)
+  const headerIndex = lines.findIndex((line) => {
+    const normalized = line.trim()
+    if (!SECTION_HEADER_RE.test(normalized)) return false
+    return normalized.replace(/^=+\s*/, '').replace(/\s*=+$/, '').trim() === category
+  })
+  if (headerIndex < 0) return null
+  let reason = ''
+  for (let i = headerIndex + 1; i < lines.length; i += 1) {
+    if (SECTION_HEADER_RE.test(lines[i].trim())) break
+    const match = lines[i].match(LANGUAGE_ERROR_REASON_RE)
+    if (match) {
+      reason = (match[1] || '').trim()
+      break
+    }
+  }
+  return { reason: reason || I18N.anki.languageErrorReasonFallback }
+}
+
 /**
  * 解析本次 Anki 导出应使用的"来源标签"：
  *  优先取"最近一次从某条 memo 填充进输入框时记录的来源标签"（getAnkiSourceTag），

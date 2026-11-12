@@ -11,7 +11,7 @@
 import { showToast } from './ui.js'
 import { DBG, registerDebugHook } from './core/debug.js'
 import { errorHandler, ErrorTypes, ErrorSeverity } from './core/error-handler.js'
-import { hasGistCredentials, getGistSettings } from './core/settings-store.js'
+import { hasGistCredentials, getGistSettings, getUserSettings } from './core/settings-store.js'
 import { I18N, t, applyI18nToDom } from './locales.js'
 
 import { loadRotationRules, getRotationRules, onRotationRulesChange } from './workflow/rotation-store.js'
@@ -458,4 +458,5 @@ try {
   })
 }
 
+document.body.classList.toggle('is-advanced-visual', Boolean(getUserSettings().advancedVisual))
 document.body.classList.remove('app-loading')

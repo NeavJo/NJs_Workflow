@@ -15,6 +15,8 @@ export const MODAL_IDS = {
   confirm: 'confirm-modal',
   'memo-tag-picker': 'memo-tag-picker-modal',
   'memo-filter': 'memo-filter-modal',
+  visualParams: 'visual-params-modal',
+  advancedVisualLock: 'advanced-visual-lock-modal',
   snooze: 'snooze-modal',
   snoozeDetail: 'snooze-detail-modal'
 }

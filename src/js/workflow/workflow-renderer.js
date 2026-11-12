@@ -176,6 +176,7 @@ function createCard(rawItem, order, completedIds, workflows, snoozedIds, orderMa
   const descriptionHtml = effectiveDesc ? `<p class="workflow-card__description"></p>` : ''
 
   card.innerHTML = `
+    <div class="workflow-card__particles" aria-hidden="true"></div>
     ${buildBgIconHtml(rawItem.id)}
     <div class="order-badge" aria-hidden="true"></div>
     <div class="workflow-card__content">

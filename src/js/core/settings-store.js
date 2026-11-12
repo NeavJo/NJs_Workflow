@@ -12,14 +12,29 @@ export const DEFAULT_USER_SETTINGS = Object.freeze({})
 
 export const USER_SETTINGS_STORAGE_KEY = 'njs-workflow-user-settings'
 
-let userSettings = normalizeUserSettings(safeStorageGet(USER_SETTINGS_STORAGE_KEY, null))
+const storedUserSettingsRaw = safeStorageGet(USER_SETTINGS_STORAGE_KEY, null)
+let userSettings = normalizeUserSettings(storedUserSettingsRaw)
+
+// 高级视觉封存迁移：旧持久化数据中的开启状态必须写回为关闭，
+// 否则本地存储会长期保留 advancedVisual: true，埋下绕过密码校验的隐患。
+// 每次启动都从关闭状态开始，用户需要在本次运行内输入密码重新开启。
+if (
+  storedUserSettingsRaw &&
+  typeof storedUserSettingsRaw === 'object' &&
+  storedUserSettingsRaw.advancedVisual === true
+) {
+  safeStorageSet(USER_SETTINGS_STORAGE_KEY, userSettings)
+  DBG('settings:general:advancedVisualSealed', { from: true, to: userSettings.advancedVisual })
+}
 
 export function getUserSettings() {
   return userSettings
 }
 
 export function setUserSettings(next) {
-  userSettings = normalizeUserSettings(next)
+  // preserveAdvancedVisual：本次运行内通过密码校验后的开启状态需要保留在内存，
+  // 但不影响下次启动时 normalizeUserSettings 默认封存的行为。
+  userSettings = normalizeUserSettings(next, { preserveAdvancedVisual: true })
   return userSettings
 }
 

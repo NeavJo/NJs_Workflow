@@ -104,6 +104,22 @@
 .settings-back .material-symbols { font-size: 22px; }
 
 .settings-subpage__content { display: grid; gap: 16px; }
+.form-switch--action { align-items: center; gap: 16px; }
+.form-switch--action .btn { flex-shrink: 0; }
+
+.visual-param-group { display: grid; gap: 10px; }
+.visual-param-group h3 { margin: 0; font-size: 15px; }
+.visual-param-group > label { color: var(--md-on-surface-variant); font-size: 13px; font-weight: 600; }
+.visual-param-group > small { color: var(--md-on-surface-variant); font-size: 12px; line-height: 1.5; }
+.visual-param-control { display: flex; align-items: center; gap: 8px; width: min(100%, 220px); }
+.visual-param-control input { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--md-outline) 24%, transparent); border-radius: 12px; background: var(--md-surface-container); color: var(--md-on-surface); font: inherit; font-variant-numeric: tabular-nums; }
+.visual-param-control input:focus { outline: 2px solid var(--md-primary); outline-offset: 1px; }
+.visual-param-control > span { color: var(--md-on-surface-variant); font-weight: 700; }
+.modal--visual-params .modal__dialog { width: min(100% - 32px, 460px); }
+.modal--visual-params .modal__body { display: grid; gap: 20px; }
+.modal--visual-lock .modal__dialog { width: min(100% - 32px, 420px); }
+.modal--visual-lock .modal__body { display: grid; gap: 12px; }
+.visual-lock-error { margin: 0; color: var(--md-error); font-size: 13px; font-weight: 600; }
 
 /* ===== 生词本标签管理列表 ===== */
 .settings-tag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }

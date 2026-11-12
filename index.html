@@ -292,6 +292,14 @@
             <div class="settings-page__content">
               <div class="settings-view-stack">
                 <section class="settings-view settings-view--main" data-settings-view="main">
+                  <button class="settings-menu-item" type="button" data-settings-page="general">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--general" aria-hidden="true">tune</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.generalMenu">通用设置</strong>
+                      <span data-i18n="settings.generalMenuSub">高级视觉效果与全局偏好。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
                   <button class="settings-menu-item" type="button" data-settings-page="backup">
                     <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--backup" aria-hidden="true">import_export</span>
                     <span class="settings-menu-item__copy">
@@ -845,6 +853,48 @@
                   </div>
                 </section>
 
+                <section class="settings-view settings-view--sub" data-settings-view="general" hidden>
+                  <div class="settings-subpage__header">
+                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
+                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
+                      <span data-i18n="common.back">返回</span>
+                    </button>
+                    <h3 data-i18n="settings.generalTitle">通用设置</h3>
+                  </div>
+                  <div class="settings-subpage__content">
+                    <section class="backup-card">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--general" aria-hidden="true">auto_awesome</span>
+                          <div>
+                            <h3 data-i18n="settings.advancedVisualTitle">高级视觉效果</h3>
+                            <p data-i18n="settings.advancedVisualSub">开启后启用厚重质感与灵动光效的交互动效（如任务勾选的光环爆出、光扫等）。关闭则恢复简洁样式。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <div class="form-switch" id="advanced-visual-wrap">
+                          <div class="form-switch__meta">
+                            <strong data-i18n="settings.advancedVisual">高级视觉</strong>
+                            <small data-i18n="settings.advancedVisualHelper">仅影响动效与装饰，不改变功能。</small>
+                          </div>
+                          <label class="switch" for="advanced-visual">
+                            <input id="advanced-visual" name="advancedVisual" type="checkbox" />
+                            <span class="switch__track"><span class="switch__thumb"><span class="material-symbols switch__icon" aria-hidden="true">auto_awesome</span></span></span>
+                          </label>
+                        </div>
+                        <div class="form-switch form-switch--action" id="visual-params-wrap">
+                          <div class="form-switch__meta">
+                            <strong data-i18n="settings.visualParamsTitle">参数调整</strong>
+                            <small data-i18n="settings.visualParamsHint">调整边框粒子和其他高级视觉动画参数。</small>
+                          </div>
+                          <button id="visual-params-open" type="button" class="btn btn--outlined" aria-haspopup="dialog" aria-controls="visual-params-modal" data-i18n="settings.visualParamsOpen">打开参数</button>
+                        </div>
+                      </footer>
+                    </section>
+                  </div>
+                </section>
+
                 <section class="settings-view settings-view--sub" data-settings-view="german" hidden>
                   <div class="settings-subpage__header">
                     <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
@@ -1337,6 +1387,63 @@
     </div>
 
     <!-- 今日临时搁置弹窗 -->
+    <div id="visual-params-modal" class="modal modal--visual-params" data-modal-name="visualParams" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="visual-params-title" hidden>
+      <div class="modal__scrim" data-close-modal="visualParams"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="visual-params-title" data-i18n="settings.visualParamsTitle">参数调整</h2>
+          <button type="button" class="modal__close" data-close-modal="visualParams" aria-label="关闭" data-i18n-aria="common.close">
+            <span class="material-symbols" aria-hidden="true">close</span>
+          </button>
+        </header>
+        <div class="modal__body">
+          <section class="visual-param-group" aria-labelledby="visual-param-workflow-title">
+            <h3 id="visual-param-workflow-title" data-i18n="settings.visualParamsWorkflowGroup">任务动画</h3>
+            <label for="workflow-border-particle-speed" data-i18n="settings.workflowBorderParticleSpeed">任务边框粒子速率</label>
+            <div class="visual-param-control">
+              <input id="workflow-border-particle-speed" name="workflowBorderParticleSpeed" type="number" min="0.25" max="2" step="0.05" inputmode="decimal" />
+              <span aria-hidden="true">x</span>
+            </div>
+            <small data-i18n="settings.workflowBorderParticleSpeedHint">1.00 为基础速度，可输入 0.25 至 2.00。</small>
+            <label for="workflow-fairy-drift-speed" data-i18n="settings.workflowFairyDriftSpeed">悬停粒子独立漂游速率</label>
+            <div class="visual-param-control">
+              <input id="workflow-fairy-drift-speed" name="workflowFairyDriftSpeed" type="number" min="0.25" max="2" step="0.05" inputmode="decimal" />
+              <span aria-hidden="true">x</span>
+            </div>
+            <small data-i18n="settings.workflowFairyDriftSpeedHint">1.00 为基础速率，可输入 0.25 至 2.00。</small>
+          </section>
+        </div>
+        <footer class="modal__footer">
+          <button type="button" class="btn btn--filled" data-close-modal="visualParams" data-i18n="common.done">完成</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- 高级视觉开启密码校验弹窗 -->
+    <div id="advanced-visual-lock-modal" class="modal modal--visual-lock" data-modal-name="advancedVisualLock" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="advanced-visual-lock-title" hidden>
+      <div class="modal__scrim" data-close-modal="advancedVisualLock"></div>
+      <div class="modal__dialog">
+        <header class="modal__header">
+          <h2 id="advanced-visual-lock-title" data-i18n="settings.advancedVisualLockTitle">开启高级视觉需要密码</h2>
+          <button type="button" class="modal__close" data-close-modal="advancedVisualLock" aria-label="关闭" data-i18n-aria="common.close">
+            <span class="material-symbols" aria-hidden="true">close</span>
+          </button>
+        </header>
+        <div class="modal__body">
+          <label for="advanced-visual-lock-input" data-i18n="settings.advancedVisualLockLabel">访问密码</label>
+          <div class="visual-param-control">
+            <input id="advanced-visual-lock-input" name="advancedVisualPassword" type="text" inputmode="numeric" autocomplete="off" maxlength="8" data-i18n-placeholder="settings.advancedVisualLockPlaceholder" placeholder="请输入密码" />
+          </div>
+          <small data-i18n="settings.advancedVisualLockHint">高级视觉效果已封存，输入正确密码后才能重新开启。</small>
+          <p id="advanced-visual-lock-error" class="visual-lock-error" role="alert" data-i18n="settings.advancedVisualLockError" hidden>密码错误，高级视觉保持关闭。</p>
+        </div>
+        <footer class="modal__footer">
+          <button type="button" class="btn btn--outlined" data-close-modal="advancedVisualLock" data-i18n="common.cancel">取消</button>
+          <button type="button" class="btn btn--filled" id="advanced-visual-lock-confirm" data-i18n="settings.advancedVisualLockConfirm">确认开启</button>
+        </footer>
+      </div>
+    </div>
+
     <div id="snooze-modal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="snooze-title" hidden>
       <div class="modal__scrim" data-close-modal="snooze"></div>
       <div class="modal__dialog">

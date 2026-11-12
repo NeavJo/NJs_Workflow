@@ -164,7 +164,7 @@
   .workflow-card:has(.workflow-card__action):has(.checkbox-wrapper),
   .workflow-card:has(.workflow-card__check-btn):has(.checkbox-wrapper) { grid-template-columns: 28px minmax(0, 1fr) minmax(0, auto) 34px; grid-template-areas: "badge content actions check"; }
   .workflow-card__action-area { grid-area: actions; display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
-  .workflow-card .checkbox-wrapper { position: static; grid-area: check; display: grid; width: 34px; height: 34px; place-items: center; margin: 0; justify-self: end; align-self: center; transform: none; }
+  .workflow-card .checkbox-wrapper { position: relative; grid-area: check; display: grid; width: 34px; height: 34px; place-items: center; margin: 0; justify-self: end; align-self: center; transform: none; overflow: visible; }
   .workflow-card__action, .workflow-card__check-btn { height: 40px; padding: 0 13px; font-size: 12px; }
   .workflow-card__action { width: 40px; padding: 0; }
   .workflow-card__title-row { flex-direction: column; align-items: flex-start; gap: 4px; }
@@ -439,4 +439,17 @@
   .workflow-list--carousel { scroll-snap-type: x proximity; }
   .workflow-carousel-pagination__dot { transition: none !important; }
   .main-content.is-view-transitioning > .view { transition-duration: 220ms; }
+
+  /* MHW 勾选动效：reduced-motion 下彻底禁用，仅保留状态切换 */
+  .workflow-card.is-just-checked,
+  .workflow-card.is-just-checked .checkbox-mark,
+  .workflow-card.is-just-checked .checkbox-mark::after,
+  .workflow-card.is-just-checked .checkbox-wrapper::before,
+  .workflow-card.is-just-checked .workflow-card__particle,
+  .workflow-card.is-pointer-active .workflow-card__particle,
+  .workflow-pickup-overlay .workflow-card__particle,
+  .workflow-card.is-just-unchecked .checkbox-mark,
+  .workflow-card.is-just-unchecked .checkbox-wrapper::before {
+    animation: none !important;
+  }
 }

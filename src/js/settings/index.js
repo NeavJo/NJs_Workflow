@@ -1,5 +1,5 @@
 import { DBG } from '../core/debug.js'
-import { closeModal, replaceModal, isModalOpen } from './modal.js'
+import { closeModal, replaceModal, isModalOpen, openModal, registerModalCloseCleanup } from './modal.js'
 import { switchSettingsView, registerViewHook } from './navigation.js'
 import {
   renderSettingsTagList,
@@ -14,6 +14,7 @@ import { renderGistSettingsInputs } from '../backup/gist-sync.js'
 import { renderDailyResetStatus } from '../backup/daily-reset.js'
 import { renderGermanFontSizeSettings, renderTtsKeyInput } from '../german/german-settings.js'
 import { renderAnkiExportSettings } from '../anki/index.js'
+import { getUserSettings, setUserSettings, persistUserSettings } from '../core/settings-store.js'
 /**
  * 设置域事件绑定集合 + 顶级页面进入钩子。
  *  - bindNavigationEvents()：顶部主导航（flow / memo / settings）
@@ -28,9 +29,197 @@ import { renderAnkiExportSettings } from '../anki/index.js'
 
 let backupBindings = null
 let settingsEntered = false
+let generalSettingsBound = false
 
 export function registerBackupEvents(fn) {
   backupBindings = typeof fn === 'function' ? fn : null
+}
+
+/* ====================================================================
+ * 通用设置：高级视觉开关
+ *   - renderGeneralSettings()：根据存储值回显开关
+ *   - bindGeneralSettingsEvents()：绑定一次 change 事件，写入存储并切换 body 类
+ *   - 开启属于受控动作：先弹密码框，校验通过后才允许真正打开
+ * ==================================================================== */
+const ADVANCED_VISUAL_PASSWORD = '0404'
+
+export function applyAdvancedVisualBodyClass(enabled) {
+  document.body.classList.toggle('is-advanced-visual', Boolean(enabled))
+  if (enabled) return
+  // 关闭时必须清理悬停激活态与残留粒子，避免关闭后仍保留 DOM 与后续动画状态。
+  document.querySelectorAll('.workflow-card.is-pointer-active').forEach((card) => {
+    card.classList.remove('is-pointer-active')
+    const layer = card.querySelector('.workflow-card__particles')
+    if (!layer) return
+    const simulation = layer.workflowFairySimulation
+    if (simulation) {
+      // 先停掉待执行的跟随帧，避免关闭后仍有一帧渲染开销。
+      simulation.active = false
+      cancelAnimationFrame(simulation.raf)
+    }
+    layer.style.transform = ''
+    layer.replaceChildren()
+    delete layer.workflowFairySimulation
+  })
+}
+
+function setAdvancedVisualEnabled(enabled) {
+  const next = { ...getUserSettings(), advancedVisual: enabled }
+  setUserSettings(next)
+  persistUserSettings()
+  applyAdvancedVisualBodyClass(enabled)
+  const toggle = document.getElementById('advanced-visual')
+  if (toggle) toggle.checked = enabled
+  DBG('settings:general:advancedVisual', { enabled })
+}
+
+function resetAdvancedVisualLock() {
+  const lockInput = document.getElementById('advanced-visual-lock-input')
+  const error = document.getElementById('advanced-visual-lock-error')
+  if (lockInput) lockInput.value = ''
+  if (error) error.hidden = true
+}
+
+function openAdvancedVisualLock() {
+  const lockInput = document.getElementById('advanced-visual-lock-input')
+  const error = document.getElementById('advanced-visual-lock-error')
+  if (lockInput) lockInput.value = ''
+  if (error) error.hidden = true
+  // 每次打开都注册一次关闭清理，保证遮罩/Esc/取消关闭后输入与错误提示被重置。
+  registerModalCloseCleanup('advancedVisualLock', resetAdvancedVisualLock)
+  openModal('advancedVisualLock')
+  // openModal 会把焦点放到第一个可聚焦元素（关闭按钮），这里延后拉回密码输入框。
+  setTimeout(() => {
+    const input = document.getElementById('advanced-visual-lock-input')
+    if (input) input.focus({ preventScroll: true })
+  }, 220)
+}
+
+export function renderGeneralSettings() {
+  const input = document.getElementById('advanced-visual')
+  const openParams = document.getElementById('visual-params-open')
+  if (input) input.checked = Boolean(getUserSettings().advancedVisual)
+  if (openParams) openParams.setAttribute('aria-expanded', 'false')
+}
+
+function bindGeneralSettingsEvents() {
+  if (generalSettingsBound) return
+  const input = document.getElementById('advanced-visual')
+  const speedInput = document.getElementById('workflow-border-particle-speed')
+  const driftSpeedInput = document.getElementById('workflow-fairy-drift-speed')
+  const openParams = document.getElementById('visual-params-open')
+  const lockConfirm = document.getElementById('advanced-visual-lock-confirm')
+  const lockInput = document.getElementById('advanced-visual-lock-input')
+  if (!input && !speedInput && !driftSpeedInput && !openParams) return
+  generalSettingsBound = true
+  if (input) input.addEventListener('change', () => {
+    if (input.checked) {
+      // 先退回关闭，校验通过后由 setAdvancedVisualEnabled 真正打开，
+      // 避免密码框展示期间开关已经呈现开启而特效尚未启用。
+      input.checked = false
+      openAdvancedVisualLock()
+      return
+    }
+    setAdvancedVisualEnabled(false)
+  })
+  if (lockConfirm && lockInput) {
+    const lockError = document.getElementById('advanced-visual-lock-error')
+    const submitLock = () => {
+      if (lockInput.value.trim() !== ADVANCED_VISUAL_PASSWORD) {
+        if (lockError) lockError.hidden = false
+        lockInput.focus({ preventScroll: true })
+        DBG('settings:general:advancedVisualLock', { result: 'denied' })
+        return
+      }
+      setAdvancedVisualEnabled(true)
+      resetAdvancedVisualLock()
+      closeModal('advancedVisualLock')
+      DBG('settings:general:advancedVisualLock', { result: 'granted' })
+    }
+    lockConfirm.addEventListener('click', submitLock)
+    lockInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        submitLock()
+      }
+    })
+    // 用户重新输入时先收起错误提示，避免错误状态一直停留。
+    lockInput.addEventListener('input', () => {
+      if (lockError) lockError.hidden = true
+    })
+  }
+  if (speedInput) {
+    const saveSpeed = () => {
+      if (speedInput.value === '') return
+      const speed = Math.min(2, Math.max(0.25, Number(speedInput.value)))
+      if (!Number.isFinite(speed)) {
+        speedInput.value = Number(getUserSettings().workflowBorderParticleSpeed ?? 1).toFixed(2)
+        return
+      }
+      speedInput.value = speed.toFixed(2)
+      const next = { ...getUserSettings(), workflowBorderParticleSpeed: speed }
+      setUserSettings(next)
+      persistUserSettings()
+      DBG('settings:general:workflowBorderParticleSpeed', { speed })
+    }
+    speedInput.addEventListener('change', saveSpeed)
+    speedInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        saveSpeed()
+        speedInput.blur()
+      }
+    })
+    speedInput.addEventListener('blur', () => {
+      if (speedInput.value === '') {
+        speedInput.value = Number(getUserSettings().workflowBorderParticleSpeed ?? 1).toFixed(2)
+      } else {
+        saveSpeed()
+      }
+    })
+  }
+  if (driftSpeedInput) {
+    const saveDriftSpeed = () => {
+      if (driftSpeedInput.value === '') return
+      const speed = Number(driftSpeedInput.value)
+      if (!Number.isFinite(speed)) {
+        driftSpeedInput.value = Number(getUserSettings().workflowFairyDriftSpeed ?? 1).toFixed(2)
+        return
+      }
+      const normalizedSpeed = Math.min(2, Math.max(0.25, speed))
+      driftSpeedInput.value = normalizedSpeed.toFixed(2)
+      const next = { ...getUserSettings(), workflowFairyDriftSpeed: normalizedSpeed }
+      setUserSettings(next)
+      persistUserSettings()
+      DBG('settings:general:workflowFairyDriftSpeed', { speed: normalizedSpeed })
+    }
+    driftSpeedInput.addEventListener('change', saveDriftSpeed)
+    driftSpeedInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        saveDriftSpeed()
+        driftSpeedInput.blur()
+      }
+    })
+    driftSpeedInput.addEventListener('blur', () => {
+      if (driftSpeedInput.value === '') {
+        driftSpeedInput.value = Number(getUserSettings().workflowFairyDriftSpeed ?? 1).toFixed(2)
+      } else {
+        saveDriftSpeed()
+      }
+    })
+  }
+  if (openParams) {
+    openParams.addEventListener('click', () => {
+      const speed = document.getElementById('workflow-border-particle-speed')
+      const driftSpeed = document.getElementById('workflow-fairy-drift-speed')
+      if (speed) speed.value = Number(getUserSettings().workflowBorderParticleSpeed ?? 1).toFixed(2)
+      if (driftSpeed) driftSpeed.value = Number(getUserSettings().workflowFairyDriftSpeed ?? 1).toFixed(2)
+      openParams.setAttribute('aria-expanded', 'true')
+      registerModalCloseCleanup('visualParams', () => openParams.setAttribute('aria-expanded', 'false'))
+      openModal('visualParams')
+    })
+  }
 }
 
 function getSettingsRoot() {
@@ -145,6 +334,9 @@ export function bindSettingsEvents() {
         renderTtsKeyInput()
       } else if (item.dataset.settingsPage === 'anki-export') {
         renderAnkiExportSettings()
+      } else if (item.dataset.settingsPage === 'general') {
+        renderGeneralSettings()
+        bindGeneralSettingsEvents()
       }
     })
   })
@@ -206,6 +398,11 @@ export function bindGlobalEscapeHandler() {
     // 避免穿透到下面的 switchSettingsView('main') 把确认静默关掉。
     if (isModalOpen('confirm')) {
       closeModal('confirm')
+      return
+    }
+    // 密码弹窗独立处理，避免 Esc 穿透到设置子页面切换。
+    if (isModalOpen('advancedVisualLock')) {
+      closeModal('advancedVisualLock')
       return
     }
     const snooze = document.getElementById('snooze-modal')

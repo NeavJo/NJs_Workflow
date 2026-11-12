@@ -1,10 +1,10 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
-import { I18N } from '../locales.js'
+import { I18N, t } from '../locales.js'
 import { hasAnkiCredentials, getActiveProfile } from './anki-store.js'
 import { loadAnkiPrompt } from './anki-prompt.js'
 import { requestGemini, requestOpenAI } from './anki-api.js'
-import { renderAnkiCards, bindAnkiOutputEvents, refreshAnkiSourceStatus } from './anki-output.js'
+import { renderAnkiCards, detectAnkiLanguageError, bindAnkiOutputEvents, refreshAnkiSourceStatus } from './anki-output.js'
 import { setAnkiInputEdited } from './anki-store.js'
 import { initAnkiProfileSelect } from './anki-profile-select.js'
 import { $ } from '../utils/dom-utils.js'
@@ -85,6 +85,14 @@ export async function runAnkiProcessing() {
     if (!result.ok) {
       DBG('anki:run:error', { status: result.status, error: result.error })
       showToast(result.error || I18N.toast.anki.aiFailed)
+      return
+    }
+    // 语言错误哨兵：属于业务级拒收，不是异常。命中后整批结果不渲染、不写入任何卡片，
+    // 必须放在 renderAnkiCards 之前，避免哨兵块被当作普通分类渲染出来。
+    const languageError = detectAnkiLanguageError(result.text)
+    if (languageError) {
+      DBG('anki:run:language-error', { stage: 'parse-language', reason: languageError.reason })
+      showToast(t(I18N.toast.anki.languageUndetermined, { reason: languageError.reason }), { status: 'error' })
       return
     }
     const cardCount = renderAnkiCards(result.text)

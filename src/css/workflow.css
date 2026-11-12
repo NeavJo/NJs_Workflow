@@ -13,10 +13,55 @@
 }
 
 .workflow-card { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "badge content actions"; align-items: center; gap: 14px 18px; padding: 20px; border-radius: var(--md-radius-medium); background: var(--md-surface-container); box-shadow: var(--md-elevation-1); transition: transform var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard), opacity var(--md-motion-standard); position: relative; overflow: hidden; }
+.is-advanced-visual .workflow-card { isolation: isolate; }
+.is-advanced-visual .workflow-card__content { position: relative; }
 /* 当存在【外链/检查】按钮时，actions 列自动撑开 */
 .workflow-card:has(.workflow-card__action),
 .workflow-card:has(.workflow-card__check-btn) { grid-template-columns: 40px minmax(0, 1fr) auto auto; grid-template-areas: "badge content actions check"; }
 .workflow-card:hover { transform: translateY(-2px); box-shadow: var(--md-elevation-2); }
+.is-advanced-visual .workflow-card__particles {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: visible;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease-out;
+  will-change: transform;
+}
+.is-advanced-visual .workflow-card.is-pointer-active .workflow-card__particles {
+  opacity: 1;
+}
+/* 勾选粒子使用视口级独立图层，避免被同级卡片和轮播裁切 */
+.is-advanced-visual .workflow-pickup-overlay {
+  position: fixed;
+  inset: 0 auto auto 0;
+  z-index: 2147483000;
+  overflow: visible;
+  pointer-events: none;
+}
+.workflow-card__particle {
+  position: absolute;
+  width: var(--particle-size, 1.5px);
+  height: var(--particle-size, 1.5px);
+  left: var(--particle-x, 50%);
+  top: var(--particle-y, 50%);
+  border-radius: 50%;
+  background: #8c55ff;
+  box-shadow: 0 0 2px 0.5px #b18aff, 0 0 5px 1px rgba(140, 85, 255, 0.72);
+  opacity: var(--particle-opacity, 0.6);
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+}
+.is-advanced-visual .workflow-card.is-pointer-active .workflow-card__particle {
+  animation: mhw-fairy-drift var(--particle-duration, 4s) ease-in-out var(--particle-delay, 0s) infinite;
+}
+.workflow-card__particle--pickup {
+  background: #a878ff;
+  box-shadow: 0 0 2px 1px #d4bcff, 0 0 6px 1.5px rgba(140, 85, 255, 0.86);
+  animation: none !important;
+}
 .workflow-card.is-complete { background: color-mix(in srgb, var(--md-success-container) 32%, var(--md-surface-container)); }
 
 /* 顺序序号徽章 */
@@ -51,14 +96,190 @@
 .workflow-card.is-prereq-locked { opacity: 0.72; }
 .workflow-card.is-prereq-locked .checkbox-wrapper { cursor: not-allowed; }
 
-/* 复选框 */
-.checkbox-wrapper { display: inline-flex; align-items: center; cursor: pointer; }
+/* ============================================================
+ * 复选框 — MHW 风格：厚重本体 + 灵动光效
+ * ========================================================== */
+
+/* 容器：作为光环 ::before 的定位上下文，overflow 可见避免光环被裁 */
+.checkbox-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: visible;
+}
 .checkbox-wrapper input { position: absolute; opacity: 0; width: 0; height: 0; }
-.checkbox-mark { display: grid; width: 40px; height: 40px; place-items: center; border: 2px solid var(--md-outline); border-radius: 13px; background: transparent; color: transparent; transition: background var(--md-motion-standard), border-color var(--md-motion-standard), color var(--md-motion-standard), opacity var(--md-motion-standard); }
-.checkbox-mark .material-symbols { font-size: 22px; }
-.checkbox-wrapper input:checked + .checkbox-mark { background: var(--md-primary); border-color: var(--md-primary); color: var(--md-on-primary); }
-.checkbox-wrapper input:focus-visible + .checkbox-mark { outline: 3px solid var(--md-primary); outline-offset: 2px; }
-.checkbox-wrapper input:disabled + .checkbox-mark { background: var(--md-surface-container-high); border-color: var(--md-outline); color: var(--md-on-surface-variant); cursor: not-allowed; opacity: 0.5; }
+
+/* 本体：简洁默认态（高级视觉关闭时） */
+.checkbox-mark {
+  position: relative;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 2px solid var(--md-outline);
+  border-radius: 13px;
+  background: transparent;
+  color: transparent;
+  transition: background var(--md-motion-standard), border-color var(--md-motion-standard),
+    color var(--md-motion-standard), opacity var(--md-motion-standard),
+    box-shadow var(--md-motion-standard);
+}
+.checkbox-mark .material-symbols {
+  font-size: 22px;
+  transition: transform var(--md-motion-standard), text-shadow var(--md-motion-standard);
+}
+
+/* 高级视觉开启：厚重边框 + 内凹阴影 + 金属底色 */
+.is-advanced-visual .checkbox-mark {
+  border-width: 2.5px;
+  background: linear-gradient(135deg, var(--md-surface-container-high), var(--md-surface-container));
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* 已勾选：简洁默认态 */
+.checkbox-wrapper input:checked + .checkbox-mark {
+  background: var(--md-primary);
+  border-color: var(--md-primary);
+  color: var(--md-on-primary);
+}
+/* 高级视觉开启：金属渐变 + 外发光 + 对勾发光 */
+.is-advanced-visual .checkbox-wrapper input:checked + .checkbox-mark {
+  background: linear-gradient(135deg, var(--md-primary), color-mix(in srgb, var(--md-primary) 65%, #fff));
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.3),
+    0 0 10px color-mix(in srgb, var(--md-primary) 55%, transparent);
+}
+.is-advanced-visual .checkbox-wrapper input:checked + .checkbox-mark .material-symbols {
+  text-shadow: 0 0 6px color-mix(in srgb, var(--md-on-primary) 60%, transparent);
+}
+
+.checkbox-wrapper input:focus-visible + .checkbox-mark {
+  outline: 3px solid var(--md-primary);
+  outline-offset: 2px;
+}
+.checkbox-wrapper input:disabled + .checkbox-mark {
+  background: var(--md-surface-container-high);
+  border-color: var(--md-outline);
+  color: var(--md-on-surface-variant);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.is-advanced-visual .checkbox-wrapper input:disabled + .checkbox-mark {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* 光环（仅高级视觉开启时存在） */
+.is-advanced-visual .checkbox-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--md-primary);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 光扫条（仅高级视觉开启时） */
+.is-advanced-visual .checkbox-mark::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, #fff 45%, transparent),
+    transparent
+  );
+  transform: skewX(-20deg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- 勾选动画（高级视觉） ---- */
+.is-advanced-visual .workflow-card.is-just-checked .checkbox-mark {
+  animation: mhw-check-pop 0.5s var(--md-ease-emphasized-decelerate);
+}
+.is-advanced-visual .workflow-card.is-just-checked .checkbox-mark::after {
+  animation: mhw-shimmer 0.6s ease-out forwards;
+}
+.is-advanced-visual .workflow-card.is-just-checked .checkbox-wrapper::before {
+  animation: mhw-ring-burst 0.65s ease-out forwards;
+}
+.is-advanced-visual .workflow-card.is-just-checked {
+  animation: mhw-card-glow 0.6s ease-out forwards;
+}
+.is-advanced-visual .workflow-card.is-just-checked .workflow-card__content,
+.is-advanced-visual .workflow-card.is-just-checked .order-badge,
+.is-advanced-visual .workflow-card.is-just-checked .workflow-card__action-area,
+.is-advanced-visual .workflow-card.is-just-checked .checkbox-wrapper {
+  z-index: 3;
+}
+
+/* ---- 取消勾选动画（高级视觉） ---- */
+.is-advanced-visual .workflow-card.is-just-unchecked .checkbox-mark {
+  animation: mhw-uncheck-shrink 0.35s ease-in;
+}
+.is-advanced-visual .workflow-card.is-just-unchecked .checkbox-wrapper::before {
+  border-color: var(--md-outline);
+  animation: mhw-ring-retract 0.35s ease-in forwards;
+}
+
+/* ---- 关键帧 ---- */
+@keyframes mhw-fairy-drift {
+  0%, 100% {
+    transform: translate(-50%, -50%) translate(0, 0) scale(0.9);
+  }
+  32% {
+    transform: translate(-50%, -50%) translate(var(--particle-drift-x), var(--particle-drift-y)) scale(1.08);
+  }
+  68% {
+    transform: translate(-50%, -50%) translate(var(--particle-drift-2-x), var(--particle-drift-2-y)) scale(0.96);
+  }
+}
+
+@keyframes mhw-check-pop {
+  0%   { transform: scale(0.85); }
+  40%  { transform: scale(1.12); }
+  70%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+@keyframes mhw-ring-burst {
+  0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0.75; }
+  100% { transform: translate(-50%, -50%) scale(2.1); opacity: 0; }
+}
+
+@keyframes mhw-shimmer {
+  0%   { left: -120%; opacity: 0; }
+  30%  { opacity: 0.7; }
+  100% { left: 130%; opacity: 0; }
+}
+
+@keyframes mhw-card-glow {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--md-primary) 0%, transparent); }
+  35%  { box-shadow: 0 0 18px 2px color-mix(in srgb, var(--md-primary) 45%, transparent); }
+  100% { box-shadow: var(--md-elevation-1); }
+}
+
+@keyframes mhw-uncheck-shrink {
+  0%   { transform: scale(1); opacity: 1; }
+  50%  { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes mhw-ring-retract {
+  0%   { transform: translate(-50%, -50%) scale(1.8); opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+}
 
 /* 开启「生词本联动检查」的任务：打勾框禁止手动交互 + 清晰浅灰提示 */
 .workflow-card.has-check-lock .checkbox-wrapper { pointer-events: none; cursor: not-allowed; }

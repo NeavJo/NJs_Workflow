@@ -136,7 +136,12 @@ export const DEFAULT_GIST_SETTINGS = Object.freeze({
   lastGistUpdatedAt: ''
 })
 
-export const DEFAULT_USER_SETTINGS = Object.freeze({})
+export const DEFAULT_USER_SETTINGS = Object.freeze({
+  // 高级视觉效果：开启后启用 MHW 风格的厚重感与灵动光效动效。
+  advancedVisual: false,
+  workflowBorderParticleSpeed: 1,
+  workflowFairyDriftSpeed: 1
+})
 
 function generateAnkiProfileId() {
   const random =
@@ -362,14 +367,28 @@ export function normalizeSnoozeRecords(raw) {
   return { version: 1, records }
 }
 
-export function normalizeUserSettings(raw) {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
-  const result = {}
+export function normalizeUserSettings(raw, options = {}) {
+  // 以 DEFAULT_USER_SETTINGS 为基底合并，确保缺失字段拿到默认值（尤其 boolean false），
+  // 避免存储中缺字段时回显/逻辑把 false 误判为未设置。
+  const base = { ...DEFAULT_USER_SETTINGS }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return base
+  // 高级视觉已封存：持久化与备份中的 advancedVisual 一律忽略，必须由运行时密码校验开启。
+  // preserveAdvancedVisual 仅供 setUserSettings 在校验通过后保留内存态，绝不允许从外部数据恢复开启。
+  const preserveAdvancedVisual = options.preserveAdvancedVisual === true
   for (const key of Object.keys(raw)) {
     const v = raw[key]
+    if (key === 'advancedVisual') {
+      if (preserveAdvancedVisual && typeof v === 'boolean') base.advancedVisual = v
+      continue
+    }
+    if (key === 'workflowBorderParticleSpeed' || key === 'workflowFairyDriftSpeed') {
+      const speed = Number(v)
+      if (Number.isFinite(speed)) base[key] = Math.min(2, Math.max(0.25, speed))
+      continue
+    }
     if (typeof v === 'boolean' || typeof v === 'string' || typeof v === 'number') {
-      result[key] = v
+      base[key] = v
     }
   }
-  return result
+  return base
 }
