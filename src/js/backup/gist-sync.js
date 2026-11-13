@@ -911,6 +911,14 @@ function hasUnsyncedLocalChanges() {
   return localGistDirty || readSharedGistDirty()
 }
 
+export function hasPendingGistUpload() {
+  return hasUnsyncedLocalChanges()
+}
+
+export function isGistUploadRunning() {
+  return gistAutoUploadRunning
+}
+
 // 使用防抖优化的自动上传
 const debouncedAutoUpload = debounce(async () => {
   // 已在途：仅登记代次变化，由在途任务结束后自行补传。

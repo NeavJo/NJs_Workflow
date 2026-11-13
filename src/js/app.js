@@ -62,7 +62,13 @@ import {
 } from './settings/index.js'
 import { bindGlobalModalEvents } from './settings/modal.js'
 
-import { pullFromGist, renderGistSettingsInputs, scheduleAutoUpload } from './backup/gist-sync.js'
+import {
+  pullFromGist,
+  renderGistSettingsInputs,
+  scheduleAutoUpload,
+  hasPendingGistUpload,
+  isGistUploadRunning
+} from './backup/gist-sync.js'
 import './backup/events.js'
 import { renderDailyResetStatus } from './backup/daily-reset.js'
 
@@ -388,6 +394,10 @@ document.addEventListener('visibilitychange', () => {
   try {
     DBG('event:visibilitychange', 'visible')
     checkDailyReset({ reason: 'visibility' })
+    if (hasGistCredentials() && hasPendingGistUpload() && !isGistUploadRunning()) {
+      scheduleAutoUpload()
+      DBG('gist:visibility:upload-rescheduled')
+    }
   } catch (error) {
     errorHandler.handleError(error, {
       type: ErrorTypes.SYSTEM,
