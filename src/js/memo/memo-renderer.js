@@ -2,6 +2,7 @@ import { DBG } from '../core/debug.js'
 import { I18N, t as translate } from '../locales.js'
 import { escapeHtml } from '../utils/dom-utils.js'
 import { getMemos, getMemoTags, getSelectedMemoTag, getMemoFilterTag, onMemosChange, onMemoTagsChange } from './memo-store.js'
+import { getTodayDateString } from '../core/date.js'
 
 /**
  * 笔记渲染层：只读 store 产出 DOM；事件绑定交给 memo-events.js。
@@ -17,9 +18,7 @@ function countWords(content) {
 }
 
 function isToday(memo) {
-  const d = new Date(memo.id)
-  const now = new Date()
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+  return String(memo.timestamp || '').startsWith(getTodayDateString())
 }
 
 function createMemoCard(memo, memoTags) {

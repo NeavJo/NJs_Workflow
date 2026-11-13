@@ -279,6 +279,11 @@
     font-size: 12px;
   }
   #memo-btn-append .material-symbols { font-size: 22px; }
+  .memo-tomorrow-toggle {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 5px 9px 5px 7px;
+  }
   .memo-card.is-editing .memo-card__header { flex-wrap: wrap; }
   .memo-card.is-editing .memo-card__meta { flex: 1 1 100%; }
   .memo-card.is-editing .memo-card__actions { flex: 1 0 auto; justify-content: flex-end; }

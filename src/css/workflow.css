@@ -54,9 +54,7 @@
   transform: translate(-50%, -50%);
   will-change: transform, opacity;
 }
-.is-advanced-visual .workflow-card.is-pointer-active .workflow-card__particle {
-  animation: mhw-fairy-drift var(--particle-duration, 4s) ease-in-out var(--particle-delay, 0s) infinite;
-}
+.is-advanced-visual .workflow-card.is-pointer-active .workflow-card__particle { animation: none; }
 .workflow-card__particle--pickup {
   background: #a878ff;
   box-shadow: 0 0 2px 1px #d4bcff, 0 0 6px 1.5px rgba(140, 85, 255, 0.86);

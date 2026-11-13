@@ -123,7 +123,12 @@
                   <span class="material-symbols" aria-hidden="true">draw</span>
                   <span data-i18n="memo.quickAppendTitle">新笔记 · 快速追加模式</span>
                 </span>
-                </div>
+                <label class="memo-tomorrow-toggle">
+                  <input id="memo-append-tomorrow" type="checkbox" />
+                  <span class="material-symbols memo-tomorrow-toggle__icon" aria-hidden="true">event_upcoming</span>
+                  <span class="memo-tomorrow-toggle__text" data-i18n="memo.appendTomorrow">追加到明日</span>
+                </label>
+              </div>
 
               <div class="tag-selector tag-selector--desktop" role="tablist" aria-label="标签选择器" data-i18n-aria="common.tagSelectorAria">
                 <!-- Tag buttons injected by JS -->
@@ -1401,16 +1406,22 @@
             <h3 id="visual-param-workflow-title" data-i18n="settings.visualParamsWorkflowGroup">任务动画</h3>
             <label for="workflow-border-particle-speed" data-i18n="settings.workflowBorderParticleSpeed">任务边框粒子速率</label>
             <div class="visual-param-control">
-              <input id="workflow-border-particle-speed" name="workflowBorderParticleSpeed" type="number" min="0.25" max="2" step="0.05" inputmode="decimal" />
+              <input id="workflow-border-particle-speed" name="workflowBorderParticleSpeed" type="number" min="0.01" max="10" step="0.01" inputmode="decimal" />
               <span aria-hidden="true">x</span>
             </div>
-            <small data-i18n="settings.workflowBorderParticleSpeedHint">1.00 为基础速度，可输入 0.25 至 2.00。</small>
+            <small data-i18n="settings.workflowBorderParticleSpeedHint">1.00 为基础速度，可输入 0.01 至 10.00。</small>
             <label for="workflow-fairy-drift-speed" data-i18n="settings.workflowFairyDriftSpeed">悬停粒子独立漂游速率</label>
             <div class="visual-param-control">
-              <input id="workflow-fairy-drift-speed" name="workflowFairyDriftSpeed" type="number" min="0.25" max="2" step="0.05" inputmode="decimal" />
+              <input id="workflow-fairy-drift-speed" name="workflowFairyDriftSpeed" type="number" min="0.01" max="10" step="0.01" inputmode="decimal" />
               <span aria-hidden="true">x</span>
             </div>
-            <small data-i18n="settings.workflowFairyDriftSpeedHint">1.00 为基础速率，可输入 0.25 至 2.00。</small>
+            <small data-i18n="settings.workflowFairyDriftSpeedHint">1.00 为基础速率，可输入 0.01 至 10.00。</small>
+            <label for="workflow-fairy-chase-speed" data-i18n="settings.workflowFairyChaseSpeed">悬停粒子追逐鼠标速率</label>
+            <div class="visual-param-control">
+              <input id="workflow-fairy-chase-speed" name="workflowFairyChaseSpeed" type="number" min="0.01" max="10" step="0.01" inputmode="decimal" />
+              <span aria-hidden="true">x</span>
+            </div>
+            <small data-i18n="settings.workflowFairyChaseSpeedHint">1.00 为基础速度，可输入 0.01 至 10.00。</small>
           </section>
         </div>
         <footer class="modal__footer">

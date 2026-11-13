@@ -8,6 +8,7 @@ import { cleanExpiredMemos } from './memo-retention.js'
 import { appendToCategory, parseMemoContentToMap } from './memo-parser.js'
 import { requestAutoUpload } from '../core/sync-hooks.js'
 import { createPubSub } from '../utils/pubsub.js'
+import { getUserSettings } from '../core/settings-store.js'
 
 /**
  * 笔记状态源：memos 数组 + memoTags + 当前选中标签。
@@ -108,6 +109,10 @@ export function setSelectedMemoCategory(name) {
   selectedMemoCategory = String(name || '').trim()
 }
 
+export function isMemoAppendTomorrowEnabled() {
+  return getUserSettings().memoAppendTomorrow === true
+}
+
 export function persistMemos() {
   const ok = persistMemosImpl()
   return ok
@@ -183,9 +188,11 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
   const cat = (explicitCat !== I18N.memo.defaultCategory ? explicitCat : selectedMemoCategory || explicitCat)
     .trim() || I18N.memo.defaultCategory
 
-  const todayStr = getTodayDateString()
+  const targetDate = new Date()
+  if (isMemoAppendTomorrowEnabled()) targetDate.setDate(targetDate.getDate() + 1)
+  const targetDateStr = getTodayDateString(targetDate)
   const targetMemo = memos.find(
-    (m) => m.tag === tag && String(m.timestamp || '').startsWith(todayStr)
+    (m) => m.tag === tag && String(m.timestamp || '').startsWith(targetDateStr)
   )
 
   if (targetMemo) {
@@ -213,6 +220,7 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
     mode = 'append'
   } else {
     const now = new Date()
+    if (isMemoAppendTomorrowEnabled()) now.setDate(now.getDate() + 1)
     const memo = {
       id: now.getTime(),
       timestamp: getFullTimestamp(now),

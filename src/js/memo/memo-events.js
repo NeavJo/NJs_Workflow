@@ -1,7 +1,8 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
 import { I18N, t } from '../locales.js'
-import { getSelectedMemoTag, setSelectedMemoTag, setSelectedMemoCategory, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos, setMemoFilterTag } from './memo-store.js'
+import { getSelectedMemoTag, setSelectedMemoTag, setSelectedMemoCategory, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos, setMemoFilterTag, isMemoAppendTomorrowEnabled } from './memo-store.js'
+import { getUserSettings, setUserSettings, persistUserSettings } from '../core/settings-store.js'
 import { renderMemos, renderMemoTagPickerList, renderMemoTagPickerTrigger, renderTagSelector, renderMemoFilterTabs, renderMemoFilterTrigger, renderMemoFilterList } from './memo-renderer.js'
 import { openModal, closeModal, isModalOpen, registerModalCloseCleanup } from '../settings/modal.js'
 import { switchView } from '../settings/navigation.js'
@@ -278,8 +279,11 @@ export function bindMemoEvents() {
   const wordInput = document.getElementById('memo-word-input')
   const categoryInput = document.getElementById('memo-category-input')
   const appendBtn = document.getElementById('memo-btn-append')
+  const appendTomorrowToggle = document.getElementById('memo-append-tomorrow')
   const stream = document.getElementById('memo-stream')
   const tagSelector = document.querySelector('.tag-selector')
+  // 所有事件绑定都将清理函数写入此数组，必须在任何 push 前初始化。
+  const cleanups = []
   const submitAppend = () => {
     const word = (wordInput?.value || '').trim()
     if (!word) {
@@ -355,8 +359,22 @@ export function bindMemoEvents() {
     }
   ]
 
-  // 收集各 bindBatch 返回的清理函数，组件销毁时统一调用
-  const cleanups = []
+  if (appendTomorrowToggle) {
+    appendTomorrowToggle.checked = isMemoAppendTomorrowEnabled()
+    cleanups.push(bindBatch(appendTomorrowToggle, [{
+      event: 'change',
+      handler: () => {
+        const previous = getUserSettings().memoAppendTomorrow === true
+        const settings = getUserSettings()
+        settings.memoAppendTomorrow = appendTomorrowToggle.checked
+        if (!persistUserSettings()) {
+          settings.memoAppendTomorrow = previous
+          appendTomorrowToggle.checked = previous
+          return
+        }
+      }
+    }]))
+  }
 
   // 绑定表单事件
   formEvents.forEach(({ element, event, handler }) => {

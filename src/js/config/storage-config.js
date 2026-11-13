@@ -140,7 +140,9 @@ export const DEFAULT_USER_SETTINGS = Object.freeze({
   // 高级视觉效果：开启后启用 MHW 风格的厚重感与灵动光效动效。
   advancedVisual: false,
   workflowBorderParticleSpeed: 1,
-  workflowFairyDriftSpeed: 1
+  workflowFairyDriftSpeed: 1,
+  workflowFairyChaseSpeed: 1,
+  memoAppendTomorrow: false
 })
 
 function generateAnkiProfileId() {
@@ -372,18 +374,12 @@ export function normalizeUserSettings(raw, options = {}) {
   // 避免存储中缺字段时回显/逻辑把 false 误判为未设置。
   const base = { ...DEFAULT_USER_SETTINGS }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return base
-  // 高级视觉已封存：持久化与备份中的 advancedVisual 一律忽略，必须由运行时密码校验开启。
-  // preserveAdvancedVisual 仅供 setUserSettings 在校验通过后保留内存态，绝不允许从外部数据恢复开启。
-  const preserveAdvancedVisual = options.preserveAdvancedVisual === true
+  // 高级视觉已重新启用并允许长期生效：持久化与备份中的 advancedVisual 按普通布尔字段接受。
   for (const key of Object.keys(raw)) {
     const v = raw[key]
-    if (key === 'advancedVisual') {
-      if (preserveAdvancedVisual && typeof v === 'boolean') base.advancedVisual = v
-      continue
-    }
-    if (key === 'workflowBorderParticleSpeed' || key === 'workflowFairyDriftSpeed') {
+    if (key === 'workflowBorderParticleSpeed' || key === 'workflowFairyDriftSpeed' || key === 'workflowFairyChaseSpeed') {
       const speed = Number(v)
-      if (Number.isFinite(speed)) base[key] = Math.min(2, Math.max(0.25, speed))
+      if (Number.isFinite(speed)) base[key] = Math.min(10, Math.max(0.01, speed))
       continue
     }
     if (typeof v === 'boolean' || typeof v === 'string' || typeof v === 'number') {

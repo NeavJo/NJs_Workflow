@@ -107,10 +107,11 @@ function bindGeneralSettingsEvents() {
   const input = document.getElementById('advanced-visual')
   const speedInput = document.getElementById('workflow-border-particle-speed')
   const driftSpeedInput = document.getElementById('workflow-fairy-drift-speed')
+  const chaseSpeedInput = document.getElementById('workflow-fairy-chase-speed')
   const openParams = document.getElementById('visual-params-open')
   const lockConfirm = document.getElementById('advanced-visual-lock-confirm')
   const lockInput = document.getElementById('advanced-visual-lock-input')
-  if (!input && !speedInput && !driftSpeedInput && !openParams) return
+  if (!input && !speedInput && !driftSpeedInput && !chaseSpeedInput && !openParams) return
   generalSettingsBound = true
   if (input) input.addEventListener('change', () => {
     if (input.checked) {
@@ -151,7 +152,7 @@ function bindGeneralSettingsEvents() {
   if (speedInput) {
     const saveSpeed = () => {
       if (speedInput.value === '') return
-      const speed = Math.min(2, Math.max(0.25, Number(speedInput.value)))
+      const speed = Math.min(10, Math.max(0.01, Number(speedInput.value)))
       if (!Number.isFinite(speed)) {
         speedInput.value = Number(getUserSettings().workflowBorderParticleSpeed ?? 1).toFixed(2)
         return
@@ -186,7 +187,7 @@ function bindGeneralSettingsEvents() {
         driftSpeedInput.value = Number(getUserSettings().workflowFairyDriftSpeed ?? 1).toFixed(2)
         return
       }
-      const normalizedSpeed = Math.min(2, Math.max(0.25, speed))
+      const normalizedSpeed = Math.min(10, Math.max(0.01, speed))
       driftSpeedInput.value = normalizedSpeed.toFixed(2)
       const next = { ...getUserSettings(), workflowFairyDriftSpeed: normalizedSpeed }
       setUserSettings(next)
@@ -209,12 +210,45 @@ function bindGeneralSettingsEvents() {
       }
     })
   }
+  if (chaseSpeedInput) {
+    const saveChaseSpeed = () => {
+      if (chaseSpeedInput.value === '') return
+      const speed = Number(chaseSpeedInput.value)
+      if (!Number.isFinite(speed)) {
+        chaseSpeedInput.value = Number(getUserSettings().workflowFairyChaseSpeed ?? 1).toFixed(2)
+        return
+      }
+      const normalizedSpeed = Math.min(10, Math.max(0.01, speed))
+      chaseSpeedInput.value = normalizedSpeed.toFixed(2)
+      const next = { ...getUserSettings(), workflowFairyChaseSpeed: normalizedSpeed }
+      setUserSettings(next)
+      persistUserSettings()
+      DBG('settings:general:workflowFairyChaseSpeed', { speed: normalizedSpeed })
+    }
+    chaseSpeedInput.addEventListener('change', saveChaseSpeed)
+    chaseSpeedInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        saveChaseSpeed()
+        chaseSpeedInput.blur()
+      }
+    })
+    chaseSpeedInput.addEventListener('blur', () => {
+      if (chaseSpeedInput.value === '') {
+        chaseSpeedInput.value = Number(getUserSettings().workflowFairyChaseSpeed ?? 1).toFixed(2)
+      } else {
+        saveChaseSpeed()
+      }
+    })
+  }
   if (openParams) {
     openParams.addEventListener('click', () => {
       const speed = document.getElementById('workflow-border-particle-speed')
       const driftSpeed = document.getElementById('workflow-fairy-drift-speed')
+      const chaseSpeed = document.getElementById('workflow-fairy-chase-speed')
       if (speed) speed.value = Number(getUserSettings().workflowBorderParticleSpeed ?? 1).toFixed(2)
       if (driftSpeed) driftSpeed.value = Number(getUserSettings().workflowFairyDriftSpeed ?? 1).toFixed(2)
+      if (chaseSpeed) chaseSpeed.value = Number(getUserSettings().workflowFairyChaseSpeed ?? 1).toFixed(2)
       openParams.setAttribute('aria-expanded', 'true')
       registerModalCloseCleanup('visualParams', () => openParams.setAttribute('aria-expanded', 'false'))
       openModal('visualParams')

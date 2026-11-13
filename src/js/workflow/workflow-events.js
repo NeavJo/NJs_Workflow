@@ -15,44 +15,67 @@ import { throttle } from '../utils/throttle.js'
  * 不持有任何状态，事件回调通过依赖的 store 拿到最新值。
  */
 
-function createFairyParticle(pointerX, pointerY, cardRect, driftSpeed) {
+const FAIRY_PARTICLE_CONFIG = Object.freeze({
+  count: 64,
+  followStrength: 7.2,
+  followDamping: 2.8,
+  brownianStrength: 24,
+  brownianTurnRate: 1.8,
+  dockRadius: 34,
+  dockWidth: 26,
+  minimumSpacing: 6,
+  separationStrength: 18,
+  maxSpeed: 155,
+  maxDeltaTime: 0.05,
+  pointerStillDelay: 0.08,
+  pointerEpsilon: 1.5
+})
+
+function createFairyParticle(pointerX, pointerY, cardRect) {
   const particle = document.createElement('i')
   const angle = Math.random() * Math.PI * 2
-  const radius = 8 + Math.random() * 72
+  const radius = FAIRY_PARTICLE_CONFIG.dockRadius + (Math.random() - 0.5) * FAIRY_PARTICLE_CONFIG.dockWidth
   const x = Math.min(cardRect.width, Math.max(0, pointerX + Math.cos(angle) * radius))
   const y = Math.min(cardRect.height, Math.max(0, pointerY + Math.sin(angle) * radius))
+  const state = {
+    element: particle,
+    x,
+    y,
+    vx: (Math.random() - 0.5) * 10,
+    vy: (Math.random() - 0.5) * 10,
+    brownianX: Math.random() * 2 - 1,
+    brownianY: Math.random() * 2 - 1,
+    brownianPhase: Math.random() * Math.PI * 2,
+    response: 0.7 + Math.random() * 0.7,
+    mass: 0.75 + Math.random() * 0.8,
+    angle,
+    radius,
+    seed: Math.random() * 100
+  }
   particle.className = 'workflow-card__particle'
-  particle.style.setProperty('--particle-x', `${x}px`)
-  particle.style.setProperty('--particle-y', `${y}px`)
-  particle.style.setProperty('--particle-drift-x', `${(Math.random() - 0.5) * 34}px`)
-  particle.style.setProperty('--particle-drift-y', `${(Math.random() - 0.5) * 34}px`)
-  particle.style.setProperty('--particle-drift-2-x', `${(Math.random() - 0.5) * 28}px`)
-  particle.style.setProperty('--particle-drift-2-y', `${(Math.random() - 0.5) * 28}px`)
   particle.style.setProperty('--particle-size', `${1 + Math.random() * 1.2}px`)
-  particle.style.setProperty('--particle-duration', `${(5.5 + Math.random() * 4) / driftSpeed}s`)
-  particle.style.setProperty('--particle-delay', `${Math.random() * -9.5}s`)
   particle.style.setProperty('--particle-opacity', `${0.42 + Math.random() * 0.38}`)
-  return particle
+  return state
 }
 
 function createFairyParticles(layer, cardRect, pointerX, pointerY) {
   const fragment = document.createDocumentFragment()
-  const driftSpeed = Math.min(2, Math.max(0.25, Number(getUserSettings().workflowFairyDriftSpeed) || 1))
   const simulation = {
     pointer: { x: pointerX, y: pointerY },
-    smooth: { x: pointerX, y: pointerY },
-    velocity: { x: 0, y: 0 },
-    origin: { x: pointerX, y: pointerY },
+    previousPointer: { x: pointerX, y: pointerY },
+    pointerStillFor: 0,
+    particles: [],
     raf: 0,
     lastTime: 0,
     active: true,
     card: layer.closest('.workflow-card')
   }
-  for (let index = 0; index < 110; index += 1) {
-    fragment.append(createFairyParticle(pointerX, pointerY, cardRect, driftSpeed))
+  for (let index = 0; index < FAIRY_PARTICLE_CONFIG.count; index += 1) {
+    const state = createFairyParticle(pointerX, pointerY, cardRect)
+    simulation.particles.push(state)
+    fragment.append(state.element)
   }
   layer.replaceChildren(fragment)
-  layer.style.transform = 'translate3d(0, 0, 0)'
   layer.workflowFairySimulation = simulation
 }
 
@@ -64,60 +87,99 @@ function updateFairyParticles(layer, cardRect, pointerX, pointerY) {
   }
   simulation.pointer.x = pointerX
   simulation.pointer.y = pointerY
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && !simulation.raf) {
+  simulation.pointerStillFor = 0
+  if (!simulation.raf) {
     simulation.raf = requestAnimationFrame((time) => stepFairyParticles(simulation, layer, time))
-  } else if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    simulation.smooth.x = pointerX
-    simulation.smooth.y = pointerY
-    layer.style.transform = `translate3d(${pointerX - simulation.origin.x}px, ${pointerY - simulation.origin.y}px, 0)`
   }
+}
+
+function clampMagnitude(x, y, max) {
+  const magnitude = Math.hypot(x, y)
+  if (magnitude <= max || magnitude === 0) return { x, y }
+  const scale = max / magnitude
+  return { x: x * scale, y: y * scale }
 }
 
 function stepFairyParticles(simulation, layer, now) {
   simulation.raf = 0
-  // 高级视觉关闭时立即终止跟随循环并清理粒子，确保关闭状态没有持续渲染开销。
   if (
     !simulation.active ||
     !simulation.card?.isConnected ||
-    !document.body.classList.contains('is-advanced-visual')
+    !document.body.classList.contains('is-advanced-visual') ||
+    document.hidden ||
+    !simulation.card.matches(':hover')
   ) {
     stopFairyParticles(simulation)
     return
   }
   const previous = simulation.lastTime || now
   simulation.lastTime = now
-  const dt = Math.min(64, now - previous) / 1000
-  const stiffness = 30
-  const damping = 2 * Math.sqrt(stiffness) * 0.82
-  const dx = simulation.pointer.x - simulation.smooth.x
-  const dy = simulation.pointer.y - simulation.smooth.y
-  simulation.velocity.x += (stiffness * dx - damping * simulation.velocity.x) * dt
-  simulation.velocity.y += (stiffness * dy - damping * simulation.velocity.y) * dt
-  simulation.smooth.x += simulation.velocity.x * dt
-  simulation.smooth.y += simulation.velocity.y * dt
-  const x = simulation.smooth.x - simulation.origin.x
-  const y = simulation.smooth.y - simulation.origin.y
-  layer.style.transform = `translate3d(${x}px, ${y}px, 0)`
-  if (Math.hypot(dx, dy) > 0.08 || Math.hypot(simulation.velocity.x, simulation.velocity.y) > 0.12) {
-    simulation.raf = requestAnimationFrame((time) => stepFairyParticles(simulation, layer, time))
-  } else {
-    simulation.smooth.x = simulation.pointer.x
-    simulation.smooth.y = simulation.pointer.y
-    simulation.velocity.x = 0
-    simulation.velocity.y = 0
-    layer.style.transform = `translate3d(${simulation.pointer.x - simulation.origin.x}px, ${simulation.pointer.y - simulation.origin.y}px, 0)`
+  const dt = Math.min(FAIRY_PARTICLE_CONFIG.maxDeltaTime, Math.max(0.001, (now - previous) / 1000))
+  const pointerDelta = Math.hypot(
+    simulation.pointer.x - simulation.previousPointer.x,
+    simulation.pointer.y - simulation.previousPointer.y
+  )
+  simulation.pointerStillFor = pointerDelta > FAIRY_PARTICLE_CONFIG.pointerEpsilon
+    ? 0
+    : simulation.pointerStillFor + dt
+  simulation.previousPointer.x = simulation.pointer.x
+  simulation.previousPointer.y = simulation.pointer.y
+  const driftSpeed = Math.min(10, Math.max(0.01, Number(getUserSettings().workflowFairyDriftSpeed) || 1))
+  const chaseSpeed = Math.min(10, Math.max(0.01, Number(getUserSettings().workflowFairyChaseSpeed) || 1))
+
+  for (const particle of simulation.particles) {
+    const toPointerX = simulation.pointer.x - particle.x
+    const toPointerY = simulation.pointer.y - particle.y
+    const distance = Math.hypot(toPointerX, toPointerY) || 0.001
+    const desiredRadius = FAIRY_PARTICLE_CONFIG.dockRadius + particle.radius * 0.12
+    const radialError = distance - desiredRadius
+    // 静止态把追逐力压得更低，让漂游速率设置成为主导，否则强阻尼会吃掉速率差异。
+    const chaseScale = simulation.pointerStillFor < FAIRY_PARTICLE_CONFIG.pointerStillDelay ? 1 : 0.16
+    let forceX = (toPointerX / distance) * radialError * FAIRY_PARTICLE_CONFIG.followStrength * chaseScale * chaseSpeed
+    let forceY = (toPointerY / distance) * radialError * FAIRY_PARTICLE_CONFIG.followStrength * chaseScale * chaseSpeed
+    const tangentX = -toPointerY / distance
+    const tangentY = toPointerX / distance
+    const brownianTime = now / 1000 * FAIRY_PARTICLE_CONFIG.brownianTurnRate * particle.response + particle.seed
+    particle.brownianX += (Math.sin(brownianTime * 1.13) - particle.brownianX) * dt * 2
+    particle.brownianY += (Math.cos(brownianTime * 0.87) - particle.brownianY) * dt * 2
+    forceX += (tangentX * particle.brownianX + (toPointerX / distance) * particle.brownianY) * FAIRY_PARTICLE_CONFIG.brownianStrength * driftSpeed
+    forceY += (tangentY * particle.brownianX + (toPointerY / distance) * particle.brownianY) * FAIRY_PARTICLE_CONFIG.brownianStrength * driftSpeed
+    for (const other of simulation.particles) {
+      if (other === particle) continue
+      const awayX = particle.x - other.x
+      const awayY = particle.y - other.y
+      const separation = Math.hypot(awayX, awayY)
+      if (separation > 0 && separation < FAIRY_PARTICLE_CONFIG.minimumSpacing) {
+        const weight = (FAIRY_PARTICLE_CONFIG.minimumSpacing - separation) / separation
+        forceX += awayX * weight * FAIRY_PARTICLE_CONFIG.separationStrength
+        forceY += awayY * weight * FAIRY_PARTICLE_CONFIG.separationStrength
+      }
+    }
+    const damping = FAIRY_PARTICLE_CONFIG.followDamping * particle.response
+    particle.vx += (forceX / particle.mass - damping * particle.vx) * dt
+    particle.vy += (forceY / particle.mass - damping * particle.vy) * dt
+    const velocity = clampMagnitude(particle.vx, particle.vy, FAIRY_PARTICLE_CONFIG.maxSpeed * (0.65 + particle.response * 0.35))
+    particle.vx = velocity.x
+    particle.vy = velocity.y
+    particle.x += particle.vx * dt
+    particle.y += particle.vy * dt
+    particle.element.style.setProperty('--particle-x', `${particle.x}px`)
+    particle.element.style.setProperty('--particle-y', `${particle.y}px`)
   }
+  simulation.raf = requestAnimationFrame((time) => stepFairyParticles(simulation, layer, time))
 }
 
 function stopFairyParticles(layerOrSimulation) {
   const simulation = layerOrSimulation?.workflowFairySimulation || layerOrSimulation
-  if (!simulation?.active) return
+  if (!simulation) return
   simulation.active = false
-  cancelAnimationFrame(simulation.raf)
+  if (simulation.raf) {
+    cancelAnimationFrame(simulation.raf)
+    simulation.raf = 0
+  }
   const layer = simulation.card?.querySelector('.workflow-card__particles')
   if (layer?.workflowFairySimulation === simulation) {
     delete layer.workflowFairySimulation
-    layer.style.transform = ''
     layer.replaceChildren()
   }
 }
@@ -205,7 +267,7 @@ function animatePickupParticles(layer, card) {
     buildBorderTrack(width, height, radius, 'up'),
     buildBorderTrack(width, height, radius, 'down')
   ]
-  const speed = Math.min(2, Math.max(0.25, Number(getUserSettings().workflowBorderParticleSpeed) || 1))
+  const speed = Math.min(10, Math.max(0.01, Number(getUserSettings().workflowBorderParticleSpeed) || 1))
   const movementDuration = 2200 / 2.3 / speed
   const launchWindow = 1500 / 2.3 / speed
   const exitDistance = 64
@@ -452,6 +514,16 @@ export function bindWorkflowListEvents() {
   const list = document.querySelector('#workflow-list')
   if (!list) return
 
+  const stopVisibleParticleSimulations = () => {
+    list.querySelectorAll('.workflow-card__particles').forEach((layer) => {
+      stopFairyParticles(layer)
+    })
+    list.querySelectorAll('.workflow-card.is-pointer-active').forEach((card) => {
+      card.classList.remove('is-pointer-active')
+    })
+  }
+  document.addEventListener('visibilitychange', stopVisibleParticleSimulations)
+
   // 批量绑定工作流列表事件
   const workflowEvents = [
     {
@@ -509,7 +581,8 @@ export function bindWorkflowListEvents() {
 
   // 返回清理函数，用于组件销毁时清理事件
   return () => {
-    // 清理事件监听器
+    document.removeEventListener('visibilitychange', stopVisibleParticleSimulations)
+    stopVisibleParticleSimulations()
     list.replaceWith(list.cloneNode(true))
   }
 }
