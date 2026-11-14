@@ -1,8 +1,7 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
 import { I18N, t } from '../locales.js'
-import { getSelectedMemoTag, setSelectedMemoTag, setSelectedMemoCategory, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos, setMemoFilterTag, isMemoAppendTomorrowEnabled, formatMemoDateLabel } from './memo-store.js'
-import { getUserSettings, setUserSettings, persistUserSettings } from '../core/settings-store.js'
+import { getSelectedMemoTag, setSelectedMemoTag, setSelectedMemoCategory, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos, setMemoFilterTag, isMemoAppendTomorrowEnabled, formatMemoDateLabel, setMemoAppendTomorrowEnabled } from './memo-store.js'
 import { getTodayDateString } from '../core/date.js'
 import { renderMemos, renderMemoTagPickerList, renderMemoTagPickerTrigger, renderTagSelector, renderMemoFilterTabs, renderMemoFilterTrigger, renderMemoFilterList } from './memo-renderer.js'
 import { openModal, closeModal, isModalOpen, registerModalCloseCleanup } from '../settings/modal.js'
@@ -372,14 +371,13 @@ export function bindMemoEvents() {
     cleanups.push(bindBatch(appendTomorrowToggle, [{
       event: 'change',
       handler: () => {
-        const previous = getUserSettings().memoAppendTomorrow === true
-        const settings = getUserSettings()
-        settings.memoAppendTomorrow = appendTomorrowToggle.checked
-        if (!persistUserSettings()) {
-          settings.memoAppendTomorrow = previous
-          appendTomorrowToggle.checked = previous
-          return
-        }
+        const targetDate = new Date()
+        targetDate.setDate(targetDate.getDate() + 1)
+        const ok = setMemoAppendTomorrowEnabled(
+          appendTomorrowToggle.checked,
+          appendTomorrowToggle.checked ? getTodayDateString(targetDate) : ''
+        )
+        if (!ok) appendTomorrowToggle.checked = isMemoAppendTomorrowEnabled()
       }
     }]))
   }
@@ -545,4 +543,9 @@ export function bindMemoEvents() {
       if (typeof cleanup === 'function') cleanup()
     }
   }
+}
+
+export function syncMemoAppendTomorrowToggle() {
+  const toggle = document.getElementById('memo-append-tomorrow')
+  if (toggle) toggle.checked = isMemoAppendTomorrowEnabled()
 }

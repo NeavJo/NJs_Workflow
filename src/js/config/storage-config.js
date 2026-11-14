@@ -142,7 +142,8 @@ export const DEFAULT_USER_SETTINGS = Object.freeze({
   workflowBorderParticleSpeed: 1,
   workflowFairyDriftSpeed: 1,
   workflowFairyChaseSpeed: 1,
-  memoAppendTomorrow: false
+  memoAppendTomorrow: false,
+  memoAppendTomorrowDate: ''
 })
 
 function generateAnkiProfileId() {

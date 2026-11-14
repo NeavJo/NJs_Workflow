@@ -217,7 +217,41 @@ export function setSelectedMemoCategory(name) {
 }
 
 export function isMemoAppendTomorrowEnabled() {
-  return getUserSettings().memoAppendTomorrow === true
+  const settings = getUserSettings()
+  return settings.memoAppendTomorrow === true && settings.memoAppendTomorrowDate !== ''
+}
+
+export function getMemoAppendTomorrowDate() {
+  return String(getUserSettings().memoAppendTomorrowDate || '')
+}
+
+export function setMemoAppendTomorrowEnabled(enabled, targetDate = '') {
+  const settings = getUserSettings()
+  const previous = {
+    enabled: settings.memoAppendTomorrow === true,
+    targetDate: String(settings.memoAppendTomorrowDate || '')
+  }
+  settings.memoAppendTomorrow = enabled === true
+  settings.memoAppendTomorrowDate = settings.memoAppendTomorrow
+    ? String(targetDate || '')
+    : ''
+  if (persistUserSettings()) return true
+  settings.memoAppendTomorrow = previous.enabled
+  settings.memoAppendTomorrowDate = previous.targetDate
+  return false
+}
+
+export function disableExpiredMemoAppendTomorrow(today = getTodayDateString()) {
+  const settings = getUserSettings()
+  if (settings.memoAppendTomorrow !== true) return false
+  const targetDate = String(settings.memoAppendTomorrowDate || '')
+  if (!targetDate) {
+    const nextDate = new Date()
+    nextDate.setDate(nextDate.getDate() + 1)
+    return setMemoAppendTomorrowEnabled(true, getTodayDateString(nextDate))
+  }
+  if (!targetDate || today < targetDate) return false
+  return setMemoAppendTomorrowEnabled(false)
 }
 
 /**

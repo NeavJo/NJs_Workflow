@@ -39,6 +39,8 @@ import {
   getSelectedMemoTag,
   onMemoFilterChange
 } from './memo/memo-store.js'
+import { disableExpiredMemoAppendTomorrow } from './memo/memo-store.js'
+import { syncMemoAppendTomorrowToggle } from './memo/memo-events.js'
 import { parseMemoContentToMap } from './memo/memo-parser.js'
 import { cleanExpiredMemos } from './memo/memo-retention.js'
 import {
@@ -325,8 +327,14 @@ try {
  *    若今天 > lastResetDate，会自动把昨日打卡归档并清空今日。
  *    必须先于"自动上传 Gist"，避免把刚刚清空的状态写回云端。
  * ========================================================================= */
+function runDailyForegroundCheck(reason) {
+  checkDailyReset({ reason })
+  disableExpiredMemoAppendTomorrow()
+  syncMemoAppendTomorrowToggle()
+}
+
 try {
-  checkDailyReset({ reason: 'init' })
+  runDailyForegroundCheck('init')
   DBG('init:daily-reset', 'Daily reset check completed')
 } catch (error) {
   errorHandler.handleError(error, {
@@ -395,7 +403,7 @@ document.addEventListener('visibilitychange', () => {
   
   try {
     DBG('event:visibilitychange', 'visible')
-    checkDailyReset({ reason: 'visibility' })
+    runDailyForegroundCheck('visibility')
     if (hasGistCredentials() && hasPendingGistUpload() && !isGistUploadRunning()) {
       scheduleAutoUpload()
       DBG('gist:visibility:upload-rescheduled')
