@@ -13,7 +13,7 @@
  * 用法：
  *   import { I18N, t, applyI18nToDom } from './locales.js'
  *   showToast(t(I18N.toast.workflow.completed))                  // 无占位
- *   showToast(t(I18N.toast.memo.appendedTo, { tag, category }))  // 带占位 {xxx}
+ *   showToast(t(I18N.toast.memo.appendedToToday, { tag, category }))  // 带占位 {xxx}
  *   applyI18nToDom()                                              // 初始化时应用 HTML data-i18n
  */
 
@@ -39,6 +39,7 @@ export const I18N = {
     copy: '复制',
 
     today: '今天',
+    tomorrow: '明天',
     restDay: '休息日',
     untitled: '未命名',
     systemDefault: '系统默认',
@@ -284,9 +285,9 @@ export const I18N = {
       noData: '公开数据源未返回该词信息。',
       memoAdded: '「{word}」已加入生词本（{tag} / {category}）。',
       memoFailed: '添加生词本失败，请检查本地存储。',
-      memoDuplicate: '「{word}」已存在于今日生词本中，未重复添加。',
+      memoDuplicate: '「{word}」已存在于{date}的生词本中，未重复添加。',
       collocationAdded: '「{word} — {collocation}」已加入生词本（{tag} / {category}）。',
-      collocationDuplicate: '「{word} — {collocation}」已存在于今日生词本中，未重复添加。',
+      collocationDuplicate: '「{word} — {collocation}」已存在于{date}的生词本中，未重复添加。',
       collocationFailed: '添加搭配到生词本失败，请检查本地存储。',
       speakNetworkFailed: '网络发音加载失败',
       refetchDone: '「{word}」已重新获取最新释义。'
@@ -639,9 +640,11 @@ export const I18N = {
       copied: '已复制笔记内容。',
       copyFailed: '复制失败，请手动选中内容后复制。',
       inputEmpty: '先在输入框里写下一个单词吧～',
-      appendedTo: '已追加到今日 {tag} · {category}。',
+      appendedToToday: '已追加到今日 {tag} · {category}。',
+      appendedToTomorrow: '已追加到明日 {tag} · {category}。',
       createdToday: '已新建今日 {tag} · {category} 卡片。',
-      duplicateWord: '「{word}」已存在于今日 {tag} 的笔记中，未重复添加。',
+      createdTomorrow: '已新建明日 {tag} · {category} 卡片。',
+      duplicateWord: '「{word}」已存在于{date} {tag} 的笔记中，未重复添加。',
       deleteNoteConfirm: '确认删除这条笔记？',
       tagNameEmpty: '标签名称不能为空。',
       tagExists: '该标签已存在，请勿重复添加。',

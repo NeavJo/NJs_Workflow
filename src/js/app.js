@@ -32,6 +32,7 @@ import { bindSnoozeEvents } from './workflow/snooze-events.js'
 
 import {
   loadMemos,
+  migrateSplitMemos,
   loadMemoTags,
   getMemos,
   getMemoTags,
@@ -110,6 +111,7 @@ try {
   loadLastResetDate()
   loadSnoozeRecords()
   loadMemos()
+  migrateSplitMemos()
   loadMemoTags()
   loadAnkiSettings()
   loadAnkiExportSettings()

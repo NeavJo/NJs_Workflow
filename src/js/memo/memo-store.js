@@ -1,5 +1,5 @@
 import { DBG } from '../core/debug.js'
-import { MEMO_STORAGE_KEY } from '../core/storage.js'
+import { MEMO_STORAGE_KEY, MEMO_MIGRATION_STORAGE_KEY } from '../core/storage.js'
 import { I18N } from '../locales.js'
 import { safeStorageGet, safeStorageSet } from '../core/storage.js'
 import { MEMO_TAGS_STORAGE_KEY, DEFAULT_MEMO_TAGS, normalizeMemoTagList } from '../config/memo-tags.js'
@@ -34,7 +34,7 @@ let selectedMemoCategory = ''
 function persistMemosImpl() {
   const ok = safeStorageSet(MEMO_STORAGE_KEY, memos)
   DBG('persist:memos', { length: memos.length, ok })
-  requestAutoUpload()
+  if (ok) requestAutoUpload()
   return ok
 }
 
@@ -49,6 +49,113 @@ export function loadMemos() {
   memos = Array.isArray(raw) ? raw : []
   DBG('init:memos', { length: memos.length })
   return memos
+}
+
+export const MEMO_MIGRATION_VERSION = 1
+
+function getMemoDateKey(memo) {
+  const match = String(memo?.timestamp || '').match(/^(\d{4}-\d{2}-\d{2})(?:\s|$)/)
+  return match ? match[1] : ''
+}
+
+function getMemoWords(memo) {
+  return Object.values(parseMemoContentToMap(memo?.content)).flat()
+}
+
+function mergeMemoGroup(group) {
+  const first = group[0]
+  const categories = Object.create(null)
+  const seen = new Set()
+  let wordCount = 0
+
+  for (const memo of group) {
+    const parsed = parseMemoContentToMap(memo.content)
+    for (const [category, words] of Object.entries(parsed)) {
+      if (!categories[category]) categories[category] = []
+      for (const word of words) {
+        const normalized = normalizeForDedupe(word)
+        if (!normalized || seen.has(normalized)) continue
+        seen.add(normalized)
+        categories[category].push(word)
+        wordCount += 1
+      }
+    }
+  }
+
+  const originalWords = group.flatMap((memo) => getMemoWords(memo))
+  const originalWordCount = originalWords.length
+  if (wordCount < 1 || wordCount > originalWordCount) return null
+  const mergedWords = Object.values(categories).flat()
+  const mergedSet = new Set(mergedWords.map((word) => normalizeForDedupe(word)))
+  if (originalWords.some((word) => !mergedSet.has(normalizeForDedupe(word)))) return null
+  const content = Object.entries(categories)
+    .map(([category, words]) => `${category}：\n${words.join('\n')}`)
+    .join('\n\n')
+  return {
+    ...first,
+    content,
+    timestamp: `${first.timestamp.slice(0, 10)} ${String(first.timestamp).slice(11)}`,
+    id: first.id
+  }
+}
+
+export function migrateSplitMemos() {
+  const marker = safeStorageGet(MEMO_MIGRATION_STORAGE_KEY, 0)
+  if (marker >= MEMO_MIGRATION_VERSION || memos.length < 2) return false
+
+  const groups = new Map()
+  for (const memo of memos) {
+    const date = getMemoDateKey(memo)
+    if (!date || !memo?.tag) continue
+    const key = `${memo.tag}|${date}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(memo)
+  }
+
+  const next = []
+  const consumed = new Set()
+  let changed = false
+  for (const group of groups.values()) {
+    if (group.length === 1) continue
+    const merged = mergeMemoGroup(group)
+    if (!merged) {
+      DBG('memo:migration:abort', { reason: 'validation-failed' })
+      return false
+    }
+    changed = true
+    group.forEach((memo) => consumed.add(memo))
+    next.push(merged)
+  }
+  if (!changed) {
+    const marked = safeStorageSet(MEMO_MIGRATION_STORAGE_KEY, MEMO_MIGRATION_VERSION)
+    if (!marked) DBG('memo:migration:marker-failed', { reason: 'no-change' })
+    return marked
+  }
+
+  for (const memo of memos) {
+    if (!consumed.has(memo)) next.push(memo)
+  }
+  const beforeCount = memos.reduce((total, memo) => total + getMemoWords(memo).length, 0)
+  const afterCount = next.reduce((total, memo) => total + getMemoWords(memo).length, 0)
+  if (afterCount < beforeCount) {
+    DBG('memo:migration:abort', { reason: 'word-count-decreased', beforeCount, afterCount })
+    return false
+  }
+  const previous = memos
+  memos = next
+  if (!persistMemosImpl()) {
+    memos = previous
+    DBG('memo:migration:abort', { reason: 'persist-failed' })
+    return false
+  }
+  if (!safeStorageSet(MEMO_MIGRATION_STORAGE_KEY, MEMO_MIGRATION_VERSION)) {
+    memos = previous
+    safeStorageSet(MEMO_STORAGE_KEY, previous)
+    DBG('memo:migration:abort', { reason: 'marker-failed' })
+    return false
+  }
+  memosPubsub.emit(memos)
+  return true
 }
 
 export function setMemoTags(tags) {
@@ -111,6 +218,19 @@ export function setSelectedMemoCategory(name) {
 
 export function isMemoAppendTomorrowEnabled() {
   return getUserSettings().memoAppendTomorrow === true
+}
+
+/**
+ * 把目标日期（YYYY-MM-DD）转成提示文案用语：今天/明天用人话，其余显示原日期。
+ * 供 memo-events 与 german-events 的重复/成功提示统一复用，避免两处文案口径不一致。
+ */
+export function formatMemoDateLabel(dateStr) {
+  if (!dateStr) return ''
+  if (dateStr === getTodayDateString()) return I18N.common.today
+  const tomorrowDate = new Date()
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  if (dateStr === getTodayDateString(tomorrowDate)) return I18N.common.tomorrow
+  return dateStr
 }
 
 export function persistMemos() {
@@ -191,6 +311,8 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
   const targetDate = new Date()
   if (isMemoAppendTomorrowEnabled()) targetDate.setDate(targetDate.getDate() + 1)
   const targetDateStr = getTodayDateString(targetDate)
+  // 目标日期透传给调用方：追加到明日开关开启时，事件层需要用"明日"文案而非"今日"。
+  const resultDate = targetDateStr
   const targetMemo = memos.find(
     (m) => m.tag === tag && String(m.timestamp || '').startsWith(targetDateStr)
   )
@@ -207,7 +329,7 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
       DBG('memo:append:duplicate', { tag, word, category: cat })
       // 关键约束：重复分支在任何内存变更（含 appendToCategory / cleanExpiredMemosInPlace）
       // 之前返回，保证"未加入"语义真实，且不触发无谓的持久化与刷新事件。
-      return { mode: 'duplicate', word, tag, category: cat, memo: targetMemo }
+      return { mode: 'duplicate', word, tag, category: cat, memo: targetMemo, targetDate: resultDate }
     }
   }
 
@@ -216,7 +338,7 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
     const prevContent = targetMemo.content
     const prevTimestamp = targetMemo.timestamp
     targetMemo.content = appendToCategory(targetMemo.content, cat, word)
-    targetMemo.timestamp = getFullTimestamp()
+    targetMemo.timestamp = getFullTimestamp(targetDate)
     mode = 'append'
   } else {
     const now = new Date()
@@ -248,7 +370,7 @@ export function appendOrDailyMemo(inputWord, currentTag, category = I18N.memo.de
     return null
   }
   memosPubsub.emit(memos)
-  return { mode, memo: targetMemo || memos[0], word, category: cat }
+  return { mode, memo: targetMemo || memos[0], word, category: cat, targetDate: resultDate }
 }
 
 export function addMemo(content, tag, category = I18N.memo.defaultCategory) {

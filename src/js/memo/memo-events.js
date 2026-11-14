@@ -1,8 +1,9 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
 import { I18N, t } from '../locales.js'
-import { getSelectedMemoTag, setSelectedMemoTag, setSelectedMemoCategory, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos, setMemoFilterTag, isMemoAppendTomorrowEnabled } from './memo-store.js'
+import { getSelectedMemoTag, setSelectedMemoTag, setSelectedMemoCategory, appendOrDailyMemo, deleteMemo, updateMemoContent, updateMemoTag, getMemos, loadMemos, setMemoFilterTag, isMemoAppendTomorrowEnabled, formatMemoDateLabel } from './memo-store.js'
 import { getUserSettings, setUserSettings, persistUserSettings } from '../core/settings-store.js'
+import { getTodayDateString } from '../core/date.js'
 import { renderMemos, renderMemoTagPickerList, renderMemoTagPickerTrigger, renderTagSelector, renderMemoFilterTabs, renderMemoFilterTrigger, renderMemoFilterList } from './memo-renderer.js'
 import { openModal, closeModal, isModalOpen, registerModalCloseCleanup } from '../settings/modal.js'
 import { switchView } from '../settings/navigation.js'
@@ -26,6 +27,11 @@ function focusMemoInput() {
   const s = document.getElementById('memo-word-input')
   if (s) setTimeout(() => s.focus({ preventScroll: true }), 0)
 }
+
+/**
+ * 把目标日期转成提示用语的工作已下沉到 memo-store 的 formatMemoDateLabel，
+ * 事件层直接复用，避免与德语助手提示口径不一致。
+ */
 
 function setTagPickerExpanded(expanded) {
   const trigger = document.getElementById('memo-tag-picker-trigger')
@@ -299,7 +305,7 @@ export function bindMemoEvents() {
     if (r && r.mode === 'duplicate') {
       // 当日同标签卡片已收录该词：轻提示且保留输入内容，方便用户修改后重试。
       showToast(
-        t(I18N.toast.memo.duplicateWord, { word, tag: getSelectedMemoTag() }),
+        t(I18N.toast.memo.duplicateWord, { word, tag: getSelectedMemoTag(), date: formatMemoDateLabel(r.targetDate) }),
         { status: 'info' }
       )
       focusMemoInput()
@@ -307,10 +313,12 @@ export function bindMemoEvents() {
     }
     if (r) {
       const tagName = getSelectedMemoTag()
+      // 追加到明日开关开启时，目标卡片是明天的，提示文案必须随之切换，避免误导用户。
+      const isTomorrow = r.targetDate !== getTodayDateString()
       showToast(
         r.mode === 'append'
-          ? t(I18N.toast.memo.appendedTo, { tag: tagName, category: r.category })
-          : t(I18N.toast.memo.createdToday, { tag: tagName, category: r.category })
+          ? t(isTomorrow ? I18N.toast.memo.appendedToTomorrow : I18N.toast.memo.appendedToToday, { tag: tagName, category: r.category })
+          : t(isTomorrow ? I18N.toast.memo.createdTomorrow : I18N.toast.memo.createdToday, { tag: tagName, category: r.category })
       )
       wordInput.value = ''
     }

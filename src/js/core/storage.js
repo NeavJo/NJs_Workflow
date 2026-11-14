@@ -2,6 +2,7 @@ import { DBG } from './debug.js'
 
 export const COMPLETED_STORAGE_KEY = 'njs-workflow-completed'
 export const MEMO_STORAGE_KEY = 'njs-workflow-memos'
+export const MEMO_MIGRATION_STORAGE_KEY = 'njs-workflow-memo-migration'
 
 export function safeStorageGet(key, fallback) {
   try {

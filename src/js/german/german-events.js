@@ -36,7 +36,7 @@ import {
 } from './german-store.js'
 import { isGermanArticleViewOpen, setGermanArticleViewOpen } from './german-article-renderer.js'
 import { setArticleMode } from './german-article-store.js'
-import { appendOrDailyMemo, getSelectedMemoTag } from '../memo/memo-store.js'
+import { appendOrDailyMemo, getSelectedMemoTag, formatMemoDateLabel } from '../memo/memo-store.js'
 // 常规查词在文章阅读子模式下触发时，自动切回查词模式。
 // 主路径由文章侧 bindModeSwitch 注册的 closeArticleMode 完成完整切换；
 // 兜底路径在回调未注册（逐绑定隔离失败）时，直接归位可视 class、文章子模式与查词通道，
@@ -351,8 +351,8 @@ function addCurrentToMemo(scopeEl) {
   const currentTag = getSelectedMemoTag()
   const result = appendOrDailyMemo(word, currentTag)
   if (result && result.mode === 'duplicate') {
-    // 当日生词本已收录该词：仅轻提示，不重复加入。
-    showToast(t(I18N.german.toasts.memoDuplicate, { word }), { status: 'info' })
+    // 当日（或开启"追加到明日"后的目标日期）生词本已收录该词：仅轻提示，不重复加入。
+    showToast(t(I18N.german.toasts.memoDuplicate, { word, date: formatMemoDateLabel(result.targetDate) }), { status: 'info' })
     DBG('german:memo:duplicate', { word, tag: currentTag })
     return
   }
@@ -380,7 +380,7 @@ function addCurrentCollocationToMemo(btn, scopeEl) {
   const currentTag = getSelectedMemoTag()
   const result = appendOrDailyMemo(note, currentTag)
   if (result && result.mode === 'duplicate') {
-    showToast(t(I18N.german.toasts.collocationDuplicate, { word, collocation: template }), { status: 'info' })
+    showToast(t(I18N.german.toasts.collocationDuplicate, { word, collocation: template, date: formatMemoDateLabel(result.targetDate) }), { status: 'info' })
     DBG('german:collocation:memo-duplicate', { word, collocation: template, tag: currentTag })
     return
   }
