@@ -84,19 +84,21 @@ function createCard(rawItem, order, completedIds, workflows, snoozedIds, orderMa
   if (rawItem.isPlaceholder) {
     card.className = 'workflow-card is-placeholder'
     card.innerHTML = `
-      ${buildBgIconHtml(rawItem.id)}
-      <div class="order-badge" aria-hidden="true"></div>
-      <div class="workflow-card__content">
-        <div class="workflow-card__title-row">
-          <h3 class="workflow-card__title"></h3>
-          <span class="coming-soon-chip">${I18N.workflow.comingSoon}</span>
+      <div class="workflow-card__layout">
+        <div class="order-badge" aria-hidden="true"></div>
+        <div class="workflow-card__content">
+          <div class="workflow-card__title-row">
+            <h3 class="workflow-card__title"></h3>
+            <span class="coming-soon-chip">${I18N.workflow.comingSoon}</span>
+          </div>
+          <p class="workflow-card__description"></p>
         </div>
-        <p class="workflow-card__description"></p>
+        <label class="checkbox-wrapper">
+          <input type="checkbox" disabled aria-label="${escapeHtml(rawItem.title)}" />
+          <span class="checkbox-mark"><span class="material-symbols" aria-hidden="true">lock</span></span>
+        </label>
       </div>
-      <label class="checkbox-wrapper">
-        <input type="checkbox" disabled aria-label="${escapeHtml(rawItem.title)}" />
-        <span class="checkbox-mark"><span class="material-symbols" aria-hidden="true">lock</span></span>
-      </label>`
+      ${buildBgIconHtml(rawItem.id)}`
     card.querySelector('.order-badge').textContent = String(order).padStart(2, '0')
     card.querySelector('.workflow-card__title').textContent = rawItem.title
     card.querySelector('.workflow-card__description').textContent = rawItem.desc || ''
@@ -177,22 +179,24 @@ function createCard(rawItem, order, completedIds, workflows, snoozedIds, orderMa
 
   card.innerHTML = `
     <div class="workflow-card__particles" aria-hidden="true"></div>
-    ${buildBgIconHtml(rawItem.id)}
-    <div class="order-badge" aria-hidden="true"></div>
-    <div class="workflow-card__content">
-      <div class="workflow-card__title-row">
-        <h3 class="workflow-card__title"></h3>
-        ${snoozeBadgeHtml ? `<span class="workflow-card__snooze-indicator">${snoozeBadgeHtml}</span>` : ''}
-        ${prereqBadgeHtml ? `<span class="workflow-card__prereq-indicator">${prereqBadgeHtml}</span>` : ''}
+    <div class="workflow-card__layout">
+      <div class="order-badge" aria-hidden="true"></div>
+      <div class="workflow-card__content">
+        <div class="workflow-card__title-row">
+          <h3 class="workflow-card__title"></h3>
+          ${snoozeBadgeHtml ? `<span class="workflow-card__snooze-indicator">${snoozeBadgeHtml}</span>` : ''}
+          ${prereqBadgeHtml ? `<span class="workflow-card__prereq-indicator">${prereqBadgeHtml}</span>` : ''}
+        </div>
+        ${descriptionHtml}
+        ${tagBlockHtml}
       </div>
-      ${descriptionHtml}
-      ${tagBlockHtml}
+      ${actionAreaHtml}
+      <label class="checkbox-wrapper">
+        <input type="checkbox" ${checkboxAttrs} />
+        <span class="checkbox-mark"><span class="material-symbols" aria-hidden="true">${checkIcon}</span></span>
+      </label>
     </div>
-    ${actionAreaHtml}
-    <label class="checkbox-wrapper">
-      <input type="checkbox" ${checkboxAttrs} />
-      <span class="checkbox-mark"><span class="material-symbols" aria-hidden="true">${checkIcon}</span></span>
-    </label>`
+    ${buildBgIconHtml(rawItem.id)}`
 
   card.querySelector('.order-badge').textContent = String(order).padStart(2, '0')
   card.querySelector('.workflow-card__title').textContent = rawItem.title

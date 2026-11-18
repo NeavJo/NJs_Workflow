@@ -12,7 +12,8 @@
   .workflow-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-.workflow-card { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "badge content actions"; align-items: center; gap: 14px 18px; padding: 20px; border-radius: var(--md-radius-medium); background: var(--md-surface-container); box-shadow: var(--md-elevation-1); transition: transform var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard), opacity var(--md-motion-standard); position: relative; overflow: hidden; }
+.workflow-card { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "badge content actions"; align-items: center; align-content: center; position: relative; overflow: hidden; padding: 20px; border-radius: var(--md-radius-medium); background: var(--md-surface-container); box-shadow: var(--md-elevation-1); transition: transform var(--md-motion-standard), box-shadow var(--md-motion-standard), background var(--md-motion-standard), opacity var(--md-motion-standard); }
+.workflow-card__layout { display: contents; }
 .is-advanced-visual .workflow-card { isolation: isolate; }
 .is-advanced-visual .workflow-card__content { position: relative; }
 /* 当存在【外链/检查】按钮时，actions 列自动撑开 */
@@ -286,7 +287,9 @@
 .workflow-card.has-check-lock .checkbox-wrapper input:checked + .checkbox-mark { opacity: 0.65; }
 
 /* 卡片内容 */
-.workflow-card__content { min-width: 0; }
+.workflow-card__content { min-width: 0; overflow-wrap: anywhere; }
+.workflow-card__title,
+.workflow-card__description { min-width: 0; overflow-wrap: anywhere; }
 .workflow-card__title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .workflow-card__title { margin: 0; font-size: 16px; }
 .workflow-card__description { margin: 5px 0 0; color: var(--md-on-surface-variant); font-size: 13px; }
@@ -394,6 +397,7 @@
 
 /* 所有内容与交互层确保在水印之上 */
 .order-badge,
+.workflow-card__layout,
 .workflow-card__content,
 .checkbox-wrapper,
 .workflow-card__action,

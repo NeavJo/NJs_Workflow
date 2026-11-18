@@ -158,12 +158,10 @@
     outline: 2px solid var(--md-primary);
     outline-offset: 3px;
   }
-  .workflow-card { display: grid; grid-template-columns: 28px minmax(0, 1fr) 34px; grid-template-rows: auto; grid-template-areas: "badge content check"; gap: 0 12px; padding: 14px; align-items: center; }
-  /* 序号与内容都跨满卡片行，在整卡高度内居中；按钮仍留在独立的第二行。 */
-  .workflow-card .order-badge { grid-area: badge; grid-row: 1 / -1; align-self: center; }
-  .workflow-card .workflow-card__content { grid-area: content; }
+  .workflow-card { grid-template-columns: 28px minmax(0, 1fr) 34px; grid-template-areas: "badge content check"; gap: 0 12px; padding: 14px; }
   .workflow-card:has(.workflow-card__action):has(.checkbox-wrapper),
   .workflow-card:has(.workflow-card__check-btn):has(.checkbox-wrapper) { grid-template-columns: 28px minmax(0, 1fr) minmax(0, auto) 34px; grid-template-areas: "badge content actions check"; }
+  .workflow-card .order-badge { grid-row: 1 / -1; align-self: center; }
   .workflow-card__action-area { grid-area: actions; display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
   .workflow-card .checkbox-wrapper { position: relative; grid-area: check; display: grid; width: 34px; height: 34px; place-items: center; margin: 0; justify-self: end; align-self: center; transform: none; overflow: visible; }
   .workflow-card__action, .workflow-card__check-btn { height: 40px; padding: 0 13px; font-size: 12px; }
@@ -295,15 +293,14 @@
     .workflow-card:has(.workflow-card__check-btn):has(.checkbox-wrapper) {
       grid-template-columns: 28px minmax(0, 1fr) 34px;
       grid-template-rows: auto auto;
-      /* check 区域纵向跨两行，使打勾框以卡片全高为基准垂直居中 */
+      /* 序号与勾选框跨越正文和操作两行，以完整内容高度作为居中基准。 */
       grid-template-areas:
         "badge content check"
         ".     actions check";
       align-items: start;
       gap: 4px 12px;
     }
-    .workflow-card .workflow-card__content { grid-row: 1 / -1; align-self: center; }
-    /* 跨行后显式居中，覆盖卡片的 align-items: start */
+    .workflow-card > .workflow-card__layout > .order-badge { grid-row: 1 / 3; align-self: center; }
     .checkbox-wrapper { align-self: center; }
     .workflow-card__action-area {
       grid-area: actions;
