@@ -159,7 +159,9 @@
     outline-offset: 3px;
   }
   .workflow-card { display: grid; grid-template-columns: 28px minmax(0, 1fr) 34px; grid-template-rows: auto; grid-template-areas: "badge content check"; gap: 0 12px; padding: 14px; align-items: center; }
-  .workflow-card .order-badge { grid-area: badge; }
+  /* 序号徽章：跨卡片全部行并以卡片全高垂直居中，
+     不依赖内容行数或固定偏移（窄屏 align-items: start 会导致它顶对齐偏上） */
+  .workflow-card .order-badge { grid-area: badge; grid-row: 1 / -1; align-self: center; }
   .workflow-card .workflow-card__content { grid-area: content; }
   .workflow-card:has(.workflow-card__action):has(.checkbox-wrapper),
   .workflow-card:has(.workflow-card__check-btn):has(.checkbox-wrapper) { grid-template-columns: 28px minmax(0, 1fr) minmax(0, auto) 34px; grid-template-areas: "badge content actions check"; }
