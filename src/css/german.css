@@ -314,6 +314,27 @@
   background: color-mix(in srgb, var(--md-outline) 20%, transparent);
 }
 .german-definition__main { font-size: calc(var(--german-font-scale, 1) * 17px); line-height: 1.5; color: var(--md-on-surface); font-weight: 600; }
+.german-definition__save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease;
+}
+.german-definition__save:hover { background: color-mix(in srgb, var(--md-primary) 8%, transparent); }
+.german-definition__save:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
+.german-definition__save.is-added {
+  color: var(--md-primary);
+  background: color-mix(in srgb, var(--md-primary) 12%, transparent);
+}
+.german-definition__added-icon { flex: 0 0 auto; font-size: 18px; }
 .german-definition__trans { font-size: calc(var(--german-font-scale, 1) * 15px); line-height: 1.5; color: var(--md-on-surface-variant); margin-top: 2px; }
 
 .german-examples { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }

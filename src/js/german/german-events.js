@@ -23,6 +23,7 @@ import {
   setPendingQuery
 } from './german-dictionary.js'
 import { lookupWordViaLLM, removeCachedDetail, removeArticleCachedDetail } from './german-llm.js'
+import { markDefinitionAdded } from './german-renderer.js'
 import { getGermanTtsApiKey } from './german-font-size.js'
 import {
   setSuggestions,
@@ -396,6 +397,27 @@ function addCurrentCollocationToMemo(btn, scopeEl) {
   }
 }
 
+function addDefinitionToMemo(btn) {
+  const word = String(btn?.dataset?.word || '').trim()
+  const meaning = String(btn?.dataset?.meaning || '').trim()
+  if (!word || !meaning) return
+  const note = `${word} ${meaning}`
+  const result = appendOrDailyMemo(note, getSelectedMemoTag())
+  if (result) {
+    markDefinitionAdded(btn, word, meaning)
+    if (result.mode === 'duplicate') {
+      showToast(t(I18N.german.toasts.memoDuplicate, { word: note, date: formatMemoDateLabel(result.targetDate) }), { status: 'info' })
+      return
+    }
+    showToast(
+      t(I18N.german.toasts.memoAdded, { word: note, tag: result.memo?.tag || getSelectedMemoTag(), category: result.category }),
+      { status: 'success' }
+    )
+    return
+  }
+  showToast(I18N.german.toasts.memoFailed, { status: 'error' })
+}
+
 // ── 事件绑定 ──
 
 /** 搜索框：防抖联想 + 回车查询。 */
@@ -495,6 +517,11 @@ export function bindDetailActions(scopeEl) {
   if (detailGuard.is(rootEl)) return
   detailGuard.set(rootEl)
   rootEl.addEventListener('click', (event) => {
+    const definitionBtn = event.target.closest('.german-definition__save')
+    if (definitionBtn && rootEl.contains(definitionBtn)) {
+      addDefinitionToMemo(definitionBtn)
+      return
+    }
     const collocationBtn = event.target.closest('.german-collocation-add')
     if (collocationBtn) {
       addCurrentCollocationToMemo(collocationBtn, rootEl)

@@ -40,6 +40,29 @@ function getDetailRoot() {
   return document.getElementById('german-detail')
 }
 
+const addedDefinitionKeys = new Set()
+
+function definitionKey(word, meaning) {
+  return `${String(word || '').trim().normalize('NFC').toLocaleLowerCase()}\u0000${String(meaning || '').trim().normalize('NFC').toLocaleLowerCase()}`
+}
+
+function setDefinitionAddedState(button) {
+  button.classList.add('is-added')
+  button.setAttribute('aria-pressed', 'true')
+  button.title = '已加入生词本'
+  button.setAttribute('aria-label', `已加入生词本：${button.dataset.word} ${button.dataset.meaning}`)
+  if (!button.querySelector('.german-definition__added-icon')) {
+    const icon = iconEl('check')
+    icon.classList.add('german-definition__added-icon')
+    button.prepend(icon)
+  }
+}
+
+export function markDefinitionAdded(button, word, meaning) {
+  addedDefinitionKeys.add(definitionKey(word, meaning))
+  setDefinitionAddedState(button)
+}
+
 /**
  * 渲染候选词下拉（本地即时匹配，0 延迟）。
  * @param {Array} suggestions — searchLocalDictionary 返回的候选列表
@@ -299,7 +322,17 @@ export function renderDetail(detail, targetEl) {
         meta.appendChild(wrap)
       }
       if (meta.childNodes.length > 0) li.appendChild(meta)
-      li.appendChild(textEl('div', 'german-definition__main', meaning))
+      const meaningButton = document.createElement('button')
+      meaningButton.type = 'button'
+      meaningButton.className = 'german-definition__main german-definition__save'
+      meaningButton.dataset.word = word
+      meaningButton.dataset.meaning = meaning
+      meaningButton.textContent = meaning
+      meaningButton.setAttribute('aria-pressed', 'false')
+      if (addedDefinitionKeys.has(definitionKey(word, meaning))) {
+        setDefinitionAddedState(meaningButton)
+      }
+      li.appendChild(meaningButton)
 
       if (exDe || exCn) {
         const ul = document.createElement('ul')
