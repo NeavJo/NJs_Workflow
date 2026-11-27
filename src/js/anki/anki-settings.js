@@ -250,6 +250,25 @@ export function renderAnkiPassphraseStatus() {
     const noPassphrase = !getEffectivePassphrase()
     hintEl.hidden = !(hasAnyKey && noPassphrase)
   }
+  // 同步刷新 API 配置卡上的加密状态行（口令保存 / 清除都会走到这里）。
+  renderAnkiApiEncryptionStatus()
+}
+
+/**
+ * API 配置卡上的「已加密 / 未加密」只读状态行（方案 C：口令本体已迁到「数据与同步」组）。
+ *  - 判定依据是档案是否保有 apiKeyEncrypted 密文字段：水合解密只填充内存明文、保留密文字段，
+ *    因此不会因解锁而误判为未加密；从未设置口令保存的档案（仅明文 apiKey）显示未加密。
+ */
+export function renderAnkiApiEncryptionStatus() {
+  const el = $('anki-api-encryption-status')
+  if (!el) return
+  const withKey = getAnkiProfiles().filter((p) => p.apiKey || p.apiKeyEncrypted)
+  if (withKey.length === 0) {
+    el.textContent = I18N.settings.apiEncryptionStatusEmpty
+    return
+  }
+  const allEncrypted = withKey.every((p) => p.apiKeyEncrypted)
+  el.textContent = allEncrypted ? I18N.settings.apiEncryptionStatusEncrypted : I18N.settings.apiEncryptionStatusPlain
 }
 
 /* ===== 档案 CRUD ===== */

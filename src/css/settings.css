@@ -153,6 +153,24 @@
 .settings-tag-add > input:focus { outline: none; border-color: var(--md-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary) 18%, transparent); }
 .settings-tag-add > .btn { flex-shrink: 0; }
 
+/* ===== 组内说明跳转行（如「生词与标签」组的 APKG 说明 → Anki 处理机组） ===== */
+.settings-inline-jump {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+  padding: 12px 16px;
+  border: 1px dashed color-mix(in srgb, var(--md-outline) 40%, transparent);
+  border-radius: 14px;
+  color: var(--md-on-surface-variant);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.settings-inline-jump > .material-symbols { flex-shrink: 0; font-size: 20px; color: var(--md-primary); }
+.settings-inline-jump__text { flex: 1 1 220px; min-width: 0; }
+.settings-inline-jump > .btn { flex-shrink: 0; }
+
 /* ===== 工作流管理子页：Hero + 动作 Tile ===== */
 .settings-subpage__hero { padding: 8px 4px 12px; }
 .settings-subpage__hero-title {

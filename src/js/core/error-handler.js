@@ -11,6 +11,9 @@
  * - 错误统计和监控
  */
 
+import { showToast } from '../ui.js'
+import { I18N } from '../locales.js'
+
 export const ErrorTypes = {
   NETWORK: 'network',
   STORAGE: 'storage',
@@ -26,6 +29,20 @@ export const ErrorSeverity = {
   MEDIUM: 'medium',
   HIGH: 'high',
   CRITICAL: 'critical'
+}
+
+/**
+ * 按错误类型兜底的"人话"提示。
+ * 只有类型无法归因时才落到 userUnknown；界面上永远不会出现异常原文。
+ */
+const FRIENDLY_BY_TYPE = {
+  [ErrorTypes.NETWORK]: I18N.toast.system.userNetwork,
+  [ErrorTypes.STORAGE]: I18N.toast.system.userStorage,
+  [ErrorTypes.VALIDATION]: I18N.toast.system.userValidation,
+  [ErrorTypes.AUTHENTICATION]: I18N.toast.system.userAuth,
+  [ErrorTypes.BUSINESS]: I18N.toast.system.userBusiness,
+  [ErrorTypes.SYSTEM]: I18N.toast.system.userSystem,
+  [ErrorTypes.UNKNOWN]: I18N.toast.system.userUnknown
 }
 
 export class ErrorHandler {
@@ -240,14 +257,22 @@ export class ErrorHandler {
 
   /**
    * 显示用户反馈
+   *
+   * 关键约定：
+   * - 界面只显示"人话 + 下一步"，绝不显示 error.message 原文
+   *   （例如 Failed to fetch / TypeError: xxx 一律不进界面，只进控制台）。
+   * - 文案优先级：调用方显式传入的 context.userMessage > 按错误类型兜底。
+   * - LOW 级别默认不打扰用户（只进控制台）；若调用方认为需要提示，
+   *   必须显式传 userMessage 才会展示。
    */
   showUserFeedback(errorInfo) {
-    const { message, severity, type } = errorInfo
-    
-    // 使用现有的 Toast 系统
-    if (typeof showToast !== 'undefined') {
+    try {
+      const { severity, type, userMessage } = errorInfo
+
+      // LOW：非关键异常默认静默，避免启动时刷屏；调用方显式给文案才提示
+      if (severity === ErrorSeverity.LOW && !userMessage) return
+
       let status = 'info'
-      
       switch (severity) {
         case ErrorSeverity.CRITICAL:
         case ErrorSeverity.HIGH:
@@ -260,8 +285,13 @@ export class ErrorHandler {
           status = 'info'
           break
       }
-      
-      showToast(message, { status })
+
+      const text = userMessage || FRIENDLY_BY_TYPE[type] || I18N.toast.system.userUnknown
+      // 同一错误类型按事件名去重/合并计数，避免一次故障连弹多条
+      showToast(text, { status, event: `system.${type || 'unknown'}` })
+    } catch (e) {
+      // 提示系统自身失败绝不能再抛错，只记录控制台
+      console.error('[NJsWorkflow] 用户提示展示失败', e)
     }
   }
 

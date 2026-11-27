@@ -243,6 +243,10 @@
   font-size: 14px;
   line-height: 1.55;
 }
+/* 确认弹窗正文保留换行：多段说明（如恢复默认、清除口令）不再被压成一整段 */
+#confirm-message {
+  white-space: pre-line;
+}
 .modal__footer--alert {
   justify-content: flex-end;
   border-top: 0;

@@ -1,3 +1,5 @@
+import { DBG } from '../core/debug.js'
+
 /**
  * 视图 / 设置页导航：
  *  - switchView：切换主功能页（flow / memo / settings）
@@ -11,13 +13,41 @@
 // 顺序必须与 index.html 中 nav-item 的 DOM 顺序一致（flow/german/memo/anki/monthly/settings），
 // 否则 switchView 用 indexOf 计算滑动方向时，德语助手等页的进出方向会与导航栏视觉位置相反。
 export const TOP_LEVEL_VIEWS = ['flow', 'german', 'memo', 'anki', 'monthly', 'settings']
-export const SETTINGS_VIEWS = ['main', 'backup', 'anki-api', 'anki-export', 'workflow', 'tags', 'german']
+// 设置页 5 分组（方案 C）：任务 / 生词与标签 / Anki 处理机 / 德语助手 / 数据与同步。
+// 「general」子页已从导航摘除（高级视觉开关藏起，实现保留），故不在清单内。
+export const SETTINGS_VIEWS = ['main', 'tasks', 'tags', 'anki', 'german', 'data']
 
 let currentView = 'flow'
 let currentSettingsView = 'main'
 let settingsTransitionId = 0
 const viewHooks = new Map()
+// 顶级视图切换订阅：与 viewHooks 不同，这里允许多个订阅者（如主页圆盘菜单按视图显隐）。
+const viewChangeListeners = new Set()
 let viewTransitionId = 0
+
+/**
+ * 订阅顶级视图切换。返回取消订阅函数。
+ * viewHooks 是"每个视图只允许一个回调"的钩子（设置页已占用 settings），
+ * 需要多个模块各自感知视图变化时用这个订阅。
+ */
+export function onViewChange(callback) {
+  if (typeof callback !== 'function') return () => {}
+  viewChangeListeners.add(callback)
+  return () => {
+    viewChangeListeners.delete(callback)
+  }
+}
+
+function notifyViewChange(view, previousView) {
+  for (const callback of [...viewChangeListeners]) {
+    try {
+      callback({ view, previousView })
+    } catch (e) {
+      // 单个订阅者异常不能影响视图切换本身，也不能阻断其它订阅者。
+      DBG('navigation:view-change-listener', String(e))
+    }
+  }
+}
 
 function getViewTransitionDuration(baseDuration) {
   const scale = Number.parseFloat(
@@ -124,6 +154,8 @@ export function switchView(target) {
       /* noop */
     }
   }
+
+  notifyViewChange(target, previousView)
 
   return true
 }

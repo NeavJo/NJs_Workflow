@@ -679,7 +679,7 @@ async function uploadToGistInternal({ notifyKeyOmitted = true } = {}) {
       severity: ErrorSeverity.MEDIUM,
       source: 'gist.uploadToGist'
     })
-    if (notifyKeyOmitted) showToast(t(I18N.toast.gist.uploadFailed, { msg: err.message || String(err) }))
+    if (notifyKeyOmitted) showToast(I18N.toast.gist.uploadException, { status: 'error' })
     return { ok: false, reason: 'exception' }
   } finally {
     if (indicatorShown) hideGistIndicator()

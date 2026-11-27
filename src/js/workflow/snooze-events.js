@@ -11,9 +11,9 @@ import { renderWorkflow } from './workflow-renderer.js'
 
 /**
  * 今日临时搁置事件层：
- *  - 设置页「今日搁置」按钮绑定
  *  - 弹窗复选项动态生成（仅今日可跟踪、未完成、非占位任务）
  *  - 确认保存 / 取消关闭 / 失败保留输入
+ *  - 入口由主页圆盘菜单（quick-menu.js）调用 openSnoozeModal，模块内不再绑定入口按钮
  *
  * 设计约束：
  *  - 搁置与完成互斥：已完成任务不出现在选择列表中。
@@ -160,21 +160,3 @@ export function openSnoozeModal() {
   }
 }
 
-/**
- * 绑定设置页「今日搁置」入口按钮。
- * 入口位于设置工作流子页；按钮不存在时安全返回。
- */
-export function bindSnoozeEvents() {
-  const btn = document.getElementById('btn-workflow-snooze')
-  if (!btn) {
-    DBG('snooze:bind:no-button')
-    return
-  }
-  if (snoozeEventsGuard.is(btn)) return
-  snoozeEventsGuard.set(btn)
-
-  btn.addEventListener('click', () => {
-    openSnoozeModal()
-  })
-  DBG('snooze:bound')
-}

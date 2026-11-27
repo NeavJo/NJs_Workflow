@@ -290,190 +290,92 @@
               <div>
                 <p class="eyebrow" data-i18n="settings.eyebrow">SETTINGS · DATA</p>
                 <h1 id="settings-page-title" data-i18n="settings.title">设置与数据</h1>
-                <p class="hero-copy" data-i18n="settings.heroCopy">管理工作流、生词本标签、本地备份与 GitHub Gist 云端同步。</p>
+                <p class="hero-copy" data-i18n="settings.heroCopy">任务、生词与标签、Anki 处理机、德语助手、数据与同步，五个分组统一管理。</p>
               </div>
             </section>
 
             <div class="settings-page__content">
               <div class="settings-view-stack">
+                <!-- 设置主页：5 个分组入口，每项副标说明该组管什么（替代一次性迁移提示） -->
                 <section class="settings-view settings-view--main" data-settings-view="main">
-                  <button class="settings-menu-item" type="button" data-settings-page="general">
-                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--general" aria-hidden="true">tune</span>
-                    <span class="settings-menu-item__copy">
-                      <strong data-i18n="settings.generalMenu">通用设置</strong>
-                      <span data-i18n="settings.generalMenuSub">高级视觉效果与全局偏好。</span>
-                    </span>
-                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
-                  </button>
-                  <button class="settings-menu-item" type="button" data-settings-page="backup">
-                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--backup" aria-hidden="true">import_export</span>
-                    <span class="settings-menu-item__copy">
-                      <strong data-i18n="settings.backupMenu">数据备份与恢复</strong>
-                      <span data-i18n="settings.backupMenuSub">导出当前数据，或从 JSON 备份还原。</span>
-                    </span>
-                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
-                  </button>
-                  <button class="settings-menu-item" type="button" data-settings-page="german">
-                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--german" aria-hidden="true">text_fields</span>
-                    <span class="settings-menu-item__copy">
-                      <strong data-i18n="settings.germanMenu">德语助手设置</strong>
-                      <span data-i18n="settings.germanMenuSub">调节查词结果页的字号显示。</span>
-                    </span>
-                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
-                  </button>
-                  <button class="settings-menu-item" type="button" data-settings-page="anki-api">
-                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--anki" aria-hidden="true">psychology</span>
-                    <span class="settings-menu-item__copy">
-                      <strong data-i18n="settings.ankiApiMenu">Anki 处理机 API 配置</strong>
-                      <span data-i18n="settings.ankiApiMenuSub">配置 LLM 接口用于生成 Anki 卡片文本。</span>
-                    </span>
-                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
-                  </button>
-                  <button class="settings-menu-item" type="button" data-settings-page="anki-export">
-                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--anki" aria-hidden="true">library_books</span>
-                    <span class="settings-menu-item__copy">
-                      <strong data-i18n="settings.ankiExportMenu">APKG 导出配置</strong>
-                      <span data-i18n="settings.ankiExportMenuSub">按标签配置 Anki 卡组和笔记类型，双击导入无需手动选择。</span>
-                    </span>
-                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
-                  </button>
-                  <button class="settings-menu-item" type="button" data-settings-page="workflow">
+                  <button class="settings-menu-item" type="button" data-settings-page="tasks">
                     <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--workflow" aria-hidden="true">list_alt</span>
                     <span class="settings-menu-item__copy">
-                      <strong data-i18n="settings.workflowMenu">工作流管理</strong>
-                      <span data-i18n="settings.workflowMenuSub">添加任务，编辑现有工作流及其排序。</span>
+                      <strong data-i18n="settings.tasksMenu">任务</strong>
+                      <span data-i18n="settings.tasksMenuSub">编辑工作流、添加任务、每日重置。</span>
                     </span>
                     <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
                   </button>
                   <button class="settings-menu-item" type="button" data-settings-page="tags">
                     <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--tag" aria-hidden="true">sell</span>
                     <span class="settings-menu-item__copy">
-                      <strong data-i18n="settings.tagsMenu">生词本标签管理</strong>
-                      <span data-i18n="settings.tagsMenuSub">维护生词本分类标签，管理自定义标签。</span>
+                      <strong data-i18n="settings.tagsMenu">生词与标签</strong>
+                      <span data-i18n="settings.tagsMenuSub">管理生词本的分类标签。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button class="settings-menu-item" type="button" data-settings-page="anki">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--anki" aria-hidden="true">psychology</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.ankiMenu">Anki 处理机</strong>
+                      <span data-i18n="settings.ankiMenuSub">模型档案、自定义提示词与 APKG 导出配置。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button class="settings-menu-item" type="button" data-settings-page="german">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--german" aria-hidden="true">text_fields</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.germanMenu">德语助手</strong>
+                      <span data-i18n="settings.germanMenuSub">结果页字号与 TTS 发音 Key。</span>
+                    </span>
+                    <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button class="settings-menu-item" type="button" data-settings-page="data">
+                    <span class="material-symbols settings-menu-item__icon settings-menu-item__icon--backup" aria-hidden="true">import_export</span>
+                    <span class="settings-menu-item__copy">
+                      <strong data-i18n="settings.dataMenu">数据与同步</strong>
+                      <span data-i18n="settings.dataMenuSub">导出 / 还原备份、Gist 云同步与 API Key 加密口令。</span>
                     </span>
                     <span class="material-symbols settings-menu-item__arrow" aria-hidden="true">chevron_right</span>
                   </button>
                 </section>
 
-                <section class="settings-view settings-view--sub" data-settings-view="backup" hidden>
+                <section class="settings-view settings-view--sub" data-settings-view="tasks" hidden>
                   <div class="settings-subpage__header">
                     <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
                       <span class="material-symbols" aria-hidden="true">chevron_left</span>
                       <span data-i18n="common.back">返回</span>
                     </button>
-                    <h3 data-i18n="settings.backupMenu">数据备份与恢复</h3>
+                    <h3 data-i18n="settings.tasksMenu">任务</h3>
                   </div>
                   <div class="settings-subpage__content">
-                    <section class="backup-card">
-                      <div class="backup-card__header">
-                        <div class="backup-card__title">
-                          <span class="material-symbols backup-icon backup-icon--export" aria-hidden="true">download</span>
-                          <div>
-                            <h3 data-i18n="settings.exportTitle">导出备份</h3>
-                            <p data-i18n="settings.exportSub">打包当前的任务配置 + 生词笔记，下载为 JSON 文件。不含每日打卡勾选状态。</p>
-                          </div>
-                        </div>
-                      </div>
-                      <footer class="backup-card__footer">
-                        <ul class="scope-list">
-                          <li><span class="chip chip--outline" data-i18n="settings.workflowsChip">Workflows 任务配置</span></li>
-                          <li><span class="chip chip--outline" data-i18n="settings.memosChip">Memos 生词笔记</span></li>
-                        </ul>
-                        <button id="btn-export" type="button" class="btn btn--filled">
-                          <span class="material-symbols" aria-hidden="true">sim_card_download</span>
-                          <span data-i18n="settings.exportBtn">导出 JSON</span>
-                        </button>
-                      </footer>
+                    <section class="settings-subpage__hero">
+                      <p class="eyebrow" data-i18n="workflow.eyebrow">WORKFLOW</p>
+                      <h3 class="settings-subpage__hero-title" data-i18n="workflow.workflowPageHeroTitle">管理每日任务的顺序与轮换。</h3>
+                      <p class="settings-subpage__hero-sub" data-i18n="workflow.workflowPageHeroSub">编辑工作流会实时反映到主页面卡片。</p>
                     </section>
 
-                    <section class="backup-card">
-                      <div class="backup-card__header">
-                        <div class="backup-card__title">
-                          <span class="material-symbols backup-icon backup-icon--import" aria-hidden="true">upload</span>
-                          <div>
-                            <h3 data-i18n="settings.restoreTitle">从备份还原</h3>
-                            <p data-i18n="settings.restoreSub">选择之前导出的 JSON 文件，解析成功后将覆盖当前的任务列表与笔记。</p>
-                          </div>
-                        </div>
-                      </div>
-                      <footer class="backup-card__footer">
-                        <label class="file-drop">
-                          <input id="file-import" type="file" accept="application/json,.json" hidden />
-                          <span class="material-symbols file-drop__icon" aria-hidden="true">description</span>
-                          <div>
-                            <strong class="file-drop__title" data-i18n="settings.clickSelectJson">点击选择 JSON 文件</strong>
-                            <span id="file-drop-hint" class="file-drop__hint" data-i18n="settings.dropHint">或拖到此处 · 识别 NJW v1.0 / 1.1 / 1.2 / 1.3</span>
-                          </div>
-                        </label>
-                        <div class="backup-card__actions">
-                          <button id="btn-reset-workflows" type="button" class="btn btn--tonal">
-                            <span class="material-symbols" aria-hidden="true">restore</span>
-                            <span data-i18n="settings.restoreDefaultTasks">恢复默认任务</span>
-                          </button>
-                        </div>
-                      </footer>
+                    <section class="settings-card-group">
+                      <button type="button" class="settings-action-tile settings-action-tile--primary" id="btn-workflow-edit">
+                        <span class="material-symbols" aria-hidden="true">tune</span>
+                        <span class="settings-action-tile__body">
+                          <strong data-i18n="workflow.editWorkflowTile">编辑当前工作流</strong>
+                          <small data-i18n="workflow.editWorkflowTileSub">调整顺序、编辑字段或删除任务。</small>
+                        </span>
+                        <span class="material-symbols settings-action-tile__chevron" aria-hidden="true">chevron_right</span>
+                      </button>
+
+                      <button type="button" class="settings-action-tile" id="btn-workflow-add">
+                        <span class="material-symbols" aria-hidden="true">add_circle</span>
+                        <span class="settings-action-tile__body">
+                          <strong data-i18n="workflow.addTask">添加任务</strong>
+                          <small data-i18n="workflow.addTaskSub">创建一条新的工作流卡片。</small>
+                        </span>
+                        <span class="material-symbols settings-action-tile__chevron" aria-hidden="true">chevron_right</span>
+                      </button>
                     </section>
 
-                    <section class="backup-card backup-card--gist">
-                      <div class="backup-card__header">
-                        <div class="backup-card__title">
-                          <span class="material-symbols backup-icon backup-icon--gist" aria-hidden="true">cloud_sync</span>
-                          <div>
-                            <h3 data-i18n="settings.gistTitle">GitHub Gist 云端数据同步</h3>
-                            <p data-i18n="settings.gistSub">把当前数据上传到 GitHub Gist 实现跨设备同步；支持启动时自动拉取 / 改动后自动推送。</p>
-                          </div>
-                        </div>
-                      </div>
-                      <footer class="backup-card__footer">
-                        <form class="gist-form" id="gist-settings-form" autocomplete="off">
-                          <div class="gist-field">
-                            <label class="gist-field__label" for="gist-token-input">
-                              <span data-i18n="settings.tokenLabel">GitHub Token</span>
-                              <small data-i18n="settings.tokenHint">Personal Access Token · 需启用 gist 权限</small>
-                            </label>
-                            <div class="gist-field__control">
-                              <input id="gist-token-input" type="password" autocomplete="off" spellcheck="false" placeholder="ghp_*** 或 github_pat_***" data-i18n-placeholder="settings.tokenPlaceholder" />
-                            </div>
-                          </div>
-                          <div class="gist-field">
-                            <label class="gist-field__label" for="gist-id-input">
-                              <span data-i18n="settings.gistIdLabel">Gist ID</span>
-                              <small data-i18n="settings.gistIdHint">URL 中 /gist/{id} 那段 32 位哈希</small>
-                            </label>
-                            <div class="gist-field__control">
-                              <input id="gist-id-input" type="text" autocomplete="off" spellcheck="false" placeholder="例如：a1b2c3d4e5f6789..." data-i18n-placeholder="settings.gistIdPlaceholder" />
-                            </div>
-                          </div>
-                        </form>
-
-                        <div class="gist-status-line">
-                          <span class="gist-status__dot" aria-hidden="true"></span>
-                          <span id="gist-status" class="gist-status__text" data-i18n="settings.gistStatusNotConfigured">未配置：请填写 GitHub Token 与 Gist ID。</span>
-                          <span class="gist-status__divider" aria-hidden="true"></span>
-                          <span id="gist-status-meta" class="gist-status__meta" data-i18n="settings.noSyncRecord">暂无同步记录</span>
-                        </div>
-
-                        <div class="gist-actions">
-                          <button id="btn-gist-save" type="button" class="btn btn--tonal gist-actions__btn">
-                            <span class="material-symbols" aria-hidden="true">save</span>
-                            <span data-i18n="settings.saveConfig">保存配置</span>
-                          </button>
-                          <button id="btn-gist-clear" type="button" class="btn btn--tonal gist-actions__btn">
-                            <span class="material-symbols" aria-hidden="true">delete</span>
-                            <span data-i18n="settings.clearConfig">清除凭据</span>
-                          </button>
-                          <button id="btn-gist-upload" type="button" class="btn btn--filled gist-actions__btn">
-                            <span class="material-symbols" aria-hidden="true">cloud_upload</span>
-                            <span data-i18n="settings.uploadToGist">上传到 Gist</span>
-                          </button>
-                          <button id="btn-gist-pull" type="button" class="btn btn--tonal gist-actions__btn">
-                            <span class="material-symbols" aria-hidden="true">cloud_download</span>
-                            <span data-i18n="settings.pullFromGist">从 Gist 拉取</span>
-                          </button>
-                        </div>
-                      </footer>
-                    </section>
-
+                    <!-- 每日重置：原属「数据备份与恢复」，按分组重构迁入「任务」组并置于末尾 -->
                     <section class="backup-card">
                       <div class="backup-card__header">
                         <div class="backup-card__title">
@@ -504,7 +406,7 @@
                           <span data-i18n="settings.resetHint">每天 00:00 自动初始化今日任务打卡状态。</span>
                         </div>
                         <div class="backup-card__actions">
-                          <button id="btn-daily-reset" type="button" class="btn btn--tonal">
+                          <button id="btn-daily-reset" type="button" class="btn btn--danger">
                             <span class="material-symbols" aria-hidden="true">restart_alt</span>
                             <span data-i18n="settings.resetToday">重置今日打卡状态</span>
                           </button>
@@ -514,13 +416,56 @@
                   </div>
                 </section>
 
-                <section class="settings-view settings-view--sub" data-settings-view="anki-api" hidden>
+                <section class="settings-view settings-view--sub" data-settings-view="tags" hidden>
                   <div class="settings-subpage__header">
                     <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
                       <span class="material-symbols" aria-hidden="true">chevron_left</span>
                       <span data-i18n="common.back">返回</span>
                     </button>
-                    <h3 data-i18n="settings.ankiApiTitle">Anki 处理机 API 配置</h3>
+                    <h3 data-i18n="settings.tagsMenu">生词与标签</h3>
+                  </div>
+                  <div class="settings-subpage__content">
+                    <section class="backup-card">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--tag" aria-hidden="true">sell</span>
+                          <div>
+                            <h3 data-i18n="settings.tagsTitle">生词本标签管理</h3>
+                            <p data-i18n="settings.tagsSub">自定义生词本顶部的分类标签。Deutsch/Anki 为系统默认，不可删除或改名。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <ul id="settings-tag-list" class="settings-tag-list" aria-label="标签列表" data-i18n-aria="common.tagListAria"></ul>
+                        <div class="settings-tag-add">
+                          <input id="settings-tag-input" type="text" placeholder="新标签名称" data-i18n-placeholder="settings.newTagPlaceholder" maxlength="24" autocomplete="off" />
+                          <button id="btn-tag-add" type="button" class="btn btn--filled">
+                            <span class="material-symbols" aria-hidden="true">add</span>
+                            <span data-i18n="settings.addTagBtn">添加标签</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+
+                    <!-- APKG 导出与标签联动的说明行：跳转复用 data-settings-page 委托，进入 Anki 组会自动渲染导出配置 -->
+                    <div class="settings-inline-jump">
+                      <span class="material-symbols" aria-hidden="true">library_books</span>
+                      <span class="settings-inline-jump__text" data-i18n="settings.tagsApkgNote">APKG 导出可按标签分组，目标卡组与笔记类型在「Anki 处理机」组配置。</span>
+                      <button type="button" class="btn btn--outlined" data-settings-page="anki">
+                        <span data-i18n="settings.tagsApkgJump">去配置</span>
+                        <span class="material-symbols" aria-hidden="true">chevron_right</span>
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="settings-view settings-view--sub" data-settings-view="anki" hidden>
+                  <div class="settings-subpage__header">
+                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
+                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
+                      <span data-i18n="common.back">返回</span>
+                    </button>
+                    <h3 data-i18n="settings.ankiMenu">Anki 处理机</h3>
                   </div>
                   <div class="settings-subpage__content">
                     <section class="backup-card backup-card--anki">
@@ -590,6 +535,11 @@
                             </div>
                           </div>
                         </form>
+                        <!-- 加密状态行：只读回显，加密口令本体在「数据与同步」组管理 -->
+                        <div class="gist-status-line">
+                          <span class="gist-status__dot" aria-hidden="true"></span>
+                          <span id="anki-api-encryption-status" class="gist-status__text" data-i18n="settings.apiEncryptionStatusEmpty">未保存 API Key</span>
+                        </div>
                         <div class="gist-actions">
                           <button id="btn-anki-profile-duplicate" type="button" class="btn btn--tonal gist-actions__btn">
                             <span class="material-symbols" aria-hidden="true">content_copy</span>
@@ -602,53 +552,6 @@
                           <button id="btn-anki-save" type="button" class="btn btn--filled gist-actions__btn">
                             <span class="material-symbols" aria-hidden="true">save</span>
                             <span data-i18n="settings.saveConfig">保存配置</span>
-                          </button>
-                        </div>
-                      </footer>
-                    </section>
-
-                    <section class="backup-card backup-card--passphrase">
-                      <div class="backup-card__header">
-                        <div class="backup-card__title">
-                          <span class="material-symbols backup-icon backup-icon--passphrase" aria-hidden="true">lock</span>
-                          <div>
-                            <h3 data-i18n="settings.passphraseTitle">Anki API Key 加密（可选）</h3>
-                            <p data-i18n="settings.passphraseSub">可选：设置加密口令后，API Key 将以密文形式上传 Gist / 导出备份，拉取或导入时用口令解密还原。未设置口令时 API Key 仅保存在本机，不会上传或写入备份。</p>
-                          </div>
-                        </div>
-                      </div>
-                      <footer class="backup-card__footer">
-                        <form class="gist-form" id="anki-passphrase-form" autocomplete="off">
-                          <div class="gist-field">
-                            <label class="gist-field__label" for="anki-passphrase-input">
-                              <span data-i18n="settings.passphraseLabel">加密口令</span>
-                              <small data-i18n="settings.passphraseHint">仅保存在本设备；口令不会上传 Gist 或写入备份</small>
-                            </label>
-                            <div class="gist-field__control">
-                              <input id="anki-passphrase-input" type="password" autocomplete="new-password" spellcheck="false" placeholder="输入口令，用于加密 / 解密 API Key" data-i18n-placeholder="settings.passphrasePlaceholder" />
-                            </div>
-                          </div>
-                          <label class="gist-check" for="anki-passphrase-remember">
-                            <input id="anki-passphrase-remember" type="checkbox" />
-                            <span data-i18n="settings.passphraseRemember">在本设备记住口令（每次打开自动解锁）</span>
-                          </label>
-                        </form>
-                        <div class="gist-status-line">
-                          <span class="gist-status__dot" aria-hidden="true"></span>
-                          <span id="anki-passphrase-status" class="gist-status__text" data-i18n="settings.passphraseStatusNone">未设置口令</span>
-                        </div>
-                        <div id="anki-passphrase-sync-hint-line" class="gist-status-line" hidden aria-live="polite">
-                          <span class="gist-status__dot" aria-hidden="true"></span>
-                          <span class="gist-status__text is-warning" data-i18n="settings.passphraseSyncHintNoPassphrase">API Key 将不会上传到 Gist / 写入备份（其他数据正常同步）</span>
-                        </div>
-                        <div class="gist-actions">
-                          <button id="btn-anki-passphrase-clear" type="button" class="btn btn--tonal gist-actions__btn">
-                            <span class="material-symbols" aria-hidden="true">lock_reset</span>
-                            <span data-i18n="settings.clearPassphrase">清除口令</span>
-                          </button>
-                          <button id="btn-anki-passphrase-save" type="button" class="btn btn--filled gist-actions__btn">
-                            <span class="material-symbols" aria-hidden="true">lock</span>
-                            <span data-i18n="settings.savePassphrase">保存口令</span>
                           </button>
                         </div>
                       </footer>
@@ -692,18 +595,8 @@
                         </div>
                       </footer>
                     </section>
-                  </div>
-                </section>
 
-                <section class="settings-view settings-view--sub" data-settings-view="anki-export" hidden>
-                  <div class="settings-subpage__header">
-                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
-                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
-                      <span data-i18n="common.back">返回</span>
-                    </button>
-                    <h3 data-i18n="settings.ankiExportTitle">APKG 导出配置</h3>
-                  </div>
-                  <div class="settings-subpage__content">
+                    <!-- APKG 导出配置：原独立子页并入本组末尾 -->
                     <p class="settings-subpage__hero-sub" data-i18n="settings.ankiExportSub">按笔记标签配置目标卡组与笔记类型；未配置的标签使用默认值。</p>
 
                     <!-- 默认配置 -->
@@ -779,121 +672,171 @@
                   </div>
                 </section>
 
-                <section class="settings-view settings-view--sub" data-settings-view="workflow" hidden>
+                <section class="settings-view settings-view--sub" data-settings-view="data" hidden>
                   <div class="settings-subpage__header">
                     <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
                       <span class="material-symbols" aria-hidden="true">chevron_left</span>
                       <span data-i18n="common.back">返回</span>
                     </button>
-                    <h3 data-i18n="settings.workflowMenu">工作流管理</h3>
-                  </div>
-                  <div class="settings-subpage__content">
-                    <section class="settings-subpage__hero">
-                      <p class="eyebrow" data-i18n="workflow.eyebrow">WORKFLOW</p>
-                      <h3 class="settings-subpage__hero-title" data-i18n="workflow.workflowPageHeroTitle">管理每日任务的顺序与轮换。</h3>
-                      <p class="settings-subpage__hero-sub" data-i18n="workflow.workflowPageHeroSub">编辑工作流会实时反映到主页面卡片。</p>
-                    </section>
-
-                    <section class="settings-card-group">
-                      <button type="button" class="settings-action-tile settings-action-tile--primary" id="btn-workflow-edit">
-                        <span class="material-symbols" aria-hidden="true">tune</span>
-                        <span class="settings-action-tile__body">
-                          <strong data-i18n="workflow.editWorkflowTile">编辑当前工作流</strong>
-                          <small data-i18n="workflow.editWorkflowTileSub">调整顺序、编辑字段或删除任务。</small>
-                        </span>
-                        <span class="material-symbols settings-action-tile__chevron" aria-hidden="true">chevron_right</span>
-                      </button>
-
-                      <button type="button" class="settings-action-tile" id="btn-workflow-add">
-                        <span class="material-symbols" aria-hidden="true">add_circle</span>
-                        <span class="settings-action-tile__body">
-                          <strong data-i18n="workflow.addTask">添加任务</strong>
-                          <small data-i18n="workflow.addTaskSub">创建一条新的工作流卡片。</small>
-                        </span>
-                        <span class="material-symbols settings-action-tile__chevron" aria-hidden="true">chevron_right</span>
-                      </button>
-
-                      <button type="button" class="settings-action-tile settings-action-tile--warning" id="btn-workflow-snooze">
-                        <span class="material-symbols" aria-hidden="true">pause_circle</span>
-                        <span class="settings-action-tile__body">
-                          <strong data-i18n="settings.snoozeTile">今日临时搁置</strong>
-                          <small data-i18n="settings.snoozeTileSub">选择今天暂时不做的任务，不计入今日进度。</small>
-                        </span>
-                        <span class="material-symbols settings-action-tile__chevron" aria-hidden="true">chevron_right</span>
-                      </button>
-                    </section>
-                  </div>
-                </section>
-
-                <section class="settings-view settings-view--sub" data-settings-view="tags" hidden>
-                  <div class="settings-subpage__header">
-                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
-                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
-                      <span data-i18n="common.back">返回</span>
-                    </button>
-                    <h3 data-i18n="settings.tagsTitle">生词本标签管理</h3>
+                    <h3 data-i18n="settings.dataMenu">数据与同步</h3>
                   </div>
                   <div class="settings-subpage__content">
                     <section class="backup-card">
                       <div class="backup-card__header">
                         <div class="backup-card__title">
-                          <span class="material-symbols backup-icon backup-icon--tag" aria-hidden="true">sell</span>
+                          <span class="material-symbols backup-icon backup-icon--export" aria-hidden="true">download</span>
                           <div>
-                            <h3 data-i18n="settings.tagsTitle">生词本标签管理</h3>
-                            <p data-i18n="settings.tagsSub">自定义生词本顶部的分类标签。Deutsch/Anki 为系统默认，不可删除或改名。</p>
+                            <h3 data-i18n="settings.exportTitle">导出备份</h3>
+                            <p data-i18n="settings.exportSub">打包当前的任务配置 + 生词笔记，下载为 JSON 文件。不含每日打卡勾选状态。</p>
                           </div>
                         </div>
                       </div>
                       <footer class="backup-card__footer">
-                        <ul id="settings-tag-list" class="settings-tag-list" aria-label="标签列表" data-i18n-aria="common.tagListAria"></ul>
-                        <div class="settings-tag-add">
-                          <input id="settings-tag-input" type="text" placeholder="新标签名称" data-i18n-placeholder="settings.newTagPlaceholder" maxlength="24" autocomplete="off" />
-                          <button id="btn-tag-add" type="button" class="btn btn--filled">
-                            <span class="material-symbols" aria-hidden="true">add</span>
-                            <span data-i18n="settings.addTagBtn">添加标签</span>
+                        <ul class="scope-list">
+                          <li><span class="chip chip--outline" data-i18n="settings.workflowsChip">Workflows 任务配置</span></li>
+                          <li><span class="chip chip--outline" data-i18n="settings.memosChip">Memos 生词笔记</span></li>
+                        </ul>
+                        <button id="btn-export" type="button" class="btn btn--filled">
+                          <span class="material-symbols" aria-hidden="true">sim_card_download</span>
+                          <span data-i18n="settings.exportBtn">导出 JSON</span>
+                        </button>
+                      </footer>
+                    </section>
+
+                    <section class="backup-card">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--import" aria-hidden="true">upload</span>
+                          <div>
+                            <h3 data-i18n="settings.restoreTitle">从备份还原</h3>
+                            <p data-i18n="settings.restoreSub">选择之前导出的 JSON 文件，解析成功后将覆盖当前的任务列表与笔记。</p>
+                          </div>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <label class="file-drop">
+                          <input id="file-import" type="file" accept="application/json,.json" hidden />
+                          <span class="material-symbols file-drop__icon" aria-hidden="true">description</span>
+                          <div>
+                            <strong class="file-drop__title" data-i18n="settings.clickSelectJson">点击选择 JSON 文件</strong>
+                            <span id="file-drop-hint" class="file-drop__hint" data-i18n="settings.dropHint">或拖到此处 · 识别 NJW v1.0 / 1.1 / 1.2 / 1.3</span>
+                          </div>
+                        </label>
+                        <!-- 危险操作：覆盖本地数据，统一红色危险样式并置于卡片末尾 -->
+                        <div class="backup-card__actions">
+                          <button id="btn-reset-workflows" type="button" class="btn btn--danger">
+                            <span class="material-symbols" aria-hidden="true">restore</span>
+                            <span data-i18n="settings.restoreDefaultTasks">恢复默认任务</span>
                           </button>
                         </div>
                       </footer>
                     </section>
-                  </div>
-                </section>
 
-                <section class="settings-view settings-view--sub" data-settings-view="general" hidden>
-                  <div class="settings-subpage__header">
-                    <button class="settings-back" type="button" data-settings-back aria-label="返回设置主菜单" data-i18n-aria="common.backToSettingsAria">
-                      <span class="material-symbols" aria-hidden="true">chevron_left</span>
-                      <span data-i18n="common.back">返回</span>
-                    </button>
-                    <h3 data-i18n="settings.generalTitle">通用设置</h3>
-                  </div>
-                  <div class="settings-subpage__content">
-                    <section class="backup-card">
+                    <section class="backup-card backup-card--gist">
                       <div class="backup-card__header">
                         <div class="backup-card__title">
-                          <span class="material-symbols backup-icon backup-icon--general" aria-hidden="true">auto_awesome</span>
+                          <span class="material-symbols backup-icon backup-icon--gist" aria-hidden="true">cloud_sync</span>
                           <div>
-                            <h3 data-i18n="settings.advancedVisualTitle">高级视觉效果</h3>
-                            <p data-i18n="settings.advancedVisualSub">开启后启用厚重质感与灵动光效的交互动效（如任务勾选的光环爆出、光扫等）。关闭则恢复简洁样式。</p>
+                            <h3 data-i18n="settings.gistTitle">GitHub Gist 云端数据同步</h3>
+                            <p data-i18n="settings.gistSub">把当前数据上传到 GitHub Gist 实现跨设备同步；支持启动时自动拉取 / 改动后自动推送。</p>
                           </div>
                         </div>
                       </div>
                       <footer class="backup-card__footer">
-                        <div class="form-switch" id="advanced-visual-wrap">
-                          <div class="form-switch__meta">
-                            <strong data-i18n="settings.advancedVisual">高级视觉</strong>
-                            <small data-i18n="settings.advancedVisualHelper">仅影响动效与装饰，不改变功能。</small>
+                        <form class="gist-form" id="gist-settings-form" autocomplete="off">
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="gist-token-input">
+                              <span data-i18n="settings.tokenLabel">GitHub Token</span>
+                              <small data-i18n="settings.tokenHint">Personal Access Token · 需启用 gist 权限</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <input id="gist-token-input" type="password" autocomplete="off" spellcheck="false" placeholder="ghp_*** 或 github_pat_***" data-i18n-placeholder="settings.tokenPlaceholder" />
+                            </div>
                           </div>
-                          <label class="switch" for="advanced-visual">
-                            <input id="advanced-visual" name="advancedVisual" type="checkbox" />
-                            <span class="switch__track"><span class="switch__thumb"><span class="material-symbols switch__icon" aria-hidden="true">auto_awesome</span></span></span>
-                          </label>
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="gist-id-input">
+                              <span data-i18n="settings.gistIdLabel">Gist ID</span>
+                              <small data-i18n="settings.gistIdHint">URL 中 /gist/{id} 那段 32 位哈希</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <input id="gist-id-input" type="text" autocomplete="off" spellcheck="false" placeholder="例如：a1b2c3d4e5f6789..." data-i18n-placeholder="settings.gistIdPlaceholder" />
+                            </div>
+                          </div>
+                        </form>
+
+                        <div class="gist-status-line">
+                          <span class="gist-status__dot" aria-hidden="true"></span>
+                          <span id="gist-status" class="gist-status__text" data-i18n="settings.gistStatusNotConfigured">未配置：请填写 GitHub Token 与 Gist ID。</span>
+                          <span class="gist-status__divider" aria-hidden="true"></span>
+                          <span id="gist-status-meta" class="gist-status__meta" data-i18n="settings.noSyncRecord">暂无同步记录</span>
                         </div>
-                        <div class="form-switch form-switch--action" id="visual-params-wrap">
-                          <div class="form-switch__meta">
-                            <strong data-i18n="settings.visualParamsTitle">参数调整</strong>
-                            <small data-i18n="settings.visualParamsHint">调整边框粒子和其他高级视觉动画参数。</small>
+
+                        <!-- 危险操作「清除凭据」移到操作行末尾，统一红色危险样式 -->
+                        <div class="gist-actions">
+                          <button id="btn-gist-save" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">save</span>
+                            <span data-i18n="settings.saveConfig">保存配置</span>
+                          </button>
+                          <button id="btn-gist-upload" type="button" class="btn btn--filled gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">cloud_upload</span>
+                            <span data-i18n="settings.uploadToGist">上传到 Gist</span>
+                          </button>
+                          <button id="btn-gist-pull" type="button" class="btn btn--tonal gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">cloud_download</span>
+                            <span data-i18n="settings.pullFromGist">从 Gist 拉取</span>
+                          </button>
+                          <button id="btn-gist-clear" type="button" class="btn btn--danger gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">delete</span>
+                            <span data-i18n="settings.clearConfig">清除凭据</span>
+                          </button>
+                        </div>
+                      </footer>
+                    </section>
+
+                    <!-- 加密口令：原属「Anki 处理机 API 配置」，按分组重构迁入「数据与同步」组末尾 -->
+                    <section class="backup-card backup-card--passphrase">
+                      <div class="backup-card__header">
+                        <div class="backup-card__title">
+                          <span class="material-symbols backup-icon backup-icon--passphrase" aria-hidden="true">lock</span>
+                          <div>
+                            <h3 data-i18n="settings.passphraseTitle">Anki API Key 加密（可选）</h3>
+                            <p data-i18n="settings.passphraseSub">可选：设置加密口令后，API Key 将以密文形式上传 Gist / 导出备份，拉取或导入时用口令解密还原。未设置口令时 API Key 仅保存在本机，不会上传或写入备份。</p>
                           </div>
-                          <button id="visual-params-open" type="button" class="btn btn--outlined" aria-haspopup="dialog" aria-controls="visual-params-modal" data-i18n="settings.visualParamsOpen">打开参数</button>
+                        </div>
+                      </div>
+                      <footer class="backup-card__footer">
+                        <form class="gist-form" id="anki-passphrase-form" autocomplete="off">
+                          <div class="gist-field">
+                            <label class="gist-field__label" for="anki-passphrase-input">
+                              <span data-i18n="settings.passphraseLabel">加密口令</span>
+                              <small data-i18n="settings.passphraseHint">仅保存在本设备；口令不会上传 Gist 或写入备份</small>
+                            </label>
+                            <div class="gist-field__control">
+                              <input id="anki-passphrase-input" type="password" autocomplete="new-password" spellcheck="false" placeholder="输入口令，用于加密 / 解密 API Key" data-i18n-placeholder="settings.passphrasePlaceholder" />
+                            </div>
+                          </div>
+                          <label class="gist-check" for="anki-passphrase-remember">
+                            <input id="anki-passphrase-remember" type="checkbox" />
+                            <span data-i18n="settings.passphraseRemember">在本设备记住口令（每次打开自动解锁）</span>
+                          </label>
+                        </form>
+                        <div class="gist-status-line">
+                          <span class="gist-status__dot" aria-hidden="true"></span>
+                          <span id="anki-passphrase-status" class="gist-status__text" data-i18n="settings.passphraseStatusNone">未设置口令</span>
+                        </div>
+                        <div id="anki-passphrase-sync-hint-line" class="gist-status-line" hidden aria-live="polite">
+                          <span class="gist-status__dot" aria-hidden="true"></span>
+                          <span class="gist-status__text is-warning" data-i18n="settings.passphraseSyncHintNoPassphrase">API Key 将不会上传到 Gist / 写入备份（其他数据正常同步）</span>
+                        </div>
+                        <div class="gist-actions">
+                          <button id="btn-anki-passphrase-save" type="button" class="btn btn--filled gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">lock</span>
+                            <span data-i18n="settings.savePassphrase">保存口令</span>
+                          </button>
+                          <button id="btn-anki-passphrase-clear" type="button" class="btn btn--danger gist-actions__btn">
+                            <span class="material-symbols" aria-hidden="true">lock_reset</span>
+                            <span data-i18n="settings.clearPassphrase">清除口令</span>
+                          </button>
                         </div>
                       </footer>
                     </section>
@@ -906,7 +849,7 @@
                       <span class="material-symbols" aria-hidden="true">chevron_left</span>
                       <span data-i18n="common.back">返回</span>
                     </button>
-                    <h3 data-i18n="settings.germanTitle">德语助手设置</h3>
+                    <h3 data-i18n="settings.germanMenu">德语助手</h3>
                   </div>
                   <div class="settings-subpage__content">
                     <!-- Anki LLM 提醒卡片：告知德语助手发音使用 Anki 处理机的 LLM 配置 -->
@@ -1052,6 +995,40 @@
       </div>
     </div>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <!-- 主页圆盘菜单：右下角悬浮钮，向上扇形展开两个子项（高级视觉效果 / 今日临时搁置）。
+         挂载在 .app-shell 内、.view 之外：.view 切换动画带 transform / will-change，
+         会成为 fixed 的包含块，放进去会让按钮跟着视图移动。
+         显隐由 workflow/quick-menu.js 控制（仅 flow 视图可见）。 -->
+    <div id="quick-menu" class="quick-menu" hidden>
+      <div class="quick-menu__scrim" aria-hidden="true"></div>
+      <div id="quick-menu-fan" class="quick-menu__fan" role="menu" aria-label="快捷面板" data-i18n-aria="quickMenu.fanAria">
+        <div class="quick-menu__item quick-menu__item--advanced">
+          <button id="quick-menu-advanced-visual" class="quick-menu__item-main" type="button" role="menuitemcheckbox" aria-checked="false">
+            <span class="material-symbols quick-menu__item-icon" aria-hidden="true">auto_awesome</span>
+            <span class="quick-menu__item-copy">
+              <strong data-i18n="quickMenu.advancedVisual">高级视觉效果</strong>
+              <small id="quick-menu-advanced-visual-hint" data-i18n="quickMenu.advancedVisualHintOff">未开启 · 开启需要密码</small>
+            </span>
+          </button>
+          <button id="quick-menu-params" class="quick-menu__item-extra" type="button" aria-haspopup="dialog" aria-controls="visual-params-modal" aria-expanded="false" data-visual-params-open data-i18n-aria="settings.visualParamsOpen" hidden>
+            <span class="material-symbols" aria-hidden="true">tune</span>
+          </button>
+        </div>
+        <div class="quick-menu__item quick-menu__item--snooze">
+          <button id="quick-menu-snooze" class="quick-menu__item-main" type="button" role="menuitem" aria-haspopup="dialog" aria-controls="snooze-modal">
+            <span class="material-symbols quick-menu__item-icon" aria-hidden="true">pause_circle</span>
+            <span class="quick-menu__item-copy">
+              <strong data-i18n="quickMenu.snooze">今日临时搁置</strong>
+              <small id="quick-menu-snooze-hint" data-i18n="quickMenu.snoozeHintIdle">今天还没有搁置任务</small>
+            </span>
+          </button>
+        </div>
+      </div>
+      <button id="quick-menu-toggle" class="quick-menu__toggle" type="button" aria-expanded="false" aria-controls="quick-menu-fan" aria-label="展开快捷面板" data-i18n-aria="quickMenu.hubOpen">
+        <span class="material-symbols quick-menu__toggle-icon" aria-hidden="true">close</span>
+      </button>
+    </div>
 
     <!-- 德语文章查词层：桌面为受视口约束的锚点浮窗，移动端为全屏层。
          挂载于 .app-shell 内（#toast 之后），规避 .view 的 transform 包含块，

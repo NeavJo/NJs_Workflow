@@ -125,7 +125,7 @@ function bindGistSettingsEvents() {
         await uploadToGist()
       } catch (err) {
         DBG('gist:upload:exception', String(err))
-        showToast(t(I18N.toast.gist.uploadFailed, { msg: err?.message || I18N.toast.gist.unknownError }))
+        showToast(I18N.toast.gist.uploadException, { status: 'error' })
       } finally {
         finishBusy()
       }
@@ -139,7 +139,7 @@ function bindGistSettingsEvents() {
         await pullFromGist()
       } catch (err) {
         DBG('gist:pull:exception', String(err))
-        showToast(t(I18N.toast.gist.pullFailed, { msg: err?.message || I18N.toast.gist.unknownError }))
+        showToast(I18N.toast.gist.pullException, { status: 'error' })
       } finally {
         finishBusy()
       }

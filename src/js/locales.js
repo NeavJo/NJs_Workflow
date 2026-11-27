@@ -397,22 +397,36 @@ export const I18N = {
   },
 
   /* ========================================================================
+   * quickMenu · 主页圆盘菜单（任务 flow 页右下角悬浮钮）
+   * ====================================================================== */
+  quickMenu: {
+    hubOpen: '展开快捷面板',
+    hubClose: '收起快捷面板',
+    fanAria: '快捷面板',
+    advancedVisual: '高级视觉效果',
+    advancedVisualHintOff: '未开启 · 开启需要密码',
+    advancedVisualHintOn: '已开启 · 点按关闭',
+    snooze: '今日临时搁置',
+    snoozeHintIdle: '今天还没有搁置任务',
+    snoozeHintActive: '已搁置 {count} 项任务'
+  },
+
+  /* ========================================================================
    * settings · 设置与数据
    * ====================================================================== */
   settings: {
     eyebrow: 'SETTINGS · DATA',
     title: '设置与数据',
-    heroCopy: '管理你的工作流与同步方式。',
+    heroCopy: '任务、生词与标签、Anki 处理机、德语助手、数据与同步，五个分组统一管理。',
 
-    backupMenu: '数据备份与恢复',
-    backupMenuSub: '导出当前数据，或从 JSON 备份还原。',
-    generalMenu: '通用设置',
-    generalMenuSub: '高级视觉效果与全局偏好。',
-    generalTitle: '通用设置',
-    advancedVisualTitle: '高级视觉效果',
-    advancedVisualSub: '开启后启用厚重质感与灵动光效的交互动效（如任务勾选的光环爆出、光扫等）。关闭则恢复简洁样式。',
-    advancedVisual: '高级视觉',
-    advancedVisualHelper: '开启后启用粒子、流光等高级动效；仅影响动效与装饰。',
+    // 方案 C 五分组主菜单（顺序：任务 / 生词与标签 / Anki 处理机 / 德语助手 / 数据与同步）
+    tasksMenu: '任务',
+    tasksMenuSub: '编辑工作流、添加任务、每日重置。',
+    ankiMenu: 'Anki 处理机',
+    ankiMenuSub: '模型档案、自定义提示词与 APKG 导出配置。',
+    dataMenu: '数据与同步',
+    dataMenuSub: '导出 / 还原备份、Gist 云同步与 API Key 加密口令。',
+    // 高级视觉的参数入口已随圆盘菜单迁移，参数弹窗文案继续复用这里的键
     workflowBorderParticleSpeed: '任务边框粒子速率',
     workflowBorderParticleSpeedHint: '1.00 为基础速度，可输入 0.01 至 10.00。',
     workflowFairyDriftSpeed: '悬停粒子独立漂游速率',
@@ -420,7 +434,6 @@ export const I18N = {
     workflowFairyChaseSpeed: '悬停粒子追逐鼠标速率',
     workflowFairyChaseSpeedHint: '1.00 为基础速度，可输入 0.01 至 10.00。',
     visualParamsTitle: '参数调整',
-    visualParamsHint: '调整边框粒子和其他高级视觉动画参数。',
     visualParamsOpen: '调整参数',
     visualParamsWorkflowGroup: '任务动画',
     advancedVisualLockTitle: '开启高级视觉需要密码',
@@ -429,11 +442,6 @@ export const I18N = {
     advancedVisualLockHint: '高级视觉效果已封存，输入正确密码后才能重新开启。',
     advancedVisualLockError: '密码错误，高级视觉保持关闭。',
     advancedVisualLockConfirm: '确认开启',
-    ankiApiMenu: 'Anki 处理机设置',
-    ankiApiMenuSub: '配置 LLM 接口和处理提示词',
-    ankiExportMenu: 'APKG 导出配置',
-    ankiExportMenuSub: '按标签配置 Anki 卡组和笔记类型，双击导入无需手动选择。',
-    ankiExportTitle: 'APKG 导出配置',
     ankiExportSub: '按笔记标签配置目标卡组与笔记类型；未配置的标签使用默认值。',
     ankiExportDefaultTitle: '默认配置',
     ankiExportDefaultSub: '未配置标签的兜底卡组与笔记类型。',
@@ -462,21 +470,16 @@ export const I18N = {
     ankiExportTutorialConfigBody: '根据控制台输出，在上方表单填写：卡组名、笔记类型 ID、字段名（按顺序全部列出，逗号分隔）、模板名，然后点击「保存配置」。',
     ankiExportTutorialFields: '3. 导出',
     ankiExportTutorialFieldsBody: '回到 Anki 处理机页面，点击「导出 APKG」，下载 .apkg 文件后在 Anki 中导入即可。',
-    workflowMenu: '工作流管理',
-    workflowMenuSub: '添加任务，编辑现有工作流及其排序。',
-    snoozeTile: '今日临时搁置',
-    snoozeTileSub: '选择今天暂时不做的任务，不计入今日进度。',
     snoozeTitle: '今日临时搁置',
     snoozeSubtitle: '勾选今天暂时不做的任务，它们将不计入今日进度。',
     snoozeReasonLabel: '搁置理由（可选）',
     snoozeReasonPlaceholder: '例如：作业多的要死',
     snoozeEmpty: '今天没有可搁置的任务（全部已完成或处于休息日）。',
-    tagsMenu: '生词本标签管理',
-    tagsMenuSub: '维护生词本分类标签，管理自定义标签。',
-    germanMenu: '德语助手设置',
-    germanMenuSub: '字体大小，TTS配置相关。',
+    tagsMenu: '生词与标签',
+    tagsMenuSub: '管理生词本的分类标签。',
+    germanMenu: '德语助手',
+    germanMenuSub: '结果页字号与 TTS 发音 Key。',
 
-    germanTitle: '德语助手设置',
     germanSub: '调节德语助手查词结果的字号。',
     germanFontSizeLabel: '结果页字号',
     germanFontSizeHint: '拖动滑块切换 5 档字号，第 3 档为默认基准；实时作用于结果页所有文本。',
@@ -574,6 +577,11 @@ export const I18N = {
     passphraseStatusRemembered: '口令已保存并记住：每次打开自动解锁',
     passphraseStatusLockedRemembered: '口令已记住但当前会话未解锁',
 
+    // API 配置卡上的加密状态行（只读；口令本体在「数据与同步」组管理）
+    apiEncryptionStatusEncrypted: 'API Key 已加密（口令保护，随 Gist / 备份为密文）',
+    apiEncryptionStatusPlain: 'API Key 未加密（仅保存在本机）',
+    apiEncryptionStatusEmpty: '未保存 API Key',
+
     promptTitle: 'Anki 处理机提示词',
     promptSub: '内置默认提示词；可修改并保存自定义提示词，随 Gist 一并上传与拉取。',
     systemPrompt: 'System Prompt',
@@ -585,6 +593,8 @@ export const I18N = {
 
     tagsTitle: '生词本标签管理',
     tagsSub: '自定义生词本顶部的分类标签。Deutsch/Anki 为系统默认，不可删除或改名。',
+    tagsApkgNote: 'APKG 导出可按标签分组，目标卡组与笔记类型在「Anki 处理机」组配置。',
+    tagsApkgJump: '去配置',
     addTagBtn: '添加标签',
     newTagPlaceholder: '新标签名称',
     renameAria: '重命名',
@@ -780,6 +790,9 @@ export const I18N = {
       clearConfirm: '确认清除本机保存的 GitHub Token 与 Gist ID？\n\n清除后将停止自动同步，云端 Gist 数据不会被删除。',
       uploadFailed: 'Gist 上传失败：{msg}',
       pullFailed: 'Gist 拉取失败：{msg}',
+      /* 异常兜底：不把异常原文拼进界面 */
+      uploadException: '上传失败，请稍后重试。',
+      pullException: '拉取失败，请稍后重试。',
       unknownError: '发生未知错误',
       authFailed: '认证失败：Token 无效或已过期。',
       notFound: '找不到该 Gist，请检查 Gist ID。',
@@ -822,7 +835,26 @@ export const I18N = {
       openai404: '接口或模型不存在（404），请检查 Base URL 与模型 ID。',
       openai429: '请求过于频繁或额度不足（429），请稍后重试。',
       openaiHttp: 'OpenAI 请求失败（HTTP {status}）。',
-      startupSyncFailed: '启动同步失败：{reason}'
+
+      /* ---- 统一通知（notify）与全局错误兜底 ----
+       * 原则：界面只出现"人话 + 下一步该做什么"，
+       * 异常原文（例如 Failed to fetch / TypeError）只进控制台，不进界面。 */
+      userNetwork: '网络连接失败，请检查网络后重试。',
+      userStorage: '本地保存失败，请检查浏览器存储权限后重试。',
+      userValidation: '输入内容不符合要求，请检查后重试。',
+      userAuth: '认证失败，请检查密钥或重新登录后重试。',
+      userBusiness: '操作未能完成，请稍后重试。',
+      userSystem: '页面出现异常，若功能不可用请刷新页面重试。',
+      userUnknown: '操作失败，请重试；若反复出现请刷新页面。',
+      renderRefreshFailed: '部分界面未能刷新，请刷新页面重试。',
+      bindInitFailed: '部分交互未能初始化，请刷新页面重试。',
+      dailyResetFailed: '今日状态重置失败，请刷新页面或手动重置。',
+      /* 通知模块 UI 文案 */
+      moreCount: '还有 {count} 条',
+      repeatCount: '{message}（{count} 次）',
+      closeToastAria: '关闭提示',
+      /* 启动同步失败：不再拼接原始原因（可能是英文异常），改为固定人话 */
+      startupSyncFailed: '启动时同步云端数据失败，可稍后在「设置与数据」中手动拉取。'
     }
   }
 }

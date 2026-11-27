@@ -43,6 +43,9 @@
 /* 浮层提示（覆盖在所有视图之上） */
 @import "./toast.css";
 
+/* 主页圆盘菜单（右下角悬浮钮，需在 toast 之后以覆盖通知条让位规则） */
+@import "./quick-menu.css";
+
 /* Gist 上传状态指示器（桌面端导航栏下方 / 移动端右上角悬浮） */
 @import "./gist-indicator.css";
 

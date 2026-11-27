@@ -185,6 +185,7 @@ export function bindAnkiJumpButton() {
   const guard = createGuard('germanAnkiJumpBound')
   if (guard.is(jumpBtn)) return
   guard.set(jumpBtn)
-  jumpBtn.addEventListener('click', () => switchSettingsView('anki-api'))
+  // 方案 C 分组后 LLM 配置在「Anki 处理机」组（data-settings-view="anki"）
+  jumpBtn.addEventListener('click', () => switchSettingsView('anki'))
   DBG('german-anki-jump:bound')
 }

@@ -28,7 +28,7 @@ import { renderWorkflow } from './workflow/workflow-renderer.js'
 import { bindWorkflowListEvents } from './workflow/workflow-events.js'
 import { MonthlyView } from './workflow/monthly-view.js'
 import { loadSnoozeRecords, onSnoozeChange } from './workflow/snooze-store.js'
-import { bindSnoozeEvents } from './workflow/snooze-events.js'
+import { bindQuickMenuEvents } from './workflow/quick-menu.js'
 
 import {
   loadMemos,
@@ -62,6 +62,7 @@ import {
   enterSettingsView
 } from './settings/index.js'
 import { bindGlobalModalEvents } from './settings/modal.js'
+import { bindAdvancedVisualControls } from './settings/advanced-visual.js'
 
 import {
   pullFromGist,
@@ -202,7 +203,8 @@ try {
 const EVENT_BINDS = [
   { name: 'navigation', fn: bindNavigationEvents },
   { name: 'workflow-list', fn: bindWorkflowListEvents },
-  { name: 'workflow-snooze', fn: bindSnoozeEvents },
+  { name: 'quick-menu', fn: bindQuickMenuEvents },
+  { name: 'advanced-visual', fn: bindAdvancedVisualControls },
   { name: 'memo', fn: bindMemoEvents },
   { name: 'settings', fn: bindSettingsEvents },
   { name: 'editor', fn: bindEditorEvents },
@@ -284,7 +286,8 @@ for (const { name, fn } of EVENT_BINDS) {
       type: ErrorTypes.SYSTEM,
       severity: ErrorSeverity.HIGH,
       source: 'event_binding',
-      context: { stage: 'bind_' + name }
+      context: { stage: 'bind_' + name },
+      userMessage: I18N.toast.system.bindInitFailed
     })
   }
 }
@@ -332,7 +335,8 @@ try {
   errorHandler.handleError(error, {
     type: ErrorTypes.SYSTEM,
     severity: ErrorSeverity.MEDIUM,
-    context: { stage: 'daily_reset' }
+    context: { stage: 'daily_reset' },
+    userMessage: I18N.toast.system.dailyResetFailed
   })
 }
 
@@ -359,9 +363,11 @@ async function autoPullOnStartup() {
     
     const res = await pullFromGist({ silent: true })
     if (!res.ok && res.notify) {
-      showToast(t(I18N.toast.system.startupSyncFailed, { reason: res.notify }))
+      // res.notify 已是本地化人话，可直接展示
+      showToast(res.notify, { status: 'warning', event: 'gist.startup-sync' })
     } else if (!res.ok && res.reason && res.reason !== 'user-cancel') {
-      showToast(t(I18N.toast.system.startupSyncFailed, { reason: res.reason }))
+      // res.reason 是内部原因码，不能直接展示给用户
+      showToast(I18N.toast.system.startupSyncFailed, { status: 'warning', event: 'gist.startup-sync' })
     }
     
     renderGistSettingsInputs()

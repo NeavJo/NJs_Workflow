@@ -1,41 +1,192 @@
 /* =====================================================================
- * toast.css — 底部居中提示
- *   状态变体：success / error / info / warning
- *   移动端自动上移（输入框上方）
+ * toast.css — 统一通知（notify）
+ *   位置：桌面右下角；手机贴底并让出底部安全区与实际操作栏高度
+ *   等级：success / fail / warn / info / loading
+ *   动画：桌面从右滑入/滑出，手机从下滑入/滑出；入场极小回弹，退场不回弹
+ *   桌面：同屏最多 3 条，超出折叠为「还有 N 条」
+ *   移动（≤680px）：只显示 1 条；新旧提示同槽接力（旧的 120ms 下滑淡出，
+ *   新的延迟 60ms 入场）；单行省略号截断，点击展开全文（可折行），再次点击收起
+ *   容器本身不拦截点击/滚动，只有提示本体可交互
  * ===================================================================== */
 
 .toast {
   position: fixed;
-  left: 50%;
-  bottom: calc(24px + env(safe-area-inset-bottom));
   z-index: 100;
-  width: fit-content;
-  max-width: min(520px, calc(100vw - 32px));
-  padding: 14px 18px;
-  border-radius: var(--md-radius-small);
-  background: var(--md-inverse-surface);
-  color: var(--md-inverse-on-surface);
-  opacity: 0;
-  visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 32px));
+  box-sizing: border-box;
+  /* 容器透明且不拦截页面点击/滚动 */
   pointer-events: none;
-  transform: translateX(-50%) translateY(12px);
+  background: none;
+
+  /* ===== 动效参数 =====
+   * 必须与 notify.js 顶部的 ENTER_MS_* / EXIT_MS_* 常量保持一致：
+   * 视觉过渡结束后 JS 才会开始停留计时 / 移除节点，两处不一致会错位。
+   */
+  --toast-in-dur: 240ms;
+  --toast-out-dur: 180ms;
+  --toast-fade-in: 180ms;
+  --toast-fade-out: 140ms;
+  /* 入场极小微回弹（退场不回弹，用纯加速曲线） */
+  --toast-ease-in: cubic-bezier(0.2, 1.04, 0.3, 1);
+  --toast-ease-out: cubic-bezier(0.4, 0, 1, 1);
+  /* 桌面：自身宽度 + 容器右侧留白 + 阴影余量，保证完全离开视口 */
+  --toast-offset-x: calc(100% + 24px + env(safe-area-inset-right) + 8px);
+  /* 移动端会在下方用"底部让位 + 自身高度"覆盖 */
+  --toast-offset-y: 110vh;
+}
+.toast[hidden] { display: none; }
+
+/* 桌面：右下角 */
+@media (min-width: 681px) {
+  .toast {
+    left: auto;
+    right: calc(24px + env(safe-area-inset-right));
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    align-items: flex-end;
+  }
+}
+
+/* 手机：贴底，留出底部安全区与操作栏高度，避免盖住主操作按钮（不做键盘上移避让） */
+@media (max-width: 680px) {
+  .toast {
+    --toast-in-dur: 260ms;
+    --toast-out-dur: 200ms;
+    --toast-fade-out: 150ms;
+    /* bottom 与退场位移共用这一个变量，退场终点必然等于"完全离开屏幕" */
+    --toast-bottom-offset: calc(12px + env(safe-area-inset-bottom));
+    --toast-offset-y: calc(100% + var(--toast-bottom-offset) + 8px);
+    left: 12px;
+    right: 12px;
+    bottom: var(--toast-bottom-offset);
+    max-width: none;
+    align-items: stretch;
+  }
+
+  /* 只显示一条（条目排队由 notify.js 控制），折叠计数条不显示、不占第二行 */
+  .toast__more { display: none; }
+
+  /* 单行显示：超出宽度省略号截断，不允许折行把高度撑起来 */
+  .toast__text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 展开态（notify.js 点击切换）：全文折行显示，仍只此一条；
+     展开只向上增高，收起后容器立刻回到操作栏上方的单行高度 */
+  .toast__item.is-expanded .toast__text {
+    white-space: pre-line;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* 提示可点击（展开/收起），给出手型反馈 */
+  .toast__item { cursor: pointer; }
+}
+
+/* 单条提示：沿用浅紫容器 + 圆角风格 */
+.toast__item {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 12px 12px 14px;
+  border-radius: var(--md-radius-small);
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
   font-size: 14px;
   line-height: 1.5;
-  text-align: center;
+  text-align: left;
   word-break: break-word;
   overflow-wrap: anywhere;
-  box-sizing: border-box;
   box-shadow: var(--md-elevation-3);
-  transition: opacity var(--md-motion-standard), transform var(--md-motion-standard), visibility 0s linear var(--md-motion-standard);
+  /* 只用 transform / opacity，不触发重排 */
+  transition: transform var(--toast-in-dur) var(--toast-ease-in),
+    opacity var(--toast-fade-in) linear;
 }
-/* 显示时立即进入可见状态；visibility 不再延迟，避免内容填充前闪出空胶囊 */
-.toast.is-visible { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); transition: opacity var(--md-motion-standard), transform var(--md-motion-standard); }
-.toast { display: flex; align-items: center; justify-content: center; gap: 10px; }
-.toast__icon { font-size: 20px; line-height: 1; flex: 0 0 auto; }
+.toast__item[hidden] { display: none; }
+
+/* 准备态：已经放在屏幕外且透明，等浏览器完成首帧后再切终态 */
+.toast__item.is-preparing {
+  transition: none;
+  opacity: 0;
+  transform: translateX(var(--toast-offset-x)) scale(0.985);
+}
+/* 动画期间才提升图层，结束后由 JS 摘掉，避免常驻合成层 */
+.toast__item.is-entering { will-change: transform, opacity; }
+
+/* 退场：与入场同距离、不回弹、先加速离开；透明度略早结束，避免出现空壳 */
+.toast__item.is-leaving {
+  transition: transform var(--toast-out-dur) var(--toast-ease-out),
+    opacity var(--toast-fade-out) linear;
+  opacity: 0;
+  transform: translateX(var(--toast-offset-x)) scale(1);
+  pointer-events: none;
+}
+
+/* 手机：改为纵向位移，且不做缩放（宽度占满屏，缩放会显得被挤压） */
+@media (max-width: 680px) {
+  .toast__item.is-preparing { transform: translateY(var(--toast-offset-y)); }
+  .toast__item.is-leaving { transform: translateY(var(--toast-offset-y)); }
+}
+
+.toast__icon { flex: 0 0 auto; font-size: 20px; line-height: 1.4; }
 .toast__text { flex: 1 1 auto; min-width: 0; }
 
-/* Toast 状态变体 */
-.toast--success { background: var(--md-success-container); color: var(--md-on-success-container); }
-.toast--error   { background: var(--md-error-container);   color: var(--md-on-error-container);   }
-.toast--info    { background: var(--md-primary-container); color: var(--md-on-primary-container); }
-.toast--warning { background: color-mix(in srgb, #ffb300 28%, var(--md-surface-container)); color: #5a3a00; }
+/* 关闭按钮：仅提示本体可点击，不影响页面其它区域 */
+.toast__close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px -4px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  opacity: .7;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.toast__close:hover { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
+.toast__close .material-symbols { font-size: 18px; }
+.toast__close[hidden] { display: none; }
+
+/* 等级变体 */
+.toast__item--success { background: var(--md-success-container); color: var(--md-on-success-container); }
+.toast__item--fail    { background: var(--md-error-container);   color: var(--md-on-error-container); }
+.toast__item--warn    { background: color-mix(in srgb, #ffb300 28%, var(--md-surface-container)); color: #5a3a00; }
+.toast__item--info,
+.toast__item--loading { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+
+/* 「还有 N 条」 */
+.toast__more {
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 2px 6px;
+  color: var(--md-on-surface-variant);
+  text-align: right;
+}
+.toast__more[hidden] { display: none; }
+
+/* 减少动态效果：去掉位移与缩放，只保留 120ms 淡入淡出。
+ * responsive.css 的全局规则会把 transition-duration 压到 0.01ms，
+ * 这里用更高优先级 + !important 把提示条恢复成可感知的短淡入淡出。 */
+@media (prefers-reduced-motion: reduce) {
+  .toast__item {
+    transition: opacity 120ms linear !important;
+  }
+  .toast__item.is-entering { will-change: opacity; }
+  .toast__item.is-preparing,
+  .toast__item.is-leaving {
+    transform: none !important;
+  }
+}

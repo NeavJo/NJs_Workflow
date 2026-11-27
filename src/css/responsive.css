@@ -22,9 +22,7 @@
 /* 手机：整体布局改竖排 */
 @media (max-width: 680px) {
   body { overflow-x: hidden; }
-  /* 移动端通知从顶部向下滑入（桌面端保持底部） */
-  .toast { top: calc(12px + env(safe-area-inset-top)); bottom: auto; transform: translateX(-50%) translateY(-16px); }
-  .toast.is-visible { transform: translateX(-50%) translateY(0); }
+  /* 移动端通知位置统一由 toast.css 管理（贴底并留出操作栏高度），此处不再覆盖 */
   .top-bar { position: relative; padding: 14px 16px 10px; }
   .top-bar__row { gap: 10px; }
   .brand { gap: 10px; }
@@ -465,13 +463,10 @@
     scroll-behavior: auto !important;
   }
   .modal__dialog, .modal__scrim, .view, .settings-view,
-  .toast, .workflow-card, .memo-card, .backup-card {
+  .workflow-card, .memo-card, .backup-card {
     transform: none !important;
   }
-  /* Toast 居中依赖 translateX(-50%)，还原它以避免禁用/降低动画时右偏 */
-  .toast {
-    transform: translateX(-50%) !important;
-  }
+  /* 通知条（.toast__item）的位移与缩放由 toast.css 自己降级为纯淡入淡出 */
   .workflow-list--carousel { scroll-snap-type: x proximity; }
   .workflow-carousel-pagination__dot { transition: none !important; }
   .main-content.is-view-transitioning > .view { transition-duration: 220ms; }
