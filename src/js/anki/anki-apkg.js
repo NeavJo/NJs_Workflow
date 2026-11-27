@@ -125,9 +125,13 @@ function deterministicHash(input) {
 /**
  * 把确定性哈希转成 Anki GUID 样式（8-4-4-4-12）。
  * 用面形 + 固定盐值保证同词同 GUID；不同词几乎不可能碰撞。
+ * extraSeed 用于"同一包内多模型/多卡组"场景：同一词条落到不同模板或卡组时
+ * 必须拥有不同 GUID，否则 Anki 的 notes.guid 唯一索引会导致导入失败。
+ * 单模型场景传空串，GUID 与历史行为完全一致（重复导入仍是"更新"而非"新增"）。
  */
-function toAnkiGuid(frontField) {
-  const hash = deterministicHash(`${frontField}\x1fNJAPKG`).slice(0, 32).padEnd(32, '0')
+function toAnkiGuid(frontField, extraSeed = '') {
+  const seed = extraSeed ? `${frontField}\x1fNJAPKG\x1f${extraSeed}` : `${frontField}\x1fNJAPKG`
+  const hash = deterministicHash(seed).slice(0, 32).padEnd(32, '0')
   return [
     hash.slice(0, 8),
     hash.slice(8, 12),
@@ -262,10 +266,14 @@ function buildDeckJson(deckId, deckName) {
  * 直接采用 Anki 官方 schema11_config_as_string 的默认键集，避免缺键导致升级/导入异常；
  * 其中 curModel/curDeck/activeDecks 需指向本包真实存在的模型与卡组 id。
  * 取值为 Anki 默认值：newSpread/collapseTime/timeLim/nextPos/sortType 等。
+ * @param {number|string} modelId - 当前模型 id（多模型时取第一个）
+ * @param {number|string} deckId - 当前卡组 id（多卡组时取第一个）
+ * @param {Array<number|string>} [deckIds] - 本包包含的全部卡组 id，写入 activeDecks
  */
-function buildCollectionConfJson(modelId, deckId) {
+function buildCollectionConfJson(modelId, deckId, deckIds = []) {
+  const activeDecks = deckIds.length ? deckIds : [deckId]
   return JSON.stringify({
-    activeDecks: [deckId],
+    activeDecks,
     curDeck: deckId,
     newSpread: 0,
     collapseTime: 1200,
@@ -452,11 +460,41 @@ async function loadSqlJs() {
 }
 
 /**
+ * 归一化导出分组：每组 = { config, sections }。
+ * config 由 normalizeTagConfig 归一化；sections 为该组待写入的分类文本。
+ * 单篇导出等价于"只有一组的批量导出"，因此两条路径共用同一套建库逻辑。
+ */
+function normalizeGroups(groups) {
+  const list = Array.isArray(groups) ? groups : []
+  const out = []
+  for (const group of list) {
+    const config = normalizeTagConfig(group?.tagConfig)
+    if (!config) {
+      throw createCodedError('invalid-tag-config')
+    }
+    out.push({ config, sections: normalizeSections(group?.sections) })
+  }
+  return out
+}
+
+/**
+ * 模型身份键：手动指定 ID 时以 ID 为准（Anki 按内部数字 ID 匹配笔记类型），
+ * 否则用"模型名 + 字段名 + 模板名"区分，保证同一包内不同模板不会互相覆盖。
+ */
+function modelIdentityKey(config) {
+  const definition = `${config.modelName}\u001f${config.fieldNames.join('\u001f')}\u001f${config.templateName}`
+  if (config.modelId) return `id:${config.modelId}\u001f${definition}`
+  return `auto:${definition}`
+}
+
+/**
  * 构建 Anki 2.1 的 collection.anki2 字节流；返回数据库内容与统计信息。
+ * 支持一个包内包含多组（笔记 + 导出配置）：每组按自己的配置写入对应卡组与笔记类型，
+ * 同名卡组 / 同定义模板在包内复用同一份定义。
  * 资源生命周期用 try/finally 兜底：sql.js 的 Database/Statement 是 WASM 侧资源，
  * 任意一步（建库、建表、插入、导出）抛错都必须释放，否则连续失败会累积内存压力。
  */
-async function buildCollectionBytes(sections, tagConfig) {
+async function buildCollectionBytes(groups) {
   const SQL = await loadSqlJs()
   let db = null
   let noteStmt = null
@@ -466,20 +504,65 @@ async function buildCollectionBytes(sections, tagConfig) {
   const exportNowSeconds = nowSeconds()
   const noteIds = createAnkiIdGenerator()
   const cardIds = createAnkiIdGenerator()
-  // 每条笔记的字段数必须与笔记类型字段数一致；以用户配置的字段名为准（默认 3）。
-  const fieldCount = tagConfig.fieldNames.length
+  const modelIds = createAnkiIdGenerator()
+  const deckIds = createAnkiIdGenerator()
   let noteCount = 0
   let cardCount = 0
 
   try {
     db = new SQL.Database()
-    // Anki 按内部数字 ID 匹配笔记类型：用户填了目标 ID 就用它，从而复用已有类型；
-    // 未填时才生成新 ID（保持旧行为，Anki 会新建一个类型）。
-    // i64 在 JS 里用 Number 表达：Anki ID 为毫秒级时间戳（约 13 位），远小于 2^53，精度安全。
-    const manualModelId = normalizeAnkiModelId(tagConfig.modelId)
-    const modelId = manualModelId ? Number(manualModelId) : createAnkiIdGenerator().take()
-    const preserveExistingModel = Boolean(manualModelId)
-    const deckId = createAnkiIdGenerator().take()
+
+    // 1) 归组：模型按身份键去重，卡组按名称去重。
+    //    手动指定同一个 modelId 却对应不同模板定义属于配置冲突，直接报错而不是静默覆盖。
+    const modelMap = new Map()
+    const deckMap = new Map()
+    const manualModelOwners = new Map()
+    const reservedModelIds = new Set(groups.map((group) => group.config.modelId).filter(Boolean))
+    for (const group of groups) {
+      const identity = modelIdentityKey(group.config)
+      if (!modelMap.has(identity)) {
+        let id
+        if (group.config.modelId) {
+          const owner = manualModelOwners.get(group.config.modelId)
+          if (owner && owner !== identity) {
+            throw createCodedError('duplicate-model-id')
+          }
+          manualModelOwners.set(group.config.modelId, identity)
+          id = Number(group.config.modelId)
+        } else {
+          do { id = modelIds.take() } while (reservedModelIds.has(String(id)))
+          reservedModelIds.add(String(id))
+        }
+        modelMap.set(identity, { id, config: group.config })
+      }
+      const deckName = group.config.deckName
+      if (!deckMap.has(deckName)) {
+        deckMap.set(deckName, { id: deckIds.take(), name: deckName })
+      }
+      group.modelIdentity = identity
+      group.deckName = deckName
+    }
+
+    // 2) 合并模型与卡组定义：col.models / col.decks 都是"id -> 定义"的 JSON 对象。
+    const modelsJson = {}
+    for (const entry of modelMap.values()) {
+      Object.assign(modelsJson, buildModelJson(
+        entry.id,
+        entry.config.modelName,
+        entry.config.fieldNames,
+        entry.config.templateName,
+        Boolean(entry.config.modelId)
+      ))
+    }
+    const decksJson = {}
+    for (const entry of deckMap.values()) {
+      Object.assign(decksJson, buildDeckJson(entry.id, entry.name))
+    }
+
+    const firstModel = modelMap.values().next().value
+    const firstDeck = deckMap.values().next().value
+    const allDeckIds = [...deckMap.values()].map((entry) => entry.id)
+
     db.run(buildSchemaSql())
     db.run(
       `INSERT INTO col (id, crt, mod, scm, ver, dty, usn, ls, conf, models, decks, dconf, tags)
@@ -493,9 +576,9 @@ async function buildCollectionBytes(sections, tagConfig) {
         0,
         0,
         0,
-        buildCollectionConfJson(modelId, deckId),
-        JSON.stringify(buildModelJson(modelId, tagConfig.modelName, tagConfig.fieldNames, tagConfig.templateName, preserveExistingModel)),
-        JSON.stringify(buildDeckJson(deckId, tagConfig.deckName)),
+        buildCollectionConfJson(firstModel.id, firstDeck.id, allDeckIds),
+        JSON.stringify(modelsJson),
+        JSON.stringify(decksJson),
         // dconf 必须是完整的 DeckConfSchema11，缺 maxTaken 等必填字段会被 Anki 拒绝导入。
         JSON.stringify(buildDeckConfigJson()),
         // col.tags 是「标签名 -> 使用次数」的映射（JSON object），不是数组；
@@ -511,55 +594,71 @@ async function buildCollectionBytes(sections, tagConfig) {
     cardStmt = db.prepare(`INSERT INTO cards (id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data)
                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 
-    for (const section of normalizeSections(sections)) {
-      if (section?.name && section.name === ABNORMAL_CATEGORY_NAME) continue
-      const notes = parseNoteLines(section, fieldCount)
-      for (const fields of notes) {
-        // 规模上限：主线程建库 + 同步 ZIP 会随条目数线性变慢，到达上限立即中止，
-        // 避免整批写完后才失败、白耗内存与 CPU。
-        if (noteCount >= MAX_EXPORT_NOTES) {
-          throw createCodedError('note-limit-exceeded')
+    // 3) 写入笔记：每条笔记按所属分组的配置写入对应 mid（模板）与 did（卡组）。
+    //    GUID 作用域：单模板包沿用"仅按词面形"的旧口径（重复导入仍是更新而非新增）；
+    //    多模板包必须把模板身份并入种子，否则同词落到不同模板会撞 Anki 的 guid 唯一约束。
+    const routeKeys = new Set(groups.map((group) => `${group.modelIdentity}\u001f${group.deckName}`))
+    const multiRoute = routeKeys.size > 1
+    const seenNotes = new Set()
+    for (const group of groups) {
+      const modelEntry = modelMap.get(group.modelIdentity)
+      const deckEntry = deckMap.get(group.deckName)
+      // 每条笔记的字段数必须与笔记类型字段数一致；以用户配置的字段名为准（默认 3）。
+      const fieldCount = modelEntry.config.fieldNames.length
+      const guidScope = multiRoute ? `${group.modelIdentity}\u001f${group.deckName}` : ''
+      for (const section of group.sections) {
+        if (section?.name && section.name === ABNORMAL_CATEGORY_NAME) continue
+        const notes = parseNoteLines(section, fieldCount)
+        for (const fields of notes) {
+          // 同一模板下同词只保留一条：Anki 以 guid 标识笔记，重复词条会造成导入冲突。
+          const dedupeKey = `${group.modelIdentity}\u001f${group.deckName}\u001f${fields[0]}`
+          if (seenNotes.has(dedupeKey)) continue
+          // 规模上限只计算真正写入的有效笔记，重复词条不应耗尽额度。
+          if (noteCount >= MAX_EXPORT_NOTES) {
+            throw createCodedError('note-limit-exceeded')
+          }
+          seenNotes.add(dedupeKey)
+          const noteId = noteIds.take()
+          const cardId = cardIds.take()
+          const flds = fields.join('\u001f')
+          const guid = toAnkiGuid(fields[0], guidScope)
+          noteStmt.run([
+            noteId,
+            guid,
+            modelEntry.id,
+            // notes.mod 为 TimestampSecs（秒）；写毫秒会落在数万年后且被 Anki 原样保留。
+            exportNowSeconds,
+            0,
+            '',
+            flds,
+            fields[0],
+            0,
+            0,
+            ''
+          ])
+          cardStmt.run([
+            cardId,
+            noteId,
+            deckEntry.id,
+            0,
+            exportNowSeconds,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            ''
+          ])
+          noteCount += 1
+          cardCount += 1
         }
-        const noteId = noteIds.take()
-        const cardId = cardIds.take()
-        const flds = fields.join('\u001f')
-        const guid = toAnkiGuid(fields[0])
-        noteStmt.run([
-          noteId,
-          guid,
-          modelId,
-          // notes.mod 为 TimestampSecs（秒）；写毫秒会落在数万年后且被 Anki 原样保留。
-          exportNowSeconds,
-          0,
-          '',
-          flds,
-          fields[0],
-          0,
-          0,
-          ''
-        ])
-        cardStmt.run([
-          cardId,
-          noteId,
-          deckId,
-          0,
-          exportNowSeconds,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          ''
-        ])
-        noteCount += 1
-        cardCount += 1
       }
     }
     return { dbBytes: db.export(), noteCount, cardCount }
@@ -578,21 +677,31 @@ async function buildCollectionBytes(sections, tagConfig) {
  * 返回 { bytes, noteCount, cardCount }：字节可直接交给 triggerDownload，
  * 统计信息用于上层展示真实导出数量（而非分类数量）。
  * 失败时抛出带稳定 code 的错误：invalid-tag-config / input-too-large /
- * invalid-model-id / note-limit-exceeded / empty-export / engine-load-failed。
+ * invalid-model-id / duplicate-model-id / note-limit-exceeded / empty-export / engine-load-failed。
  */
 export async function generateApkg(sections, tagConfig) {
-  const config = normalizeTagConfig(tagConfig)
-  if (!config) {
+  return generateApkgBatch([{ sections, tagConfig }])
+}
+
+/**
+ * 批量生成单个 APKG：多组（笔记 + 导出配置）合并进同一个包。
+ * 每组按自己的配置写入对应卡组与笔记类型；同名卡组与同定义模板在包内复用。
+ * @param {Array<{sections: Array, tagConfig: object}>} groups
+ */
+export async function generateApkgBatch(groups) {
+  const normalizedGroups = normalizeGroups(groups)
+  if (!normalizedGroups.length) {
     throw createCodedError('invalid-tag-config')
   }
-  const normalizedSections = normalizeSections(sections)
   // 规模门槛前置：在解析/建库之前先估算原始文本量，超限直接失败，避免无谓的 CPU 与内存开销。
-  const inputChars = normalizedSections.reduce((sum, section) => sum + String(section?.text || '').length, 0)
+  const inputChars = normalizedGroups.reduce((sum, group) => sum + group.sections.reduce(
+    (inner, section) => inner + String(section?.text || '').length, 0
+  ), 0)
   if (inputChars > MAX_INPUT_CHARS) {
-    DBG('anki:apkg:input-too-large', { inputChars, limit: MAX_INPUT_CHARS, sections: normalizedSections.length })
+    DBG('anki:apkg:input-too-large', { inputChars, limit: MAX_INPUT_CHARS, groups: normalizedGroups.length })
     throw createCodedError('input-too-large')
   }
-  const { dbBytes, noteCount, cardCount } = await buildCollectionBytes(normalizedSections, config)
+  const { dbBytes, noteCount, cardCount } = await buildCollectionBytes(normalizedGroups)
   // 空导出拦截：没有有效词条时不再打包，避免下载一个空 APKG 让用户误以为导出成功。
   if (noteCount === 0 || cardCount === 0) {
     DBG('anki:apkg:empty', { noteCount, cardCount })
@@ -611,13 +720,34 @@ export async function generateApkg(sections, tagConfig) {
     dbLength: dbBytes.length,
     noteCount,
     cardCount,
-    deckName: config.deckName,
-    modelName: config.modelName,
-    modelId: config.modelId || '(auto)',
-    fieldNames: config.fieldNames,
-    templateName: config.templateName
+    groups: normalizedGroups.length
   })
   return { bytes: apkgBytes, noteCount, cardCount }
+}
+
+/**
+ * APKG 生成互斥锁：全量导出、单分类导出与批量导出共享同一把锁。
+ * 按钮级 disabled 只覆盖各自按钮，无法阻止"生成中再点另一个导出"，
+ * 因此必须在业务层拒绝并发——否则会同时建两份 SQLite 并同步 ZIP，造成内存峰值与卡顿。
+ * 策略：已有导出进行时直接拒绝新请求（不排队、不取消），并由调用方在 finally 释放。
+ */
+let apkgGenerating = false
+
+/** 申请 APKG 生成执行权；已有生成任务时返回 false。 */
+export function acquireApkgGeneration() {
+  if (apkgGenerating) return false
+  apkgGenerating = true
+  return true
+}
+
+/** 释放 APKG 生成执行权。 */
+export function releaseApkgGeneration() {
+  apkgGenerating = false
+}
+
+/** 查询当前是否有 APKG 生成任务在运行。 */
+export function isApkgGenerating() {
+  return apkgGenerating
 }
 
 /**
@@ -627,4 +757,4 @@ export function isAbnormalCategory(name) {
   return String(name || '') === ABNORMAL_CATEGORY_NAME
 }
 
-export default { generateApkg, isAbnormalCategory }
+export default { generateApkg, generateApkgBatch, isAbnormalCategory }

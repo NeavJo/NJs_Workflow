@@ -8,7 +8,6 @@ import { cleanExpiredMemos } from './memo-retention.js'
 import { appendToCategory, parseMemoContentToMap } from './memo-parser.js'
 import { requestAutoUpload } from '../core/sync-hooks.js'
 import { createPubSub } from '../utils/pubsub.js'
-import { getUserSettings } from '../core/settings-store.js'
 
 /**
  * 笔记状态源：memos 数组 + memoTags + 当前选中标签。
@@ -30,6 +29,10 @@ let memoFilterTag = ''
 // 不落盘：与 selectedMemoTag 保持一致的策略，刷新后回到默认分类，
 // 避免在生词本页面残留的分类被误套用到其它场景。
 let selectedMemoCategory = ''
+// 「追加到明日」改为纯内存状态：刷新页面即回到关闭。
+// 不再写入 userSettings，避免跨午夜残留、目标日期漂移等持久化边界问题；
+// 页面内跨天时仍由 appendOrDailyMemo 按"当前日期 + 1 天"实时计算目标日期。
+let memoAppendTomorrow = false
 
 function persistMemosImpl() {
   const ok = safeStorageSet(MEMO_STORAGE_KEY, memos)
@@ -216,42 +219,20 @@ export function setSelectedMemoCategory(name) {
   selectedMemoCategory = String(name || '').trim()
 }
 
+/**
+ * 读取「追加到明日」开关状态。
+ * 只读内存：刷新后必为 false，不参与任何持久化与同步。
+ */
 export function isMemoAppendTomorrowEnabled() {
-  const settings = getUserSettings()
-  return settings.memoAppendTomorrow === true && settings.memoAppendTomorrowDate !== ''
+  return memoAppendTomorrow
 }
 
-export function getMemoAppendTomorrowDate() {
-  return String(getUserSettings().memoAppendTomorrowDate || '')
-}
-
-export function setMemoAppendTomorrowEnabled(enabled, targetDate = '') {
-  const settings = getUserSettings()
-  const previous = {
-    enabled: settings.memoAppendTomorrow === true,
-    targetDate: String(settings.memoAppendTomorrowDate || '')
-  }
-  settings.memoAppendTomorrow = enabled === true
-  settings.memoAppendTomorrowDate = settings.memoAppendTomorrow
-    ? String(targetDate || '')
-    : ''
-  if (persistUserSettings()) return true
-  settings.memoAppendTomorrow = previous.enabled
-  settings.memoAppendTomorrowDate = previous.targetDate
-  return false
-}
-
-export function disableExpiredMemoAppendTomorrow(today = getTodayDateString()) {
-  const settings = getUserSettings()
-  if (settings.memoAppendTomorrow !== true) return false
-  const targetDate = String(settings.memoAppendTomorrowDate || '')
-  if (!targetDate) {
-    const nextDate = new Date()
-    nextDate.setDate(nextDate.getDate() + 1)
-    return setMemoAppendTomorrowEnabled(true, getTodayDateString(nextDate))
-  }
-  if (!targetDate || today < targetDate) return false
-  return setMemoAppendTomorrowEnabled(false)
+/**
+ * 设置「追加到明日」开关状态。
+ * 仅修改内存，不写 localStorage / userSettings，因此不存在持久化失败分支。
+ */
+export function setMemoAppendTomorrowEnabled(enabled) {
+  memoAppendTomorrow = enabled === true
 }
 
 /**

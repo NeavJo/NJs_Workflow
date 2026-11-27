@@ -9,6 +9,7 @@ import { setAnkiInputEdited } from './anki-store.js'
 import { initAnkiProfileSelect } from './anki-profile-select.js'
 import { $ } from '../utils/dom-utils.js'
 import { createGuard } from '../utils/guard.js'
+import { hasAnkiProfileCredentials } from '../config/storage-config.js'
 
 /**
  * Anki 处理机业务编排：
@@ -17,7 +18,28 @@ import { createGuard } from '../utils/guard.js'
  */
 
 // JS 级重入锁：与按钮 disabled 的 UI 防护形成双保险，防止程序化/竞态触发并发重复请求。
+// 该锁同时被单篇处理与批量处理共享，保证同一时刻只有一个 LLM 请求在跑。
 let isProcessing = false
+
+/**
+ * 申请 Anki 处理执行权（单篇与批量共用）。
+ * @returns {boolean} true 表示获得执行权；false 表示已有任务在运行。
+ */
+export function acquireAnkiProcessing() {
+  if (isProcessing) return false
+  isProcessing = true
+  return true
+}
+
+/** 释放 Anki 处理执行权。 */
+export function releaseAnkiProcessing() {
+  isProcessing = false
+}
+
+/** 查询当前是否有 Anki 处理任务在运行（批量与单篇共用同一把锁）。 */
+export function isAnkiProcessingActive() {
+  return isProcessing
+}
 
 // 幂等守卫：确保 bindAnkiProcessorEvents 可被重复调用而不重复绑定监听（D1）。
 const guardProcessor = createGuard('ankiProcessorEventsBound')
@@ -43,56 +65,75 @@ function setProcessing(processing) {
   if (loadingEl) loadingEl.hidden = !processing
 }
 
+/**
+ * 单篇 Anki 处理管线（单篇入口与批量入口共用）。
+ * 只负责"文本 → LLM → 语言判定 → 原始输出"，不触碰 DOM、不渲染、不下载，
+ * 以便批量流程可以顺序复用同一套逻辑而不污染 Anki 页面当前输入与输出。
+ * @param {string} words - 待处理文本
+ * @param {{signal?: AbortSignal}} [options] - signal 用于中途取消
+ * @returns {Promise<{ok: boolean, text?: string, error?: string, code?: string}>}
+ */
+export async function processAnkiText(words, { signal, profile, systemPrompt: promptSnapshot } = {}) {
+  const input = String(words || '').trim()
+  if (!input) return { ok: false, error: I18N.toast.anki.noWordsInput }
+  const activeProfile = profile || getActiveProfile() || {}
+  if (profile ? !hasAnkiProfileCredentials(activeProfile) : !hasAnkiCredentials()) {
+    return { ok: false, error: I18N.toast.anki.noApiConfig }
+  }
+  const systemPrompt = typeof promptSnapshot === 'string' ? promptSnapshot : await loadAnkiPrompt()
+  if (!systemPrompt) return { ok: false, error: I18N.toast.anki.promptLoadFailed }
+  const request = activeProfile.apiType === 'openai' ? requestOpenAI : requestGemini
+  const result = await request({
+    baseUrl: activeProfile.baseUrl,
+    modelId: activeProfile.modelId,
+    apiKey: activeProfile.apiKey,
+    systemPrompt,
+    userMessage: input,
+    signal
+  })
+  if (!result.ok) {
+    // 外部取消由 fetch 层标记为 'aborted'，与超时/网络错误区分开，批量流程据此标记"已取消"。
+    const code = result.error === 'aborted' ? 'aborted' : ''
+    return { ok: false, error: result.error || I18N.toast.anki.aiFailed, code }
+  }
+  const languageError = detectAnkiLanguageError(result.text)
+  if (languageError) {
+    return {
+      ok: false,
+      error: t(I18N.toast.anki.languageUndetermined, { reason: languageError.reason }),
+      code: 'language-undetermined'
+    }
+  }
+  return { ok: true, text: result.text }
+}
+
 export async function runAnkiProcessing() {
-  if (isProcessing) return
+  if (!acquireAnkiProcessing()) return
   const inputEl = $('anki-input')
   const cardsEl = $('anki-output-cards')
-  if (!inputEl || !cardsEl) return
+  if (!inputEl || !cardsEl) {
+    releaseAnkiProcessing()
+    return
+  }
   const words = inputEl.value.trim()
   if (!words) {
     showToast(I18N.toast.anki.noWordsInput)
+    releaseAnkiProcessing()
     return
   }
   if (!hasAnkiCredentials()) {
     showToast(I18N.toast.anki.noApiConfig)
+    releaseAnkiProcessing()
     return
   }
   const activeProfile = getActiveProfile() || {}
-  isProcessing = true
   setProcessing(true)
   try {
-    const systemPrompt = await loadAnkiPrompt()
-    if (!systemPrompt) {
-      showToast(I18N.toast.anki.promptLoadFailed)
-      return
-    }
     DBG('anki:run:start', { apiType: activeProfile.apiType, modelId: activeProfile.modelId, wordsLen: words.length })
-    const result = activeProfile.apiType === 'openai'
-      ? await requestOpenAI({
-          baseUrl: activeProfile.baseUrl,
-          modelId: activeProfile.modelId,
-          apiKey: activeProfile.apiKey,
-          systemPrompt,
-          userMessage: words
-        })
-      : await requestGemini({
-          baseUrl: activeProfile.baseUrl,
-          modelId: activeProfile.modelId,
-          apiKey: activeProfile.apiKey,
-          systemPrompt,
-          userMessage: words
-        })
+    const result = await processAnkiText(words)
     if (!result.ok) {
-      DBG('anki:run:error', { status: result.status, error: result.error })
-      showToast(result.error || I18N.toast.anki.aiFailed)
-      return
-    }
-    // 语言错误哨兵：属于业务级拒收，不是异常。命中后整批结果不渲染、不写入任何卡片，
-    // 必须放在 renderAnkiCards 之前，避免哨兵块被当作普通分类渲染出来。
-    const languageError = detectAnkiLanguageError(result.text)
-    if (languageError) {
-      DBG('anki:run:language-error', { stage: 'parse-language', reason: languageError.reason })
-      showToast(t(I18N.toast.anki.languageUndetermined, { reason: languageError.reason }), { status: 'error' })
+      DBG('anki:run:error', { error: result.error, code: result.code || '' })
+      showToast(result.error, { status: 'error' })
       return
     }
     const cardCount = renderAnkiCards(result.text)
@@ -103,7 +144,7 @@ export async function runAnkiProcessing() {
     showToast(I18N.toast.anki.aiError)
   } finally {
     setProcessing(false)
-    isProcessing = false
+    releaseAnkiProcessing()
   }
 }
 

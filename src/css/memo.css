@@ -162,12 +162,159 @@
   background: color-mix(in srgb, var(--md-primary-container) 42%, var(--md-surface-container));
 }
 
-.memo-card__header {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; margin-bottom: 10px;
+/* ===== 批量状态：左侧 3px 色条 + meta 行徽章 =====
+ * 不占用边框——边框已经被"选中"（2px outline）和"编辑"（1px primary 边框）征用，
+ * 三者叠加会出现三重描边。色条由 overflow:hidden 自动裁进圆角。
+ */
+.memo-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: transparent;
+  pointer-events: none;
+  transition: background var(--md-motion-standard);
 }
+.memo-card--batch-processing::before {
+  background: var(--md-primary);
+  animation: memo-batch-breathe 1.8s ease-in-out infinite;
+}
+.memo-card--batch-success::before { background: var(--md-success); }
+.memo-card--batch-failed::before { background: var(--md-error); }
+.memo-card--batch-cancelled::before { background: color-mix(in srgb, var(--md-outline) 55%, transparent); }
+/* 失败底色做得很浅：今天卡已有 42% 主色容器底，叠加会发浊，故两者同时成立时不铺底色 */
+.memo-card--batch-failed:not(.memo-card--today):not(.is-editing) {
+  background: color-mix(in srgb, var(--md-error-container) 14%, var(--md-surface-container));
+}
+
+.memo-card__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  transition: background var(--md-motion-standard), color var(--md-motion-standard);
+}
+.memo-card__status[hidden] { display: none; }
+.memo-card__status .material-symbols { font-size: 14px; }
+.memo-card__status[data-status="processing"] {
+  background: color-mix(in srgb, var(--md-primary-container) 72%, transparent);
+  color: var(--md-on-primary-container);
+}
+.memo-card__status[data-status="processing"] .material-symbols { animation: memo-batch-spin 1.4s linear infinite; }
+.memo-card__status[data-status="success"] {
+  background: color-mix(in srgb, var(--md-success-container) 55%, transparent);
+  color: var(--md-success);
+}
+.memo-card__status[data-status="failed"] {
+  background: color-mix(in srgb, var(--md-error-container) 60%, transparent);
+  color: var(--md-error);
+}
+.memo-card__status[data-status="cancelled"] {
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface-variant);
+}
+
+@keyframes memo-batch-spin { to { transform: rotate(360deg); } }
+@keyframes memo-batch-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .memo-card--batch-processing::before,
+  .memo-card__status[data-status="processing"] .material-symbols { animation: none; }
+  .memo-batch__progress-fill { transition: none; }
+  .memo-batch__failures-chevron { transition: none; }
+}
+
+/* 卡片头部：网格三栏 —— 元信息 / 操作图标 / 圆形勾选。
+ * 用 grid 而不是 flex + order，是因为编辑态需要把元信息单独占一整行、
+ * 同时让圆形勾选留在右上角；grid-template-areas 能直接表达这个意图。 */
+.memo-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "meta actions check";
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.memo-card.is-selected {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 1px;
+}
+/* 失败条目跳转后的临时高亮：用 box-shadow 而非 outline，避免与选中态抢同一属性 */
+.memo-card.is-batch-jump-target {
+  box-shadow: 0 0 0 2px var(--md-primary), var(--md-elevation-2);
+}
+/* 勾选命中区：40px 盒子 + 负外边距抵消，视觉行高仍按 32px 计算，
+ * 这样时间戳/标签那一行不会被一个放大的命中区推高。 */
+.memo-card__select-wrap {
+  grid-area: check;
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: -4px 0 -4px 6px; /* 左 6px + 头部 12px 间距 = 与删除按钮 18px 的防误触间距 */
+  cursor: pointer;
+}
+.memo-card__select-wrap:has(.memo-card__select:disabled) { cursor: not-allowed; }
+
+/* 圆形勾选：appearance:none 自绘，绕开原生复选框在深色/移动端的渲染差异。
+ * 对勾用内联 SVG 背景而不是 ::after，避免部分浏览器不支持 input 伪元素。 */
+.memo-card__select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--md-on-surface-variant) 55%, transparent);
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 14px 14px;
+  cursor: pointer;
+  transition: background-color var(--md-motion-standard), border-color var(--md-motion-standard), opacity var(--md-motion-standard);
+}
+.memo-card__select:hover { border-color: var(--md-primary); }
+.memo-card__select:checked {
+  border-color: var(--md-primary);
+  background-color: var(--md-primary);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='5 12.5 10 17.5 19 7'/></svg>");
+}
+.memo-card__select:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+}
+/* 批量运行中禁用：只降对比度，形状与填充规则完全不变 */
+.memo-card__select:disabled { opacity: .4; cursor: not-allowed; }
+.memo-card__select:disabled:hover { border-color: color-mix(in srgb, var(--md-on-surface-variant) 55%, transparent); }
+
+/* 元信息：单行不换行；窄屏时长标签截断，时间与词数保持完整 */
 .memo-card__meta {
-  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: 0;
+}
+.memo-card:not(.is-editing) .memo-card__meta { overflow: hidden; }
+.memo-card__meta > .memo-card__time,
+.memo-card__meta > .chip,
+.memo-card__meta > .memo-card__status { flex: 0 0 auto; }
+.memo-card__header .memo-tag-chip--display {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .memo-card__time { color: var(--md-on-surface-variant); font-size: 12px; font-weight: 500; }
 .memo-card__time--today {
@@ -216,28 +363,36 @@
   .memo-card__content { transition: none; }
 }
 
-/* 卡片主体区：内容区与右下角大号复制按钮共存 */
+/* 卡片主体区：只承载内容，高度完全由内容决定。
+ * 旧版需要 min-height:119px 是因为两个按钮绝对定位在右下角、必须为它们预留竖直空间；
+ * 按钮移到独立操作行后这条约束消失，再保留下限就会在短笔记下方重新制造空白。 */
 .memo-card__body {
   position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
-  min-height: 119px; /* 5行文本（14px × 1.7 line-height × 5） */
 }
 .memo-card.is-editing .memo-card__body { flex-direction: column; align-items: stretch; }
 
-/* 右下角大号复制按钮（只读态可见） */
+/* 底部操作行：复制 / Anki 处理横排右对齐；与内容同宽，不再绝对定位挤压正文 */
+.memo-card__actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.memo-card__actions-row[hidden] { display: none; }
+
+/* 复制按钮（次要操作，tonal 样式；与 Anki 按钮同一行右对齐） */
 .memo-card__copy {
-  position: absolute;
-  right: 16px;
-  bottom: 70px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   min-width: 96px;
-  height: 44px;
+  height: 40px;
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
@@ -250,7 +405,6 @@
   letter-spacing: .01em;
   box-shadow: var(--md-elevation-1);
   transition: background var(--md-motion-standard), color var(--md-motion-standard), transform var(--md-motion-standard), box-shadow var(--md-motion-standard), filter var(--md-motion-standard);
-  z-index: 10; /* 提高层级，浮于文字之上 */
 }
 .memo-card__copy .material-symbols { font-size: 20px; }
 .memo-card__copy__label { white-space: nowrap; }
@@ -263,16 +417,14 @@
 }
 .memo-card__copy:active { transform: translateY(0); }
 
+/* Anki 处理（主操作，primary-container 底；批量运行中由 JS 置 disabled） */
 .memo-card__anki {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   min-width: 96px;
-  height: 44px;
+  height: 40px;
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
@@ -285,7 +437,6 @@
   letter-spacing: .01em;
   box-shadow: var(--md-elevation-1);
   transition: background var(--md-motion-standard), color var(--md-motion-standard), transform var(--md-motion-standard), box-shadow var(--md-motion-standard), filter var(--md-motion-standard);
-  z-index: 10; /* 提高层级，浮于文字之上 */
 }
 .memo-card__anki .material-symbols { font-size: 20px; }
 .memo-card__anki:hover {
@@ -296,6 +447,21 @@
   filter: brightness(1.04);
 }
 .memo-card__anki:active { transform: translateY(0); }
+/* 批量运行中单条入口不可用：单条与批量共用一条处理通道，置灰比"点了没反应"更诚实 */
+.memo-card__anki:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+  filter: none;
+}
+.memo-card__anki:disabled:hover {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  transform: none;
+  box-shadow: none;
+  filter: none;
+}
 
 /* 独立折叠控制区（长笔记用） */
 .memo-card__footer {
@@ -340,10 +506,308 @@
 
 /* 操作按钮组 */
 .memo-card__actions {
+  grid-area: actions;
+  justify-self: end;
   display: inline-flex;
   align-items: center;
   gap: 2px;
 }
+
+/* ===== 批量 Anki 处理：面板与卡片流共用同一套卡片语言 =====
+ * 容器沿用 memo-card 的 surface-container / 20px 圆角 / elevation-1，
+ * 让"批次"看起来就是卡片流的一部分，而不是夹在中间的裸工具条。
+ */
+.memo-batch {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.memo-batch[hidden] { display: none; }
+
+.memo-batch__panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: var(--md-radius-medium);
+  background: var(--md-surface-container);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 14%, transparent);
+  box-shadow: var(--md-elevation-1);
+}
+
+.memo-batch__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.memo-batch__status {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.memo-batch__headline {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--md-on-surface);
+  overflow-wrap: anywhere;
+}
+
+/* 计数 chip：值为 0 时灰化且不铺底色，避免"成功 0"抢占注意力 */
+.memo-batch__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.memo-batch__counts[hidden] { display: none; }
+.memo-batch__count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  transition: background var(--md-motion-standard), color var(--md-motion-standard);
+}
+.memo-batch__count-value { font-size: 12px; font-variant-numeric: tabular-nums; }
+.memo-batch__count.is-zero { background: transparent; opacity: .55; }
+.memo-batch__count[data-batch-count="success"]:not(.is-zero) {
+  background: color-mix(in srgb, var(--md-success-container) 55%, transparent);
+  color: var(--md-success);
+}
+.memo-batch__count[data-batch-count="failed"]:not(.is-zero) {
+  background: color-mix(in srgb, var(--md-error-container) 60%, transparent);
+  color: var(--md-error);
+}
+.memo-batch__count[data-batch-count="cancelled"]:not(.is-zero) {
+  background: color-mix(in srgb, var(--md-outline) 18%, transparent);
+  color: var(--md-on-surface-variant);
+}
+
+.memo-batch__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.memo-batch__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--md-outline) 28%, transparent);
+  border-radius: 999px;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--md-motion-standard), border-color var(--md-motion-standard), color var(--md-motion-standard), transform var(--md-motion-standard), box-shadow var(--md-motion-standard);
+}
+.memo-batch__btn .material-symbols { font-size: 18px; }
+.memo-batch__btn:hover {
+  border-color: var(--md-primary);
+  background: var(--md-surface-container-highest);
+  transform: translateY(-1px);
+}
+.memo-batch__btn:active { transform: translateY(0); }
+.memo-batch__btn[hidden] { display: none; }
+.memo-batch__btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.memo-batch__btn--primary {
+  border-color: transparent;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  box-shadow: var(--md-elevation-1);
+}
+.memo-batch__btn--primary:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--md-primary) 86%, #000);
+  box-shadow: var(--md-elevation-2);
+}
+.memo-batch__btn--danger {
+  border-color: color-mix(in srgb, var(--md-error) 38%, transparent);
+  background: color-mix(in srgb, var(--md-error-container) 48%, transparent);
+  color: var(--md-error);
+}
+.memo-batch__btn--danger:hover {
+  border-color: var(--md-error);
+  background: color-mix(in srgb, var(--md-error-container) 72%, transparent);
+}
+.memo-batch__btn--icon { width: 38px; padding: 0; }
+
+/* 更多菜单：只有"下载合并 APKG"这类结果型操作才收进来 */
+.memo-batch__more { position: relative; display: inline-flex; }
+.memo-batch__more[hidden] { display: none; }
+.memo-batch__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: 2px;
+  min-width: 176px;
+  padding: 6px;
+  border-radius: var(--md-radius-small);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 18%, transparent);
+  background: var(--md-surface-container-high);
+  box-shadow: var(--md-elevation-3);
+}
+.memo-batch__menu[hidden] { display: none; }
+.memo-batch__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--md-on-surface);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.memo-batch__menu-item[hidden] { display: none; }
+.memo-batch__menu-item:hover { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.memo-batch__menu-item .material-symbols { font-size: 18px; }
+
+/* 运行中进度：4px 线性条 + 等宽数字，不做环形（和圆角卡片语言更搭） */
+.memo-batch__progress { display: flex; align-items: center; gap: 10px; }
+.memo-batch__progress[hidden] { display: none; }
+.memo-batch__progress-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--md-surface-variant);
+  overflow: hidden;
+}
+.memo-batch__progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--md-primary), color-mix(in srgb, var(--md-primary) 76%, var(--md-tertiary)));
+  transition: width 300ms ease-out;
+}
+.memo-batch__progress-text {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--md-on-surface-variant);
+}
+
+/* 失败详情折叠区 */
+.memo-batch__failures {
+  border-radius: var(--md-radius-medium);
+  border: 1px solid color-mix(in srgb, var(--md-outline) 14%, transparent);
+  background: var(--md-surface-container);
+  box-shadow: var(--md-elevation-1);
+  overflow: hidden;
+}
+.memo-batch__failures[hidden] { display: none; }
+.memo-batch__failures-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--md-on-surface);
+}
+.memo-batch__failures-summary::-webkit-details-marker { display: none; }
+.memo-batch__failures-summary > .material-symbols:first-child { font-size: 18px; color: var(--md-error); }
+.memo-batch__failures-chevron {
+  margin-left: auto;
+  font-size: 20px;
+  color: var(--md-on-surface-variant);
+  transition: transform var(--md-motion-standard);
+}
+.memo-batch__failures[open] .memo-batch__failures-chevron { transform: rotate(180deg); }
+
+.memo-batch__failure-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 6px;
+  max-height: 40vh;
+  overflow: auto;
+}
+.memo-batch__failure { border-top: 1px solid var(--md-outline-variant); }
+.memo-batch__failure-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--md-on-surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--md-motion-fast);
+}
+.memo-batch__failure-main:hover { background: color-mix(in srgb, var(--md-secondary-container) 60%, transparent); }
+.memo-batch__failure-main:focus-visible { outline: 2px solid var(--md-primary); outline-offset: -2px; }
+.memo-batch__failure-index {
+  flex: 0 0 auto;
+  width: 22px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--md-on-surface-variant) 55%, transparent);
+}
+.memo-batch__failure-body { display: grid; gap: 3px; flex: 1 1 auto; min-width: 0; }
+.memo-batch__failure-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.memo-batch__failure-time { font-size: 12px; font-weight: 500; color: var(--md-on-surface-variant); }
+.memo-batch__failure-head .memo-tag-chip { padding: 1px 8px; font-size: 10.5px; }
+.memo-batch__failure-reason {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--md-error);
+}
+.memo-batch__failure-jump {
+  flex: 0 0 auto;
+  font-size: 16px;
+  color: var(--md-outline);
+  opacity: 0;
+  transition: opacity var(--md-motion-fast);
+}
+.memo-batch__failure-main:hover .memo-batch__failure-jump,
+.memo-batch__failure-main:focus-visible .memo-batch__failure-jump { opacity: .8; }
+.memo-batch__failure-group {
+  padding: 10px 16px 4px;
+  border-top: 1px solid var(--md-outline-variant);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--md-on-surface-variant);
+}
+.memo-batch__failure--grouped .memo-batch__failure-main { padding-left: 30px; }
+.memo-batch__failure-group + .memo-batch__failure--grouped { border-top: 0; }
 
 /* 通用圆形小图标按钮（编辑/保存/取消/删除） */
 .memo-card__edit,

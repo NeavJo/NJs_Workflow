@@ -53,7 +53,7 @@ function buildOpenAIUrl(baseUrl) {
  * Google Gemini 原生 API。
  * URL: {baseUrl}/v1beta/models/{modelId}:generateContent?key={apiKey}
  */
-export function requestGemini({ baseUrl, modelId, apiKey, systemPrompt, userMessage }) {
+export function requestGemini({ baseUrl, modelId, apiKey, systemPrompt, userMessage, signal }) {
   const url = buildGeminiUrl(baseUrl, modelId)
   if (!url) {
     DBG('anki:gemini:bad-url', { hasBaseUrl: Boolean(baseUrl), modelId })
@@ -68,9 +68,11 @@ export function requestGemini({ baseUrl, modelId, apiKey, systemPrompt, userMess
   return fetchWithTimeout(fullUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal
   }, ANKI_API_TIMEOUT, I18N.toast.system.timeout).then((res) => {
     if (!res.ok || !res.data) {
+      if (res.error === 'aborted') return { ok: false, status: 0, text: '', error: 'aborted' }
       return { ok: false, status: res.status, text: '', error: geminiErrorMessage(res) }
     }
     const candidate = res.data.candidates && res.data.candidates[0]
@@ -87,7 +89,7 @@ export function requestGemini({ baseUrl, modelId, apiKey, systemPrompt, userMess
  * 通用 OpenAI 兼容接口。
  * URL: {baseUrl}/chat/completions（已含则原样使用）
  */
-export function requestOpenAI({ baseUrl, modelId, apiKey, systemPrompt, userMessage }) {
+export function requestOpenAI({ baseUrl, modelId, apiKey, systemPrompt, userMessage, signal }) {
   const url = buildOpenAIUrl(baseUrl)
   if (!url) {
     DBG('anki:openai:bad-url', { hasBaseUrl: Boolean(baseUrl), modelId })
@@ -108,9 +110,11 @@ export function requestOpenAI({ baseUrl, modelId, apiKey, systemPrompt, userMess
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey || ''}`
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal
   }, ANKI_API_TIMEOUT, I18N.toast.system.timeout).then((res) => {
     if (!res.ok || !res.data) {
+      if (res.error === 'aborted') return { ok: false, status: 0, text: '', error: 'aborted' }
       return { ok: false, status: res.status, text: '', error: openaiErrorMessage(res) }
     }
     const choice = res.data.choices && res.data.choices[0]

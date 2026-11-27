@@ -3,6 +3,7 @@ import { I18N, t as translate } from '../locales.js'
 import { escapeHtml } from '../utils/dom-utils.js'
 import { getMemos, getMemoTags, getSelectedMemoTag, getMemoFilterTag, onMemosChange, onMemoTagsChange } from './memo-store.js'
 import { getTodayDateString } from '../core/date.js'
+import { getSelectedMemoIds, reconcileMemoBatchSelection, isMemoBatchRunning, getMemoBatchStatus, applyMemoCardStatus } from '../anki/anki-batch.js'
 
 /**
  * 笔记渲染层：只读 store 产出 DOM；事件绑定交给 memo-events.js。
@@ -25,6 +26,9 @@ function createMemoCard(memo, memoTags) {
   const card = document.createElement('article')
   card.className = 'memo-card'
   card.dataset.id = String(memo.id)
+  const selected = getSelectedMemoIds().includes(Number(memo.id))
+  const batchRunning = isMemoBatchRunning()
+  card.classList.toggle('is-selected', selected)
   const lineCount = countWords(memo.content)
   const isLong = lineCount > 7
   card.classList.toggle("memo-card--long", isLong)
@@ -35,10 +39,17 @@ function createMemoCard(memo, memoTags) {
 
   card.innerHTML = `
     <div class="memo-card__header">
+      <label class="memo-card__select-wrap" aria-label="${escapeHtml(I18N.memo.selectMemo)}">
+        <input class="memo-card__select" type="checkbox" aria-label="${escapeHtml(I18N.memo.selectMemo)}" ${selected ? 'checked' : ''} ${batchRunning ? 'disabled' : ''}>
+      </label>
       <div class="memo-card__meta">
         <time class="memo-card__time" datetime=""></time>
         <span class="memo-tag-chip memo-tag-chip--display"></span>
         <span class="chip chip--outline" style="margin-left:4px;">${translate(I18N.memo.wordCount, { count: lineCount })}</span>
+        <span class="memo-card__status" data-memo-status hidden>
+          <span class="material-symbols" aria-hidden="true"></span>
+          <span data-memo-status-label></span>
+        </span>
         <select class="memo-tag-select" hidden aria-label="${escapeHtml(I18N.common.selectTagAria)}">${tagOptions}</select>
       </div>
       <div class="memo-card__actions">
@@ -59,14 +70,6 @@ function createMemoCard(memo, memoTags) {
     <div class="memo-card__body">
       <pre class="memo-card__content${isLong ? ' memo-card__content--collapsed' : ''}"></pre>
       <textarea class="memo-card__editor" rows="5" hidden></textarea>
-      <button class="memo-card__copy" type="button" data-memo-action="copy" aria-label="${I18N.memo.copyAria}">
-        <span class="material-symbols" aria-hidden="true">content_copy</span>
-        <span class="memo-card__copy__label">${I18N.memo.copyBtn}</span>
-      </button>
-      <button class="memo-card__anki" type="button" data-memo-action="anki" aria-label="复制到Anki处理机">
-        <span class="material-symbols" aria-hidden="true">psychology</span>
-        <span class="memo-card__anki__label">${I18N.anki.processInAnki}</span>
-      </button>
     </div>
     ${isLong ? `<div class="memo-card__footer">
       <button class="memo-card__expand" type="button" data-memo-action="expand" aria-label="${I18N.memo.expandAria}" aria-expanded="false">
@@ -74,6 +77,16 @@ function createMemoCard(memo, memoTags) {
         <span class="material-symbols memo-card__expand__icon" aria-hidden="true">expand_more</span>
       </button>
     </div>` : ''}
+    <div class="memo-card__actions-row">
+      <button class="memo-card__copy" type="button" data-memo-action="copy" aria-label="${I18N.memo.copyAria}">
+        <span class="material-symbols" aria-hidden="true">content_copy</span>
+        <span class="memo-card__copy__label">${I18N.memo.copyBtn}</span>
+      </button>
+      <button class="memo-card__anki" type="button" data-memo-action="anki" aria-label="${I18N.memo.ankiAria}" ${batchRunning ? 'disabled' : ''}>
+        <span class="material-symbols" aria-hidden="true">psychology</span>
+        <span class="memo-card__anki__label">${I18N.anki.processInAnki}</span>
+      </button>
+    </div>
   `;
 
   const timeEl = card.querySelector('.memo-card__time')
@@ -89,6 +102,9 @@ function createMemoCard(memo, memoTags) {
   const contentEl = card.querySelector('.memo-card__content')
   contentEl.textContent = memo.content
 
+  // 批量状态由 anki-batch 统一填内容：批量运行中重建卡片流时也不能丢状态。
+  applyMemoCardStatus(card, getMemoBatchStatus(memo.id))
+
   return card
 }
 
@@ -96,6 +112,7 @@ export function renderMemos() {
   const stream = document.querySelector('#memo-stream')
   if (!stream) return
   const allMemos = getMemos()
+  reconcileMemoBatchSelection(allMemos)
   const tags = getMemoTags()
   const filterTag = getMemoFilterTag()
   let sorted = [...allMemos].sort((a, b) => b.id - a.id)

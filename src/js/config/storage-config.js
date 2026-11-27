@@ -76,7 +76,7 @@ export function normalizeAnkiModelId(value) {
     : typeof value === 'number' && Number.isFinite(value)
       ? String(Math.trunc(value))
       : ''
-  return /^\d+$/.test(text) ? text : ''
+  return /^\d+$/.test(text) ? text.replace(/^0+(?=\d)/, '') : ''
 }
 
 /**
@@ -141,9 +141,7 @@ export const DEFAULT_USER_SETTINGS = Object.freeze({
   advancedVisual: false,
   workflowBorderParticleSpeed: 1,
   workflowFairyDriftSpeed: 1,
-  workflowFairyChaseSpeed: 1,
-  memoAppendTomorrow: false,
-  memoAppendTomorrowDate: ''
+  workflowFairyChaseSpeed: 1
 })
 
 function generateAnkiProfileId() {
@@ -378,6 +376,9 @@ export function normalizeUserSettings(raw, options = {}) {
   // 高级视觉已重新启用并允许长期生效：持久化与备份中的 advancedVisual 按普通布尔字段接受。
   for (const key of Object.keys(raw)) {
     const v = raw[key]
+    // 「追加到明日」已改为纯内存状态（刷新即取消），不再持久化。
+    // 丢弃旧存储与旧备份中的残留键，避免它被继续写回快照造成跨设备残留。
+    if (key === 'memoAppendTomorrow' || key === 'memoAppendTomorrowDate') continue
     if (key === 'workflowBorderParticleSpeed' || key === 'workflowFairyDriftSpeed' || key === 'workflowFairyChaseSpeed') {
       const speed = Number(v)
       if (Number.isFinite(speed)) base[key] = Math.min(10, Math.max(0.01, speed))

@@ -12,6 +12,7 @@ import { uploadToGist } from '../backup/gist-sync.js'
 import { setAnkiSourceTag, setAnkiInputEdited } from '../anki/anki-store.js'
 import { refreshAnkiSourceStatus } from '../anki/anki-output.js'
 import { createGuard } from '../utils/guard.js'
+import { bindMemoBatchEvents, getSelectedMemoIds, setMemoBatchSelection, runMemoBatch } from '../anki/anki-batch.js'
 
 /**
  * 笔记事件层：表单提交、刷新、标签选择、卡片按钮（编辑/保存/取消/删除/复制）。
@@ -82,7 +83,8 @@ function handleCardAction(card, action) {
   } else if (action === 'copy') {
     copyMemoContent(card)
   } else if (action === 'anki') {
-    processInAnki(card)
+    if (getSelectedMemoIds().length) runMemoBatch().catch((err) => DBG('memo:anki:batch-error', { name: err?.name || 'Error' }))
+    else processInAnki(card)
   } else if (action === 'expand') {
     toggleExpand(card)
   }
@@ -188,6 +190,9 @@ function enterEditMode(card, id) {
   if (deleteBtn) deleteBtn.hidden = true
   if (copyBtn) copyBtn.hidden = true
   if (ankiBtn) ankiBtn.hidden = true
+  // 两个按钮同属底部操作行：整行收起，避免编辑态留下一条空白行。
+  const actionsRow = card.querySelector('.memo-card__actions-row')
+  if (actionsRow) actionsRow.hidden = true
   const footer = card.querySelector('.memo-card__footer')
   if (footer) footer.hidden = true
   card.classList.add('is-editing')
@@ -216,6 +221,8 @@ function exitEditMode(card) {
   if (deleteBtn) deleteBtn.hidden = false
   if (copyBtn) copyBtn.hidden = false
   if (ankiBtn) ankiBtn.hidden = false
+  const actionsRow = card.querySelector('.memo-card__actions-row')
+  if (actionsRow) actionsRow.hidden = false
   const footer = card.querySelector('.memo-card__footer')
   if (footer) footer.hidden = false
   card.classList.remove('is-editing')
@@ -370,15 +377,7 @@ export function bindMemoEvents() {
     appendTomorrowToggle.checked = isMemoAppendTomorrowEnabled()
     cleanups.push(bindBatch(appendTomorrowToggle, [{
       event: 'change',
-      handler: () => {
-        const targetDate = new Date()
-        targetDate.setDate(targetDate.getDate() + 1)
-        const ok = setMemoAppendTomorrowEnabled(
-          appendTomorrowToggle.checked,
-          appendTomorrowToggle.checked ? getTodayDateString(targetDate) : ''
-        )
-        if (!ok) appendTomorrowToggle.checked = isMemoAppendTomorrowEnabled()
-      }
+      handler: () => setMemoAppendTomorrowEnabled(appendTomorrowToggle.checked)
     }]))
   }
 
@@ -448,8 +447,21 @@ export function bindMemoEvents() {
   if (stream) {
     const streamEvents = [
       {
+        event: 'change',
+        handler: (event) => {
+          if (!event.target.matches('.memo-card__select')) return
+          const card = event.target.closest('.memo-card')
+          const ids = new Set(getSelectedMemoIds())
+          const id = Number(card?.dataset.id)
+          if (event.target.checked) ids.add(id)
+          else ids.delete(id)
+          setMemoBatchSelection([...ids])
+        }
+      },
+      {
         event: 'click',
         handler: (event) => {
+          if (event.target.closest('.memo-card__select-wrap')) return
           const btn = event.target.closest('button[data-memo-action]')
           if (!btn) return
           const card = btn.closest('.memo-card')
@@ -478,6 +490,8 @@ export function bindMemoEvents() {
 
     cleanups.push(bindBatch(stream, streamEvents))
   }
+
+  bindMemoBatchEvents()
 
   /* ===== 筛选标签事件绑定 ===== */
 
@@ -543,9 +557,4 @@ export function bindMemoEvents() {
       if (typeof cleanup === 'function') cleanup()
     }
   }
-}
-
-export function syncMemoAppendTomorrowToggle() {
-  const toggle = document.getElementById('memo-append-tomorrow')
-  if (toggle) toggle.checked = isMemoAppendTomorrowEnabled()
 }

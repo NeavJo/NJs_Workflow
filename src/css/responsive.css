@@ -283,9 +283,41 @@
     min-height: 34px;
     padding: 5px 9px 5px 7px;
   }
-  .memo-card.is-editing .memo-card__header { flex-wrap: wrap; }
-  .memo-card.is-editing .memo-card__meta { flex: 1 1 100%; }
-  .memo-card.is-editing .memo-card__actions { flex: 1 0 auto; justify-content: flex-end; }
+  /* 编辑态：元信息单独占满第一行（标签下拉需要完整宽度），
+   * 保存/取消退到第二行，圆形勾选仍固定在右上角。 */
+  .memo-card.is-editing .memo-card__header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "meta check"
+      "actions actions";
+    row-gap: 8px;
+  }
+  .memo-card.is-editing .memo-card__actions { justify-self: end; }
+
+  /* 触屏命中区放大到 44px（视觉圆点仍是 22px），负外边距保持行高不变 */
+  .memo-card__select-wrap {
+    width: 44px;
+    height: 44px;
+    margin: -6px 0 -6px 6px;
+  }
+  /* 窄屏下标签优先让位：时间与词数不截断，标签最多占一行剩余宽度的 42% */
+  .memo-card__header .memo-tag-chip--display { max-width: 42%; }
+
+  /* ===== 批量面板：摘要与操作改上下两段，按钮等宽铺满 ===== */
+  .memo-batch__panel { padding: 14px; }
+  .memo-batch__top { flex-direction: column; align-items: stretch; gap: 10px; }
+  .memo-batch__actions { flex-wrap: wrap; }
+  .memo-batch__btn { flex: 1 1 auto; }
+  .memo-batch__btn--icon { flex: 0 0 38px; }
+  .memo-batch__failures-summary { padding: 11px 14px; }
+  .memo-batch__failure-main { padding: 10px 14px; }
+  .memo-batch__failure--grouped .memo-batch__failure-main { padding-left: 26px; }
+
+  /* 卡片操作横排：复制收成图标按钮，Anki 处理占满剩余宽度 */
+  .memo-card__actions-row { gap: 8px; }
+  .memo-card__copy { width: 40px; min-width: 40px; padding: 0; }
+  .memo-card__copy__label { display: none; }
+  .memo-card__anki { flex: 1 1 auto; }
 
   /* 小屏手机（≤480px）：带按钮的任务卡上下堆叠，文字区完整宽度 */
   @media (max-width: 480px) {

@@ -1,13 +1,13 @@
 import { DBG } from '../core/debug.js'
 import { showToast } from '../ui.js'
 import { I18N, t } from '../locales.js'
-import { getTodayDateString } from '../core/date.js'
+import { getTodayDateString, getCompactTimestamp } from '../core/date.js'
 import { triggerDownload } from '../backup/snapshot.js'
 import { $ } from '../utils/dom-utils.js'
 import { createGuard } from '../utils/guard.js'
 import { getSelectedMemoTag, getMemoTags } from '../memo/memo-store.js'
 import { getAnkiSourceTag, getAnkiInputEdited } from './anki-store.js'
-import { generateApkg } from './anki-apkg.js'
+import { generateApkg, generateApkgBatch, acquireApkgGeneration, releaseApkgGeneration } from './anki-apkg.js'
 import { getAnkiExportConfigForTag, hasAnkiExportTagConfig, onAnkiExportSettingsChange } from './anki-export-store.js'
 import { validateAnkiExportFieldNames } from '../config/storage-config.js'
 
@@ -30,7 +30,7 @@ const ABNORMAL_CATEGORY_NAME = '异常词汇'
 /**
  * 判断某分类是否为约定中的"异常词汇"分类（精确匹配，非包含匹配）。
  */
-function isAbnormalCategory(name) {
+export function isAbnormalCategory(name) {
   return String(name || '') === ABNORMAL_CATEGORY_NAME
 }
 
@@ -107,12 +107,11 @@ function notifyDefaultTagConfig(tagId, hasTagConfig) {
 }
 
 /**
- * APKG 业务级生成互斥锁：全量导出与单分类导出共享同一把锁。
+ * APKG 业务级生成互斥锁：全量导出、单分类导出与批量导出共享同一把锁（定义在 anki-apkg.js）。
  * 按钮级 disabled 只覆盖各自按钮，无法阻止"全量生成中再点单分类"，因此必须
  * 在业务层拒绝并发——否则会同时建两份 SQLite 并同步 ZIP，造成内存峰值与卡顿。
  * 策略：已有导出进行时直接拒绝新请求（不排队、不取消），并由 finally 释放。
  */
-let apkgGenerating = false
 
 /**
  * 将 APKG 生成错误的稳定 code 映射为中文提示；未知 code 归为通用失败。
@@ -130,6 +129,8 @@ function resolveApkgErrorToast(code) {
       return I18N.toast.anki.apkgEmptyExport
     case 'invalid-model-id':
       return I18N.toast.anki.apkgInvalidModelId
+    case 'duplicate-model-id':
+      return I18N.toast.anki.apkgDuplicateModelId
     default:
       return I18N.toast.anki.apkgFailed
   }
@@ -471,12 +472,11 @@ async function exportCategoryApkg(name, btn) {
     return
   }
   notifyDefaultTagConfig(tagId, hasTagConfig)
-  // 业务级互斥：全量/单分类共享同一把锁，已有导出进行时直接拒绝，避免并发建库与压缩。
-  if (apkgGenerating) {
+  // 业务级互斥：全量/单分类/批量共享同一把锁，已有导出进行时直接拒绝，避免并发建库与压缩。
+  if (!acquireApkgGeneration()) {
     showToast(I18N.toast.anki.apkgBusy, { status: 'info' })
     return
   }
-  apkgGenerating = true
   const labelEl = btn?.children?.[1]
   const prevLabel = labelEl ? labelEl.textContent : ''
   if (btn) btn.disabled = true
@@ -497,7 +497,7 @@ async function exportCategoryApkg(name, btn) {
     DBG('anki:apkg:category-error', { code, message: String(err && err.message || err) })
     showToast(resolveApkgErrorToast(code), { status: 'error' })
   } finally {
-    apkgGenerating = false
+    releaseApkgGeneration()
     if (btn) btn.disabled = false
     if (btn) btn.classList.remove('is-busy')
     if (labelEl && prevLabel) labelEl.textContent = prevLabel
@@ -561,12 +561,11 @@ export async function downloadAllAnkiApkg() {
   }
 
   notifyDefaultTagConfig(tagId, hasTagConfig)
-  // 业务级互斥：与单分类导出共享同一把锁，已有导出进行时直接拒绝。
-  if (apkgGenerating) {
+  // 业务级互斥：与单分类/批量导出共享同一把锁，已有导出进行时直接拒绝。
+  if (!acquireApkgGeneration()) {
     showToast(I18N.toast.anki.apkgBusy, { status: 'info' })
     return
   }
-  apkgGenerating = true
   const apkgBtn = $('anki-apkg')
   const apkgLabel = apkgBtn?.querySelector('[data-i18n="anki.exportApkg"]')
   const prevLabel = apkgLabel?.textContent
@@ -588,10 +587,42 @@ export async function downloadAllAnkiApkg() {
     DBG('anki:apkg:error', { code, message: String(err && err.message || err) })
     showToast(resolveApkgErrorToast(code), { status: 'error' })
   } finally {
-    apkgGenerating = false
+    releaseApkgGeneration()
     if (apkgBtn) apkgBtn.disabled = false
     if (apkgBtn) apkgBtn.classList.remove('is-busy')
     if (apkgLabel && prevLabel) apkgLabel.textContent = prevLabel
+  }
+}
+
+export async function downloadBatchAnkiApkg(groups, { noteCount } = {}) {
+  if (!Array.isArray(groups) || groups.length === 0) {
+    showToast(I18N.toast.anki.apkgEmpty)
+    return { ok: false, code: 'empty-export' }
+  }
+  if (!acquireApkgGeneration()) {
+    showToast(I18N.toast.anki.apkgBusy, { status: 'info' })
+    return { ok: false, code: 'apkg-busy' }
+  }
+  try {
+    const result = await generateApkgBatch(groups)
+    const filename = `${APKG_FILENAME_PREFIX}Batch_${getCompactTimestamp()}_${String(Date.now() % 1000).padStart(3, '0')}.apkg`
+    triggerDownload(filename, result.bytes, 'application/apkg')
+    DBG('anki:apkg:batch-download', {
+      groups: groups.length,
+      bytes: result.bytes.length,
+      noteCount: result.noteCount,
+      cardCount: result.cardCount,
+      processedMemoCount: Number(noteCount) || 0
+    })
+    showToast(t(I18N.toast.anki.apkgGenerated, { count: String(result.noteCount) }), { status: 'success' })
+    return { ok: true, ...result, filename }
+  } catch (err) {
+    const code = err && err.code
+    DBG('anki:apkg:batch-error', { code, message: String(err && err.message || err) })
+    showToast(resolveApkgErrorToast(code), { status: 'error' })
+    return { ok: false, code: code || 'apkg-failed' }
+  } finally {
+    releaseApkgGeneration()
   }
 }
 
